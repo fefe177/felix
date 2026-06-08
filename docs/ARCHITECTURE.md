@@ -145,6 +145,11 @@ contract.
   `desktop_move`, `desktop_click`, `desktop_double_click`, `desktop_scroll`,
   `desktop_type`, `desktop_press` and `desktop_activate_window`. Coordinates are
   validated against the current screen size before any movement.
+- **Vision tools** (`vision_tools.py`) - `vision_screenshot` (capture, save,
+  emit a `screenshot` event, return a small preview), `vision_describe` (VLM
+  description), `vision_ocr` (recognised text + box count) and `vision_find`
+  (locate on-screen text and return click coordinates). Heavy work runs in a
+  worker thread.
 
 ## Browser and desktop controllers
 
@@ -163,6 +168,29 @@ attaches them to the `ToolContext`.
   without a display), so the module loads fine on headless CI; backends can be
   injected for tests. Each blocking call runs via `asyncio.to_thread`, and
   `FAILSAFE`/`PAUSE` follow `DesktopConfig`.
+
+## Vision system
+
+The `localpilot.vision` package lets the agent "see" the screen.
+
+- **`capture.py`** - `capture_screen` / `capture_region` (via `mss`, returning
+  Pillow images), `save_temp` and `to_base64_png`. Capturing needs a real
+  display, so it works on the Windows desktop but not on a headless CI box.
+- **`ocr.py`** - a wrapper around `rapidocr-onnxruntime`. The ONNX engine is
+  expensive, so it is initialised lazily and cached. `ocr_image` returns
+  `OCRBox` results (text, confidence, box, centre); `full_text` joins them.
+- **`vlm.py`** - `describe_image` reuses the OpenAI-compatible client and sends
+  the screenshot inline as a base64 data URL in the OpenAI vision content
+  format, using the model from `VisionConfig`. It returns a clear notice when
+  vision is disabled.
+- **`elements.py`** - pragmatic, **OCR/text-based** element finding:
+  `find_text_elements` turns recognised lines into click targets and
+  `find_element_by_text` returns the best match's centre and a similarity score.
+  This is a heuristic bridge to `desktop_click`; it does not do pixel-accurate
+  button segmentation and cannot find icon-only controls.
+
+The container wires the LLM client into the `ToolContext` (vision description's
+dependency); the OCR engine is the lazily-initialised vision service.
 
 ## Safety modes
 
@@ -194,19 +222,21 @@ Phase 0 delivers only the foundations:
 - the Typer CLI (`run`, `config`);
 - tests and project metadata.
 
-## Phase 3 (current state)
+## Phase 4 (current state)
 
-Phase 3 adds the browser and desktop controllers and their tools:
+Phase 4 adds the vision system and its tools:
 
-- `BrowserController` (Playwright/Chromium) and the browser tools;
-- `DesktopController` (PyAutoGUI/PyGetWindow, lazy imports) and the desktop
-  tools with coordinate validation;
-- container singletons `browser_controller` / `desktop_controller`, wired into
-  the `ToolContext`, plus a `shutdown()` cleanup hook used by `main.py run`.
+- screen capture (`mss`), lazy OCR (`rapidocr-onnxruntime`), VLM description
+  (reusing the OpenAI-compatible client with the OpenAI vision format) and
+  heuristic text-based element finding;
+- the `vision_screenshot`, `vision_describe`, `vision_ocr` and `vision_find`
+  tools;
+- the LLM client wired into the `ToolContext` for vision description.
 
 Earlier phases delivered the configuration system, structured logging and event
 bus, the dependency container, the CLI, the LLM layer with the defensive
-tool-call parser, and the tool-system foundation with file/terminal tools.
+tool-call parser, the tool-system foundation with file/terminal tools, and the
+browser and desktop controllers with their tools.
 
-No vision, agent loop, multi-agent or server functionality is implemented yet —
-those arrive in later phases.
+No agent loop, multi-agent or server functionality is implemented yet — those
+arrive in later phases.

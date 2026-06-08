@@ -42,6 +42,12 @@ from localpilot.tools.file_tools import (
 )
 from localpilot.tools.registry import ToolManager
 from localpilot.tools.terminal_tools import RunCommandTool, RunPythonTool
+from localpilot.tools.vision_tools import (
+    VisionDescribeTool,
+    VisionFindTool,
+    VisionOcrTool,
+    VisionScreenshotTool,
+)
 
 
 def get_builtin_tools() -> list[Tool]:
@@ -72,6 +78,10 @@ __all__ = [
     "RunCommandTool",
     "RunPythonTool",
     "SafetyGate",
+    "VisionDescribeTool",
+    "VisionFindTool",
+    "VisionOcrTool",
+    "VisionScreenshotTool",
     "Tool",
     "ToolContext",
     "ToolManager",

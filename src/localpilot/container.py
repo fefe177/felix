@@ -99,7 +99,8 @@ class Container:
 
         The working directory (from ``config.terminal.workdir``) is resolved and
         created if missing so tools and subprocesses have a valid ``cwd``. The
-        browser and desktop controllers are attached (each starts lazily).
+        browser and desktop controllers and the LLM client (used by the vision
+        tools) are attached; each underlying service initialises lazily.
         """
 
         if self._tool_context is None:
@@ -112,6 +113,7 @@ class Container:
                 workdir=workdir,
                 browser_controller=self.browser_controller,
                 desktop_controller=self.desktop_controller,
+                llm_client=self.llm_client,
             )
         return self._tool_context
 

@@ -26,6 +26,7 @@ from localpilot.logging.setup import EventBus
 if TYPE_CHECKING:
     from localpilot.browser.controller import BrowserController
     from localpilot.desktop.controller import DesktopController
+    from localpilot.llm.base import LLMClient
 
 
 class ToolResult(BaseModel):
@@ -68,6 +69,7 @@ class ToolContext:
             the real policy; the default permits everything).
         browser_controller: The shared browser controller, if available.
         desktop_controller: The shared desktop controller, if available.
+        llm_client: The shared LLM client, used by vision description, if available.
     """
 
     config: AppConfig
@@ -77,6 +79,7 @@ class ToolContext:
     safety_gate: SafetyGate = field(default=_always_allow)
     browser_controller: BrowserController | None = None
     desktop_controller: DesktopController | None = None
+    llm_client: LLMClient | None = None
 
 
 @runtime_checkable

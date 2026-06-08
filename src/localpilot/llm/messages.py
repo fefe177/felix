@@ -42,13 +42,15 @@ class Message(BaseModel):
 
     Attributes:
         role: Who authored the message.
-        content: The textual content (may be empty for tool-call turns).
+        content: The textual content, or a list of OpenAI content parts for
+            multimodal (vision) messages, e.g. ``{"type": "image_url", ...}``.
+            May be empty for tool-call turns.
         name: Optional author/tool name (used by ``tool``/function messages).
         tool_call_id: Optional id linking a ``tool`` message to its tool call.
     """
 
     role: Role
-    content: str = ""
+    content: str | list[dict[str, Any]] = ""
     name: str | None = None
     tool_call_id: str | None = None
 
