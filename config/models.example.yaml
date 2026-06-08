@@ -1,0 +1,39 @@
+# Example LLM model profiles for LocalPilot.
+#
+# Copy one of the `llm:` blocks below into your own config file (or pass it via
+# `localpilot run --config <file>`) to switch the active model. Each profile
+# targets a local, OpenAI-compatible endpoint (Ollama or LM Studio).
+
+profiles:
+  # Qwen3 8B on Ollama - a balanced general-purpose default.
+  qwen3:
+    llm:
+      backend: ollama
+      base_url: http://localhost:11434/v1
+      api_key: not-needed
+      model: qwen3:8b
+      temperature: 0.7
+      max_tokens: 4096
+      request_timeout_s: 120
+
+  # DeepSeek-R1 14B on Ollama - stronger step-by-step reasoning, slower.
+  deepseek-r1:
+    llm:
+      backend: ollama
+      base_url: http://localhost:11434/v1
+      api_key: not-needed
+      model: deepseek-r1:14b
+      temperature: 0.6
+      max_tokens: 8192
+      request_timeout_s: 240
+
+  # Llama 3.x 8B Instruct served by LM Studio.
+  llama3:
+    llm:
+      backend: lmstudio
+      base_url: http://localhost:1234/v1
+      api_key: lm-studio
+      model: llama-3.1-8b-instruct
+      temperature: 0.7
+      max_tokens: 4096
+      request_timeout_s: 120

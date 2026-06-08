@@ -1,0 +1,54 @@
+# LocalPilot default configuration (Phase 0).
+#
+# These values are the lowest-precedence layer. They are overridden, in order,
+# by an optional user YAML file and then by environment variables prefixed with
+# LOCALPILOT_ (nested keys joined with "__", e.g. LOCALPILOT_LLM__MODEL).
+
+log_level: INFO
+
+llm:
+  backend: ollama
+  base_url: http://localhost:11434/v1
+  api_key: not-needed
+  model: qwen3:8b
+  temperature: 0.7
+  max_tokens: 4096
+  request_timeout_s: 120
+
+vision:
+  enabled: true
+  model: qwen2.5vl:7b
+  ocr_enabled: true
+
+memory:
+  db_path: ./workspace/localpilot.db
+  vector_enabled: false
+
+browser:
+  headless: false
+  default_timeout_ms: 30000
+
+desktop:
+  failsafe: true
+  move_duration_s: 0.2
+
+terminal:
+  timeout_s: 60
+  workdir: ./workspace
+  command_blocklist:
+    - format
+    - del
+    - rmdir
+    - rm -rf
+    - shutdown
+    - reboot
+    - diskpart
+    - mkfs
+
+safety:
+  mode: balanced
+  restrict_writes_to_workdir: true
+
+server:
+  host: 127.0.0.1
+  port: 8765
