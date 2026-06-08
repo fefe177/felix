@@ -4,11 +4,12 @@ LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
 to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
 Studio) and to operate the desktop, browser and terminal on your behalf.
 
-## Status: Phase 0 (scaffold)
+## Status: Phase 1 (LLM layer & tool-call parser)
 
-This repository currently contains **only the project scaffold and toolchain**.
-There is intentionally no agent logic, no tools, no vision/browser/desktop
-automation and no GUI yet. Phase 0 delivers:
+This repository contains the foundation plus the model-facing LLM layer. There
+is intentionally still no concrete tool, no agent loop and no GUI yet.
+
+Phase 0 delivered:
 
 - the full package layout with placeholder sub-packages for later phases;
 - a typed, validated configuration system (Pydantic + YAML + `.env`);
@@ -17,8 +18,20 @@ automation and no GUI yet. Phase 0 delivers:
 - a Typer command-line interface with `run` and `config` commands;
 - tests and project metadata.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the intended design and
-[`docs/INSTALL.md`](docs/INSTALL.md) for detailed setup notes.
+Phase 1 adds:
+
+- conversation message models and OpenAI-format serialisation;
+- an `LLMClient` protocol and a normalised `LLMResponse`;
+- an `OpenAICompatibleClient` (Ollama / LM Studio) with optional streaming and
+  clear `LLMTimeoutError` / `LLMConnectionError` mapping;
+- a defensive tool-call parser (`extract_tool_calls`) that prefers native tool
+  calls and otherwise parses JSON out of model text, plus a repair-message
+  helper;
+- a lazy `llm_client` property on the container.
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer and the
+tool-call contract, and [`docs/INSTALL.md`](docs/INSTALL.md) for detailed setup
+notes.
 
 ## Requirements
 

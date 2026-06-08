@@ -14,6 +14,8 @@ from __future__ import annotations
 import structlog
 
 from localpilot.config.schema import AppConfig
+from localpilot.llm.base import LLMClient
+from localpilot.llm.openai_compatible import OpenAICompatibleClient
 from localpilot.logging.setup import EventBus
 
 
@@ -26,6 +28,7 @@ class Container:
         self._config = config
         self._logger: structlog.stdlib.BoundLogger | None = None
         self._event_bus: EventBus | None = None
+        self._llm_client: LLMClient | None = None
 
     @property
     def config(self) -> AppConfig:
@@ -48,3 +51,11 @@ class Container:
         if self._event_bus is None:
             self._event_bus = EventBus()
         return self._event_bus
+
+    @property
+    def llm_client(self) -> LLMClient:
+        """The lazily created LLM client, built from ``config.llm``."""
+
+        if self._llm_client is None:
+            self._llm_client = OpenAICompatibleClient(self._config.llm)
+        return self._llm_client

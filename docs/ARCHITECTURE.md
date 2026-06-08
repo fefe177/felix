@@ -76,6 +76,41 @@ contract:
 This uniform contract keeps the reasoning loop independent of any individual
 tool and makes new tools easy to add.
 
+## LLM layer & tool-call parsing
+
+The `localpilot.llm` package implements the model-facing half of the tool-call
+contract. It is intentionally backend-agnostic and works against any
+OpenAI-compatible `/v1` endpoint (Ollama, LM Studio).
+
+- **Messages** (`messages.py`) - `Role`, `Message` and `ToolCall` Pydantic
+  models plus `to_openai_format`, which serialises a conversation into the
+  `list[dict]` shape the chat-completions API expects.
+- **Client protocol** (`base.py`) - `LLMClient` is a structural `Protocol`
+  exposing `async chat(messages, tools=None, **kw) -> LLMResponse`. An
+  `LLMResponse` carries the assistant `text`, any native `tool_calls`, the
+  `raw` backend payload and optional token `usage`.
+- **OpenAI-compatible client** (`openai_compatible.py`) - wraps `AsyncOpenAI`,
+  builds requests from `LLMConfig` (base URL, API key, model, temperature,
+  max tokens, timeout), optionally streams and reassembles the final response,
+  and translates transport failures into `LLMTimeoutError` /
+  `LLMConnectionError`.
+- **Tool-call parser** (`parsing.py`) - the backbone. `extract_tool_calls`
+  prefers the backend's native tool calls. When a model only emits text, it:
+  1. strips Markdown code fences, preferring fenced content;
+  2. locates balanced JSON objects with a string-aware brace matcher (not a
+     naive regex), so braces inside string values do not corrupt boundaries;
+  3. accepts both `{"tool": ..., "arguments": {...}}` and
+     `{"actions": [...]}`, and recognises the special `finish` (with a
+     `summary`) and `ask_user` (with a `question`) tools, including shorthand
+     spellings;
+  4. raises `ToolCallParseError` with a model-readable message when nothing
+     valid can be recovered. `build_repair_message` turns that message into a
+     system instruction for a single repair attempt.
+
+This realises the "structured tool call in, validated call out" half of the
+contract; argument-schema validation and execution arrive with the tool
+registry in a later phase.
+
 ## Safety modes
 
 A configurable safety mode governs how much autonomy the agent has:
@@ -106,5 +141,15 @@ Phase 0 delivers only the foundations:
 - the Typer CLI (`run`, `config`);
 - tests and project metadata.
 
-No agent loop, tools, vision, browser, desktop, terminal, multi-agent or server
-functionality is implemented yet — those arrive in later phases.
+## Phase 1 (current state)
+
+Phase 1 adds the LLM layer and the tool-call parser described above:
+
+- conversation message models and OpenAI serialisation;
+- the `LLMClient` protocol and `LLMResponse` model;
+- the `OpenAICompatibleClient` with streaming support and clear error mapping;
+- the defensive tool-call parser and repair-message helper;
+- a lazy `llm_client` property on the container.
+
+No concrete tools, agent loop, vision, browser, desktop, terminal, multi-agent
+or server functionality is implemented yet — those arrive in later phases.
