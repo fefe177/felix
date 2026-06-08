@@ -2,9 +2,10 @@
 
 Exposes a :mod:`typer` application:
 
-* ``run``    - load configuration, initialise logging and report readiness.
+* ``run``    - start the agent on a goal (``--goal`` or interactive), or just
+  report readiness when no goal is given; ``--safe`` / ``--balanced`` /
+  ``--autonomous`` select the safety mode.
 * ``config`` - print the fully merged configuration as JSON.
-* ``do``     - run the agent loop on a single goal.
 
 The module-level ``app`` object is referenced by the ``localpilot`` console
 script defined in ``pyproject.toml``.
@@ -13,10 +14,12 @@ script defined in ``pyproject.toml``.
 from __future__ import annotations
 
 import asyncio
+import sys
 from pathlib import Path
 
 import typer
 
+from localpilot.agent.safety import CLIConfirmationProvider
 from localpilot.config.loader import load_config
 from localpilot.config.schema import AppConfig
 from localpilot.container import Container
@@ -24,7 +27,7 @@ from localpilot.logging.setup import configure_logging
 
 app = typer.Typer(
     name="localpilot",
-    help="LocalPilot - an autonomous local desktop agent (Phase 0 scaffold).",
+    help="LocalPilot - an autonomous local desktop agent.",
     no_args_is_help=True,
     add_completion=False,
 )
@@ -37,28 +40,74 @@ _ConfigOption = typer.Option(
 )
 
 
+def _select_mode(safe: bool, balanced: bool, autonomous: bool, default: str) -> str:
+    """Resolve the safety mode from the flags, erroring on conflicts."""
+
+    chosen = [
+        name
+        for name, flag in (("safe", safe), ("balanced", balanced), ("autonomous", autonomous))
+        if flag
+    ]
+    if len(chosen) > 1:
+        raise typer.BadParameter("Bitte nur einen Sicherheitsmodus angeben.")
+    return chosen[0] if chosen else default
+
+
 @app.command()
-def run(config: Path | None = _ConfigOption) -> None:
-    """Load configuration, initialise logging and report readiness, then exit."""
+def run(
+    goal: str | None = typer.Option(
+        None, "--goal", "-g", help="The goal for the agent (prompts interactively if omitted)."
+    ),
+    safe: bool = typer.Option(False, "--safe", help="Use the safe safety mode."),
+    balanced: bool = typer.Option(False, "--balanced", help="Use the balanced safety mode."),
+    autonomous: bool = typer.Option(
+        False, "--autonomous", help="Use the autonomous safety mode."
+    ),
+    config: Path | None = _ConfigOption,
+) -> None:
+    """Run the agent on a goal, or report readiness when no goal is given."""
 
     app_config = load_config(str(config) if config is not None else None)
     configure_logging(app_config.log_level)
+    mode = _select_mode(safe, balanced, autonomous, app_config.safety.mode)
+
+    if goal is None and sys.stdin.isatty():
+        entered = typer.prompt(
+            "Was soll LocalPilot tun? (leer lassen zum Beenden)", default="", show_default=False
+        )
+        goal = entered.strip() or None
 
     container = Container(app_config)
-    asyncio.run(_run_lifecycle(container, app_config))
+    asyncio.run(_run_lifecycle(container, app_config, goal, mode))
 
 
-async def _run_lifecycle(container: Container, app_config: AppConfig) -> None:
-    """Start the container, report readiness and always shut down cleanly."""
+async def _run_lifecycle(
+    container: Container, app_config: AppConfig, goal: str | None, mode: str
+) -> None:
+    """Start the container, run the agent (if a goal is set) and shut down."""
 
     try:
         await container.startup()
-        container.logger.info(
-            "LocalPilot bereit (Phase 0)",
-            backend=app_config.llm.backend,
-            model=app_config.llm.model,
-            safety_mode=app_config.safety.mode,
-        )
+        if goal:
+            loop = container.create_agent_loop(CLIConfirmationProvider())
+            result = await loop.run(goal, mode)
+            container.logger.info(
+                "agent_done",
+                task_id=result.task_id,
+                status=result.status,
+                steps=len(result.state.history),
+            )
+            typer.echo(f"\nTask {result.task_id} - Status: {result.status}")
+            typer.echo(result.summary)
+            if result.question:
+                typer.echo(f"Rueckfrage: {result.question}")
+        else:
+            container.logger.info(
+                "LocalPilot bereit",
+                backend=app_config.llm.backend,
+                model=app_config.llm.model,
+                safety_mode=mode,
+            )
     finally:
         await container.shutdown()
 
@@ -69,45 +118,6 @@ def show_config(config: Path | None = _ConfigOption) -> None:
 
     app_config = load_config(str(config) if config is not None else None)
     typer.echo(app_config.model_dump_json(indent=2))
-
-
-@app.command()
-def do(
-    goal: str = typer.Argument(..., help="The goal for the agent to accomplish."),
-    config: Path | None = _ConfigOption,
-) -> None:
-    """Run the agent loop on a single goal and print the outcome.
-
-    Requires a reachable local LLM backend (Ollama or LM Studio).
-    """
-
-    app_config = load_config(str(config) if config is not None else None)
-    configure_logging(app_config.log_level)
-
-    container = Container(app_config)
-    asyncio.run(_do_lifecycle(container, goal))
-
-
-async def _do_lifecycle(container: Container, goal: str) -> None:
-    """Start the container, run the agent on ``goal`` and shut down cleanly."""
-
-    try:
-        await container.startup()
-        agent = container.create_agent()
-        result = await agent.run(goal)
-        container.logger.info(
-            "agent_result",
-            status=result.status,
-            steps=result.steps,
-            summary=result.summary,
-        )
-        typer.echo(
-            f"Status: {result.status} | Schritte: {result.steps}\n{result.summary}"
-        )
-        if result.question:
-            typer.echo(f"Rueckfrage: {result.question}")
-    finally:
-        await container.shutdown()
 
 
 if __name__ == "__main__":  # pragma: no cover

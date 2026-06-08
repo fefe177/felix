@@ -205,3 +205,60 @@ def _new_call_id() -> str:
     """Generate a unique identifier for a parsed (non-native) tool call."""
 
     return f"call_{uuid.uuid4().hex[:8]}"
+
+
+def first_json_value(text: str) -> Any | None:
+    """Return the first decodable JSON object or array found in ``text``.
+
+    Like the tool-call parser, this strips code fences and uses a string-aware
+    bracket scanner (handling both ``{}`` and ``[]``) rather than a naive regex.
+    Used by the planner (arrays) and the verifier (objects). Returns ``None`` if
+    nothing decodable is found.
+    """
+
+    for candidate in _candidate_texts(text):
+        value = _scan_first_json(candidate)
+        if value is not None:
+            return value
+    return None
+
+
+def _scan_first_json(text: str) -> Any | None:
+    """Scan for the first balanced ``{...}`` or ``[...]`` that decodes as JSON."""
+
+    closers = {"}": "{", "]": "["}
+    stack: list[str] = []
+    start: int | None = None
+    in_string = False
+    escaped = False
+
+    for index, char in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char in "{[":
+            if not stack:
+                start = index
+            stack.append(char)
+        elif char in "}]":
+            if not stack:
+                continue
+            opener = stack.pop()
+            if closers[char] != opener:
+                stack = []
+                start = None
+                continue
+            if not stack and start is not None:
+                candidate = text[start : index + 1]
+                try:
+                    return json.loads(candidate)
+                except json.JSONDecodeError:
+                    start = None
+    return None

@@ -222,29 +222,39 @@ connects the database and initialises the schema, and `shutdown()` closes it.
 
 ## Agent loop
 
-The `localpilot.agent` package implements the think -> act -> observe loop and
-the safety gate.
+The `localpilot.agent` package is the heart of the system: the autonomous loop
+(Observe -> Think -> Plan -> Act -> Verify -> Learn) plus its state, prompts,
+safety gate and planner.
 
-- **`loop.py`** - `Agent.run(goal)` creates a task, builds the system prompt and
-  conversation, then iterates: ask the LLM (advertising the tool specs), extract
-  a tool call (sending a repair message on a parse failure, bounded by
-  `agent.max_repair_attempts`), and either handle the `finish` / `ask_user`
-  control tools or execute the tool via the `ToolManager`. Each result is fed
-  back as an observation, persisted as a step (errors are logged) and streamed
-  on the event bus. The loop is bounded by `agent.max_iterations`. It returns an
-  `AgentResult` (`completed` / `failed` / `needs_input`).
-- **`safety.py`** - `SafetyGate` is the real gate (the `ToolContext` placeholder
-  from Phase 2). It classifies each tool by risk (`read_only` / `write` /
-  `dangerous`, unknown tools being dangerous) and allows it automatically only
-  up to the threshold of the active mode; anything above needs a confirmation
-  callback (denied by default). Static guardrails (command blocklist, workdir
-  restriction) live in the tools and always apply.
-- **`prompts.py`** - assembles the system prompt: identity, safety mode, the
-  tool list and the strict JSON tool-call contract.
+- **`state.py`** - `AgentState` (Pydantic): the goal, the `plan` (`PlanStep`
+  list), the current step index, a compact action history, a scratchpad and the
+  status.
+- **`prompts.py`** - `system_prompt` (role, tools, the strict tool-call
+  contract, safety rules), `planner_prompt` (asks for a numbered JSON step list)
+  and `verify_prompt` (asks for `{"success", "reason", "next_hint"}`). The
+  planner/verify prompts carry stable markers so callers and tests can identify
+  the request type.
+- **`safety.py`** - `SafetyGate.authorize(tool_name, args, ctx) -> Decision`
+  (`allow`, `needs_confirmation`, `reason`): `safe` confirms everything,
+  `balanced` confirms writes/terminal/desktop, `autonomous` allows freely but
+  hard-denies blocklisted commands and out-of-workdir writes. Hard rules are
+  also exposed synchronously as `static_guard` and wired into the `ToolManager`
+  as defence in depth. Confirmation goes through the `ConfirmationProvider`
+  protocol; `CLIConfirmationProvider` prompts on the terminal.
+- **`planner.py`** - `Planner.make_plan(goal, memory)` pulls relevant strategies
+  from long-term memory, asks the LLM and parses the step list defensively,
+  falling back to a single generic step.
+- **`loop.py`** - `AgentLoop.run(goal, safety_mode)`: create the task, build the
+  plan, then iterate. Each turn: build the prompt from plan + short-term context
+  + last observation; ask the LLM; parse a tool call (one repair attempt on
+  failure); handle `finish` / `ask_user`; otherwise authorise (and confirm) and
+  execute each tool, persist the step, feed the observation back; verify
+  progress (updating the plan) and learn (reinforce or penalise strategies).
+  Bounded by `agent.max_iterations`; returns an `AgentRunResult`.
 
-The container's `tool_context` now carries a real `SafetyGate`, and
-`create_agent()` builds a fully-wired agent. The CLI exposes `localpilot do
-"<goal>"`.
+The container exposes a `safety_gate`, wires `static_guard` into the
+`tool_context`, and builds a fully-wired loop via `create_agent_loop(...)`. The
+CLI runs it with `localpilot run --goal "<goal>" [--safe|--balanced|--autonomous]`.
 
 ## Safety modes
 
@@ -278,19 +288,20 @@ Phase 0 delivers only the foundations:
 
 ## Phase 6 (current state)
 
-Phase 6 adds the single-agent loop and the real safety gate:
+Phase 6 is the heart of the system: the autonomous agent.
 
-- the think/act/observe `Agent` loop with parse-repair, the `finish` /
-  `ask_user` control tools, step persistence and event streaming, bounded by
-  `agent.max_iterations` / `agent.max_repair_attempts`;
-- the `SafetyGate` enforcing the safety modes (replacing the Phase 2
-  placeholder), wired into the `ToolContext`;
-- `Container.create_agent()` and the `localpilot do "<goal>"` CLI command.
+- `AgentState` / `PlanStep` working state;
+- the planner, the system/planner/verify prompts;
+- the real async `SafetyGate` (Decision + confirmation provider), replacing the
+  Phase 2 placeholder and wired into the `ToolManager`;
+- the `AgentLoop` (Observe -> Think -> Plan -> Act -> Verify -> Learn) with
+  parse-repair, the `finish` / `ask_user` control tools, step persistence,
+  strategy learning and event streaming, bounded by `agent.max_iterations`;
+- the `run --goal ... [--safe|--balanced|--autonomous]` CLI command.
 
 Earlier phases delivered the configuration system, logging and event bus, the
 container, the CLI, the LLM layer with the tool-call parser, the tool system
 with file/terminal/browser/desktop/vision tools, the controllers, the vision
 system and the memory system.
 
-No multi-agent orchestration or server/GUI functionality is implemented yet —
-those arrive in later phases.
+No multi-agent orchestration (Phase 7) or GUI (Phase 8) is implemented yet.

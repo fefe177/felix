@@ -15,8 +15,8 @@ from pathlib import Path
 
 import structlog
 
-from localpilot.agent.loop import Agent
-from localpilot.agent.safety import SafetyGate
+from localpilot.agent.loop import AgentLoop
+from localpilot.agent.safety import ConfirmationProvider, SafetyGate
 from localpilot.browser.controller import BrowserController
 from localpilot.config.schema import AppConfig
 from localpilot.desktop.controller import DesktopController
@@ -44,6 +44,7 @@ class Container:
         self._desktop_controller: DesktopController | None = None
         self._database: Database | None = None
         self._memory: LongTermMemory | None = None
+        self._safety_gate: SafetyGate | None = None
 
     @property
     def config(self) -> AppConfig:
@@ -92,6 +93,14 @@ class Container:
         return self._desktop_controller
 
     @property
+    def safety_gate(self) -> SafetyGate:
+        """The lazily created safety gate enforcing the configured safety mode."""
+
+        if self._safety_gate is None:
+            self._safety_gate = SafetyGate(self._config)
+        return self._safety_gate
+
+    @property
     def tool_manager(self) -> ToolManager:
         """The lazily created tool manager holding the built-in tools."""
 
@@ -113,12 +122,13 @@ class Container:
         if self._tool_context is None:
             workdir = Path(self._config.terminal.workdir).resolve()
             workdir.mkdir(parents=True, exist_ok=True)
+            gate = self.safety_gate
             self._tool_context = ToolContext(
                 config=self._config,
                 logger=self.logger,
                 event_bus=self.event_bus,
                 workdir=workdir,
-                safety_gate=SafetyGate(self._config),
+                safety_gate=lambda name, args: gate.static_guard(name, args, workdir),
                 browser_controller=self.browser_controller,
                 desktop_controller=self.desktop_controller,
                 llm_client=self.llm_client,
@@ -141,22 +151,16 @@ class Container:
             self._memory = LongTermMemory(self.database)
         return self._memory
 
-    def create_agent(self) -> Agent:
-        """Build an :class:`Agent` wired from this container's services.
+    def create_agent_loop(
+        self, confirmation_provider: ConfirmationProvider | None = None
+    ) -> AgentLoop:
+        """Build an :class:`AgentLoop` wired from this container's services.
 
         Requires :meth:`startup` to have been called so the memory database is
         connected.
         """
 
-        return Agent(
-            llm_client=self.llm_client,
-            tool_manager=self.tool_manager,
-            tool_context=self.tool_context,
-            memory=self.memory,
-            config=self._config,
-            event_bus=self.event_bus,
-            logger=self.logger,
-        )
+        return AgentLoop(self, confirmation_provider)
 
     async def startup(self) -> None:
         """Connect the database and initialise the schema (idempotent)."""

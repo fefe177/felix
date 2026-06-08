@@ -1,20 +1,29 @@
-"""Single-agent reasoning loop and the safety gate."""
+"""Autonomous agent: state, prompts, safety, planner and the main loop."""
 
 from __future__ import annotations
 
-from localpilot.agent.loop import Agent, AgentResult
+from localpilot.agent.loop import AgentLoop, AgentRunResult
+from localpilot.agent.planner import Planner
+from localpilot.agent.prompts import planner_prompt, system_prompt, verify_prompt
 from localpilot.agent.safety import (
-    ConfirmationCallback,
-    RiskLevel,
+    CLIConfirmationProvider,
+    ConfirmationProvider,
+    Decision,
     SafetyGate,
-    classify_tool,
 )
+from localpilot.agent.state import AgentState, PlanStep
 
 __all__ = [
-    "Agent",
-    "AgentResult",
-    "ConfirmationCallback",
-    "RiskLevel",
+    "AgentLoop",
+    "AgentRunResult",
+    "AgentState",
+    "CLIConfirmationProvider",
+    "ConfirmationProvider",
+    "Decision",
+    "PlanStep",
+    "Planner",
     "SafetyGate",
-    "classify_tool",
+    "planner_prompt",
+    "system_prompt",
+    "verify_prompt",
 ]

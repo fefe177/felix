@@ -4,12 +4,13 @@ LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
 to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
 Studio) and to operate the desktop, browser and terminal on your behalf.
 
-## Status: Phase 6 (agent loop and safety gate)
+## Status: Phase 6 (the autonomous agent)
 
 This repository contains the foundation, the LLM layer, the tool system, the
 browser/desktop controllers, the vision system, the memory system and now the
-single-agent loop with the real safety gate. There is intentionally still no
-multi-agent orchestration or GUI yet.
+autonomous agent: state, planner, prompts, the real safety gate and the main
+Observe -> Think -> Plan -> Act -> Verify -> Learn loop. There is intentionally
+still no multi-agent orchestration (Phase 7) or GUI (Phase 8) yet.
 
 Delivered so far:
 
@@ -35,10 +36,12 @@ Delivered so far:
   long-term memory (tasks, steps, errors, preferences, strategies), bounded
   short-term working memory, and optional `sqlite-vec` vector memory that
   degrades to a no-op; wired into the container with `startup`/`shutdown`.
-- **Phase 6** - the single-agent loop (think/act/observe with parse-repair, the
-  `finish`/`ask_user` control tools, step persistence and event streaming) and
-  the real `SafetyGate` enforcing the safety modes; exposed via
-  `Container.create_agent()` and the `localpilot do "<goal>"` command.
+- **Phase 6** - the autonomous agent: `AgentState`/`PlanStep`, the planner, the
+  system/planner/verify prompts, the real async `SafetyGate` (with a
+  confirmation provider) wired into the tool manager, and the `AgentLoop`
+  (Observe -> Think -> Plan -> Act -> Verify -> Learn) with parse-repair,
+  `finish`/`ask_user`, step persistence, strategy learning and event streaming;
+  run with `localpilot run --goal "<goal>" [--safe|--balanced|--autonomous]`.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer, the
 tool-call contract, the tool system, the controllers, the vision system, the
@@ -74,8 +77,12 @@ localpilot run
 Run the agent on a goal (needs a reachable local LLM backend):
 
 ```powershell
-localpilot do "Erstelle eine Datei notes.txt im Arbeitsverzeichnis"
+localpilot run --goal "Erstelle eine Datei notes.txt im Arbeitsverzeichnis" --balanced
 ```
+
+Without `--goal`, `localpilot run` prompts interactively (or just reports
+readiness when run non-interactively). Use `--safe` / `--balanced` /
+`--autonomous` to choose the safety mode.
 
 Print the fully merged configuration as JSON:
 

@@ -1,65 +1,98 @@
-"""Tests for the safety gate's per-mode, per-risk decisions."""
+"""Tests for the safety gate's authorisation decisions."""
 
 from __future__ import annotations
 
-from pydantic import BaseModel
+from pathlib import Path
 
-from localpilot.agent.safety import RiskLevel, SafetyGate, classify_tool
+import structlog
+
+from localpilot.agent.safety import SafetyGate
 from localpilot.config.schema import AppConfig
+from localpilot.logging.setup import EventBus
+from localpilot.tools.base import ToolContext
 
 
-class _Args(BaseModel):
-    """A trivial args model; the gate decides on the tool name and mode only."""
+def _ctx(tmp_path: Path, config: AppConfig) -> ToolContext:
+    return ToolContext(
+        config=config,
+        logger=structlog.get_logger("test"),
+        event_bus=EventBus(),
+        workdir=tmp_path,
+    )
 
 
-def _gate(mode: str, confirm: object | None = None) -> SafetyGate:
+def _config(mode: str) -> AppConfig:
     config = AppConfig()
     config.safety.mode = mode  # type: ignore[assignment]
-    return SafetyGate(config, confirm)  # type: ignore[arg-type]
+    return config
 
 
-def test_classification_defaults_to_dangerous() -> None:
-    assert classify_tool("file_read") is RiskLevel.READ_ONLY
-    assert classify_tool("file_write") is RiskLevel.WRITE
-    assert classify_tool("run_command") is RiskLevel.DANGEROUS
-    assert classify_tool("totally_unknown_tool") is RiskLevel.DANGEROUS
+async def test_safe_mode_requires_confirmation_for_everything(tmp_path: Path) -> None:
+    config = _config("safe")
+    gate = SafetyGate(config)
+    ctx = _ctx(tmp_path, config)
+
+    read = await gate.authorize("file_read", {"path": "a.txt"}, ctx)
+    assert read.allow is True
+    assert read.needs_confirmation is True
 
 
-def test_safe_mode_allows_only_read_only() -> None:
-    gate = _gate("safe")
-    assert gate("file_read", _Args()) is True
-    assert gate("file_write", _Args()) is False
-    assert gate("run_command", _Args()) is False
+async def test_balanced_mode_distinguishes_risk(tmp_path: Path) -> None:
+    config = _config("balanced")
+    gate = SafetyGate(config)
+    ctx = _ctx(tmp_path, config)
+
+    read = await gate.authorize("file_read", {"path": "a.txt"}, ctx)
+    assert read.allow is True and read.needs_confirmation is False
+
+    browse = await gate.authorize("browser_get_text", {}, ctx)
+    assert browse.needs_confirmation is False
+
+    write = await gate.authorize("file_write", {"path": "a.txt", "content": "x"}, ctx)
+    assert write.allow is True and write.needs_confirmation is True
+
+    shell = await gate.authorize("run_command", {"command": "echo hi"}, ctx)
+    assert shell.needs_confirmation is True
 
 
-def test_balanced_mode_allows_writes_but_not_dangerous() -> None:
-    gate = _gate("balanced")
-    assert gate("file_read", _Args()) is True
-    assert gate("file_write", _Args()) is True
-    assert gate("desktop_click", _Args()) is True
-    assert gate("run_command", _Args()) is False
+async def test_autonomous_allows_ordinary_actions(tmp_path: Path) -> None:
+    config = _config("autonomous")
+    gate = SafetyGate(config)
+    ctx = _ctx(tmp_path, config)
+
+    decision = await gate.authorize("run_command", {"command": "echo hi"}, ctx)
+    assert decision.allow is True
+    assert decision.needs_confirmation is False
 
 
-def test_autonomous_mode_allows_everything() -> None:
-    gate = _gate("autonomous")
-    assert gate("file_read", _Args()) is True
-    assert gate("file_write", _Args()) is True
-    assert gate("run_command", _Args()) is True
-    assert gate("totally_unknown_tool", _Args()) is True
+async def test_autonomous_blocks_blocklisted_command(tmp_path: Path) -> None:
+    config = _config("autonomous")
+    gate = SafetyGate(config)
+    ctx = _ctx(tmp_path, config)
+
+    decision = await gate.authorize("run_command", {"command": "shutdown now"}, ctx)
+    assert decision.allow is False
+    assert "gesperrt" in decision.reason.lower()
 
 
-def test_confirmation_callback_can_allow_dangerous() -> None:
-    recorded: list[str] = []
+async def test_autonomous_blocks_write_outside_workdir(tmp_path: Path) -> None:
+    config = _config("autonomous")
+    gate = SafetyGate(config)
+    ctx = _ctx(tmp_path, config)
 
-    def confirm(tool_name: str, args: BaseModel, reason: str) -> bool:
-        recorded.append(tool_name)
-        return True
-
-    gate = _gate("balanced", confirm)
-    assert gate("run_command", _Args()) is True
-    assert recorded == ["run_command"]
+    outside = str(tmp_path.parent / "evil.txt")
+    decision = await gate.authorize("file_write", {"path": outside, "content": "x"}, ctx)
+    assert decision.allow is False
+    assert "arbeitsverzeichnis" in decision.reason.lower()
 
 
-def test_confirmation_callback_can_deny() -> None:
-    gate = _gate("safe", lambda name, args, reason: False)
-    assert gate("file_write", _Args()) is False
+def test_static_guard_denies_hard_violations(tmp_path: Path) -> None:
+    config = _config("autonomous")
+    gate = SafetyGate(config)
+
+    from localpilot.tools.terminal_tools import RunCommandArgs
+
+    ok = gate.static_guard("run_command", RunCommandArgs(command="echo hi"), tmp_path)
+    blocked = gate.static_guard("run_command", RunCommandArgs(command="rm -rf /"), tmp_path)
+    assert ok is True
+    assert blocked is False
