@@ -53,3 +53,7 @@ safety:
 server:
   host: 127.0.0.1
   port: 8765
+
+agent:
+  max_iterations: 12
+  max_repair_attempts: 2

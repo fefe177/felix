@@ -97,6 +97,13 @@ class ServerConfig(BaseModel):
     port: int = 8765
 
 
+class AgentConfig(BaseModel):
+    """Settings for the single-agent reasoning loop."""
+
+    max_iterations: int = 12
+    max_repair_attempts: int = 2
+
+
 class AppConfig(BaseSettings):
     """Top-level application configuration.
 
@@ -122,6 +129,7 @@ class AppConfig(BaseSettings):
     terminal: TerminalConfig = Field(default_factory=TerminalConfig)
     safety: SafetyConfig = Field(default_factory=SafetyConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
+    agent: AgentConfig = Field(default_factory=AgentConfig)
     log_level: str = "INFO"
 
     @classmethod

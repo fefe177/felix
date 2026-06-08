@@ -4,11 +4,12 @@ LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
 to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
 Studio) and to operate the desktop, browser and terminal on your behalf.
 
-## Status: Phase 5 (memory system)
+## Status: Phase 6 (agent loop and safety gate)
 
 This repository contains the foundation, the LLM layer, the tool system, the
-browser/desktop controllers, the vision system and now the memory system. There
-is intentionally still no agent loop or GUI yet.
+browser/desktop controllers, the vision system, the memory system and now the
+single-agent loop with the real safety gate. There is intentionally still no
+multi-agent orchestration or GUI yet.
 
 Delivered so far:
 
@@ -34,10 +35,15 @@ Delivered so far:
   long-term memory (tasks, steps, errors, preferences, strategies), bounded
   short-term working memory, and optional `sqlite-vec` vector memory that
   degrades to a no-op; wired into the container with `startup`/`shutdown`.
+- **Phase 6** - the single-agent loop (think/act/observe with parse-repair, the
+  `finish`/`ask_user` control tools, step persistence and event streaming) and
+  the real `SafetyGate` enforcing the safety modes; exposed via
+  `Container.create_agent()` and the `localpilot do "<goal>"` command.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer, the
-tool-call contract, the tool system, the controllers, the vision system and the
-memory system, and [`docs/INSTALL.md`](docs/INSTALL.md) for detailed setup notes.
+tool-call contract, the tool system, the controllers, the vision system, the
+memory system and the agent loop, and [`docs/INSTALL.md`](docs/INSTALL.md) for
+detailed setup notes.
 
 ## Requirements
 
@@ -63,6 +69,12 @@ readiness, then exits):
 
 ```powershell
 localpilot run
+```
+
+Run the agent on a goal (needs a reachable local LLM backend):
+
+```powershell
+localpilot do "Erstelle eine Datei notes.txt im Arbeitsverzeichnis"
 ```
 
 Print the fully merged configuration as JSON:

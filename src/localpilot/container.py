@@ -15,6 +15,8 @@ from pathlib import Path
 
 import structlog
 
+from localpilot.agent.loop import Agent
+from localpilot.agent.safety import SafetyGate
 from localpilot.browser.controller import BrowserController
 from localpilot.config.schema import AppConfig
 from localpilot.desktop.controller import DesktopController
@@ -104,7 +106,8 @@ class Container:
         The working directory (from ``config.terminal.workdir``) is resolved and
         created if missing so tools and subprocesses have a valid ``cwd``. The
         browser and desktop controllers and the LLM client (used by the vision
-        tools) are attached; each underlying service initialises lazily.
+        tools) are attached; each underlying service initialises lazily. The
+        real :class:`SafetyGate` enforces the configured safety mode.
         """
 
         if self._tool_context is None:
@@ -115,6 +118,7 @@ class Container:
                 logger=self.logger,
                 event_bus=self.event_bus,
                 workdir=workdir,
+                safety_gate=SafetyGate(self._config),
                 browser_controller=self.browser_controller,
                 desktop_controller=self.desktop_controller,
                 llm_client=self.llm_client,
@@ -136,6 +140,23 @@ class Container:
         if self._memory is None:
             self._memory = LongTermMemory(self.database)
         return self._memory
+
+    def create_agent(self) -> Agent:
+        """Build an :class:`Agent` wired from this container's services.
+
+        Requires :meth:`startup` to have been called so the memory database is
+        connected.
+        """
+
+        return Agent(
+            llm_client=self.llm_client,
+            tool_manager=self.tool_manager,
+            tool_context=self.tool_context,
+            memory=self.memory,
+            config=self._config,
+            event_bus=self.event_bus,
+            logger=self.logger,
+        )
 
     async def startup(self) -> None:
         """Connect the database and initialise the schema (idempotent)."""

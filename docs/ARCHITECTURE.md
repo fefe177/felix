@@ -220,6 +220,32 @@ sessions.
 The container exposes lazy `database` and `memory` properties; `startup()`
 connects the database and initialises the schema, and `shutdown()` closes it.
 
+## Agent loop
+
+The `localpilot.agent` package implements the think -> act -> observe loop and
+the safety gate.
+
+- **`loop.py`** - `Agent.run(goal)` creates a task, builds the system prompt and
+  conversation, then iterates: ask the LLM (advertising the tool specs), extract
+  a tool call (sending a repair message on a parse failure, bounded by
+  `agent.max_repair_attempts`), and either handle the `finish` / `ask_user`
+  control tools or execute the tool via the `ToolManager`. Each result is fed
+  back as an observation, persisted as a step (errors are logged) and streamed
+  on the event bus. The loop is bounded by `agent.max_iterations`. It returns an
+  `AgentResult` (`completed` / `failed` / `needs_input`).
+- **`safety.py`** - `SafetyGate` is the real gate (the `ToolContext` placeholder
+  from Phase 2). It classifies each tool by risk (`read_only` / `write` /
+  `dangerous`, unknown tools being dangerous) and allows it automatically only
+  up to the threshold of the active mode; anything above needs a confirmation
+  callback (denied by default). Static guardrails (command blocklist, workdir
+  restriction) live in the tools and always apply.
+- **`prompts.py`** - assembles the system prompt: identity, safety mode, the
+  tool list and the strict JSON tool-call contract.
+
+The container's `tool_context` now carries a real `SafetyGate`, and
+`create_agent()` builds a fully-wired agent. The CLI exposes `localpilot do
+"<goal>"`.
+
 ## Safety modes
 
 A configurable safety mode governs how much autonomy the agent has:
@@ -250,22 +276,21 @@ Phase 0 delivers only the foundations:
 - the Typer CLI (`run`, `config`);
 - tests and project metadata.
 
-## Phase 5 (current state)
+## Phase 6 (current state)
 
-Phase 5 adds the memory system:
+Phase 6 adds the single-agent loop and the real safety gate:
 
-- an async SQLite database (`aiosqlite`, WAL) with an idempotent schema;
-- long-term memory for tasks, steps, errors, preferences and strategies, with
-  typed record models;
-- bounded in-memory short-term working memory with a prompt summary;
-- optional `sqlite-vec` vector memory that degrades to a clear no-op;
-- lazy `database` / `memory` container properties plus `startup()` /
-  `shutdown()` wired into `main.py run`.
+- the think/act/observe `Agent` loop with parse-repair, the `finish` /
+  `ask_user` control tools, step persistence and event streaming, bounded by
+  `agent.max_iterations` / `agent.max_repair_attempts`;
+- the `SafetyGate` enforcing the safety modes (replacing the Phase 2
+  placeholder), wired into the `ToolContext`;
+- `Container.create_agent()` and the `localpilot do "<goal>"` CLI command.
 
 Earlier phases delivered the configuration system, logging and event bus, the
 container, the CLI, the LLM layer with the tool-call parser, the tool system
-with file/terminal tools, the browser and desktop controllers, and the vision
-system.
+with file/terminal/browser/desktop/vision tools, the controllers, the vision
+system and the memory system.
 
-No agent loop, multi-agent or server functionality is implemented yet — those
-arrive in later phases.
+No multi-agent orchestration or server/GUI functionality is implemented yet —
+those arrive in later phases.
