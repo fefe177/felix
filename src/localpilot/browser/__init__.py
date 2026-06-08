@@ -1,3 +1,7 @@
-"""Browser automation package (placeholder for a later phase)."""
+"""Browser automation package (Playwright/Chromium)."""
 
 from __future__ import annotations
+
+from localpilot.browser.controller import BrowserController, BrowserError
+
+__all__ = ["BrowserController", "BrowserError"]

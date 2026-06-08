@@ -15,7 +15,9 @@ from pathlib import Path
 
 import structlog
 
+from localpilot.browser.controller import BrowserController
 from localpilot.config.schema import AppConfig
+from localpilot.desktop.controller import DesktopController
 from localpilot.llm.base import LLMClient
 from localpilot.llm.openai_compatible import OpenAICompatibleClient
 from localpilot.logging.setup import EventBus
@@ -34,6 +36,8 @@ class Container:
         self._llm_client: LLMClient | None = None
         self._tool_manager: ToolManager | None = None
         self._tool_context: ToolContext | None = None
+        self._browser_controller: BrowserController | None = None
+        self._desktop_controller: DesktopController | None = None
 
     @property
     def config(self) -> AppConfig:
@@ -66,6 +70,22 @@ class Container:
         return self._llm_client
 
     @property
+    def browser_controller(self) -> BrowserController:
+        """The lazily created browser controller (started on first use)."""
+
+        if self._browser_controller is None:
+            self._browser_controller = BrowserController(self._config.browser)
+        return self._browser_controller
+
+    @property
+    def desktop_controller(self) -> DesktopController:
+        """The lazily created desktop controller (backends imported on first use)."""
+
+        if self._desktop_controller is None:
+            self._desktop_controller = DesktopController(self._config.desktop)
+        return self._desktop_controller
+
+    @property
     def tool_manager(self) -> ToolManager:
         """The lazily created tool manager holding the built-in tools."""
 
@@ -78,7 +98,8 @@ class Container:
         """The lazily created tool context, built from the configuration.
 
         The working directory (from ``config.terminal.workdir``) is resolved and
-        created if missing so tools and subprocesses have a valid ``cwd``.
+        created if missing so tools and subprocesses have a valid ``cwd``. The
+        browser and desktop controllers are attached (each starts lazily).
         """
 
         if self._tool_context is None:
@@ -89,5 +110,17 @@ class Container:
                 logger=self.logger,
                 event_bus=self.event_bus,
                 workdir=workdir,
+                browser_controller=self.browser_controller,
+                desktop_controller=self.desktop_controller,
             )
         return self._tool_context
+
+    async def shutdown(self) -> None:
+        """Release shared resources, stopping the browser if it was started.
+
+        Safe to call even when nothing was started; controllers are only
+        touched if they were created.
+        """
+
+        if self._browser_controller is not None:
+            await self._browser_controller.stop()

@@ -15,7 +15,25 @@ from localpilot.tools.base import (
     is_within,
     resolve_path,
 )
+from localpilot.tools.browser_tools import (
+    BrowserClickTool,
+    BrowserExtractLinksTool,
+    BrowserGetTextTool,
+    BrowserGotoTool,
+    BrowserOpenTool,
+    BrowserSearchTool,
+    BrowserTypeTool,
+)
 from localpilot.tools.decorators import ToolRegistry, builtin_tools
+from localpilot.tools.desktop_tools import (
+    DesktopActivateWindowTool,
+    DesktopClickTool,
+    DesktopDoubleClickTool,
+    DesktopMoveTool,
+    DesktopPressTool,
+    DesktopScrollTool,
+    DesktopTypeTool,
+)
 from localpilot.tools.file_tools import (
     DirCreateTool,
     FileListTool,
@@ -33,6 +51,20 @@ def get_builtin_tools() -> list[Tool]:
 
 
 __all__ = [
+    "BrowserClickTool",
+    "BrowserExtractLinksTool",
+    "BrowserGetTextTool",
+    "BrowserGotoTool",
+    "BrowserOpenTool",
+    "BrowserSearchTool",
+    "BrowserTypeTool",
+    "DesktopActivateWindowTool",
+    "DesktopClickTool",
+    "DesktopDoubleClickTool",
+    "DesktopMoveTool",
+    "DesktopPressTool",
+    "DesktopScrollTool",
+    "DesktopTypeTool",
     "DirCreateTool",
     "FileListTool",
     "FileReadTool",

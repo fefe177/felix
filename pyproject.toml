@@ -65,6 +65,11 @@ packages = ["localpilot"]
 strict = true
 warn_unused_configs = true
 
+[[tool.mypy.overrides]]
+# GUI automation libraries that ship no type information.
+module = ["pyautogui.*", "pygetwindow.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"

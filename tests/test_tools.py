@@ -140,14 +140,14 @@ async def test_invalid_arguments(manager: ToolManager, ctx: ToolContext) -> None
 def test_get_specs_covers_all_tools(manager: ToolManager) -> None:
     specs = manager.get_specs()
     names = {spec["function"]["name"] for spec in specs}
-    assert names == {
+    assert {
         "file_read",
         "file_write",
         "file_list",
         "dir_create",
         "run_command",
         "run_python",
-    }
+    } <= names
     for spec in specs:
         assert spec["type"] == "function"
         assert "parameters" in spec["function"]

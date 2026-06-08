@@ -11,6 +11,7 @@ script defined in ``pyproject.toml``.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 
 import typer
@@ -42,12 +43,16 @@ def run(config: Path | None = _ConfigOption) -> None:
     configure_logging(app_config.log_level)
 
     container = Container(app_config)
-    container.logger.info(
-        "LocalPilot bereit (Phase 0)",
-        backend=app_config.llm.backend,
-        model=app_config.llm.model,
-        safety_mode=app_config.safety.mode,
-    )
+    try:
+        container.logger.info(
+            "LocalPilot bereit (Phase 0)",
+            backend=app_config.llm.backend,
+            model=app_config.llm.model,
+            safety_mode=app_config.safety.mode,
+        )
+    finally:
+        # Cleanup hook: stop the browser if it was ever started.
+        asyncio.run(container.shutdown())
 
 
 @app.command("config")

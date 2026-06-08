@@ -15,13 +15,17 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 import structlog
 from pydantic import BaseModel, Field
 
 from localpilot.config.schema import AppConfig
 from localpilot.logging.setup import EventBus
+
+if TYPE_CHECKING:
+    from localpilot.browser.controller import BrowserController
+    from localpilot.desktop.controller import DesktopController
 
 
 class ToolResult(BaseModel):
@@ -62,6 +66,8 @@ class ToolContext:
         workdir: The resolved working directory for relative paths/commands.
         safety_gate: Callback consulted before a tool runs (Phase 6 wires in
             the real policy; the default permits everything).
+        browser_controller: The shared browser controller, if available.
+        desktop_controller: The shared desktop controller, if available.
     """
 
     config: AppConfig
@@ -69,6 +75,8 @@ class ToolContext:
     event_bus: EventBus
     workdir: Path
     safety_gate: SafetyGate = field(default=_always_allow)
+    browser_controller: BrowserController | None = None
+    desktop_controller: DesktopController | None = None
 
 
 @runtime_checkable

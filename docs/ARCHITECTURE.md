@@ -136,6 +136,33 @@ contract.
 - **Terminal tools** (`terminal_tools.py`) - `run_command` (shell, screened
   against `command_blocklist`, timeout, output truncation) and `run_python`
   (inline code or a file via the current interpreter, same limits).
+- **Browser tools** (`browser_tools.py`) - thin wrappers over the browser
+  controller: `browser_open`/`browser_goto`, `browser_get_text`,
+  `browser_click`, `browser_type`, `browser_extract_links` and `browser_search`
+  (Google query with a robust `a:has(h3)` selector and a visible-text fallback).
+  Outputs stay compact (text and link lists are capped).
+- **Desktop tools** (`desktop_tools.py`) - wrappers over the desktop controller:
+  `desktop_move`, `desktop_click`, `desktop_double_click`, `desktop_scroll`,
+  `desktop_type`, `desktop_press` and `desktop_activate_window`. Coordinates are
+  validated against the current screen size before any movement.
+
+## Browser and desktop controllers
+
+The `localpilot.browser` and `localpilot.desktop` packages hold the stateful
+controllers; the container owns one of each as a lazily-started singleton and
+attaches them to the `ToolContext`.
+
+- **`BrowserController`** (Playwright/Chromium) - idempotent, lock-guarded
+  `start`/`stop`; a single context and page; async navigation and query helpers
+  (`goto`, `get_text`, `click`, `type`, `get_links`, `screenshot_bytes`,
+  `wait_for`, ...) that honour the configured timeouts and raise `BrowserError`
+  instead of hanging. The container's `shutdown()` stops it on app exit (wired
+  into `main.py run`).
+- **`DesktopController`** (PyAutoGUI/PyGetWindow) - target platform is Windows
+  11. PyAutoGUI and PyGetWindow are imported **lazily** (they cannot even import
+  without a display), so the module loads fine on headless CI; backends can be
+  injected for tests. Each blocking call runs via `asyncio.to_thread`, and
+  `FAILSAFE`/`PAUSE` follow `DesktopConfig`.
 
 ## Safety modes
 
@@ -167,21 +194,19 @@ Phase 0 delivers only the foundations:
 - the Typer CLI (`run`, `config`);
 - tests and project metadata.
 
-## Phase 2 (current state)
+## Phase 3 (current state)
 
-Phase 2 adds the tool-system foundation and the two simplest, safest tool
-families:
+Phase 3 adds the browser and desktop controllers and their tools:
 
-- the `Tool` protocol, `ToolResult`, `ToolContext` and spec generation;
-- a lightweight registry/decorator and the `ToolManager` (validation, safety
-  gate, execution, event-bus logging);
-- file tools (`file_read`, `file_write`, `file_list`, `dir_create`) and
-  terminal tools (`run_command`, `run_python`);
-- lazy `tool_manager` and `tool_context` properties on the container.
+- `BrowserController` (Playwright/Chromium) and the browser tools;
+- `DesktopController` (PyAutoGUI/PyGetWindow, lazy imports) and the desktop
+  tools with coordinate validation;
+- container singletons `browser_controller` / `desktop_controller`, wired into
+  the `ToolContext`, plus a `shutdown()` cleanup hook used by `main.py run`.
 
 Earlier phases delivered the configuration system, structured logging and event
-bus, the dependency container, the CLI, and the LLM layer with the defensive
-tool-call parser.
+bus, the dependency container, the CLI, the LLM layer with the defensive
+tool-call parser, and the tool-system foundation with file/terminal tools.
 
-No browser, desktop, vision, agent loop, multi-agent or server functionality is
-implemented yet — those arrive in later phases.
+No vision, agent loop, multi-agent or server functionality is implemented yet —
+those arrive in later phases.

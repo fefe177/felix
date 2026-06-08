@@ -4,11 +4,11 @@ LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
 to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
 Studio) and to operate the desktop, browser and terminal on your behalf.
 
-## Status: Phase 2 (tool system + file/terminal tools)
+## Status: Phase 3 (browser + desktop controllers and tools)
 
-This repository contains the foundation, the model-facing LLM layer and now the
-tool-system foundation with the two simplest tool families. There is
-intentionally still no browser, desktop, vision, agent loop or GUI yet.
+This repository contains the foundation, the LLM layer, the tool system and now
+the browser and desktop controllers with their tools. There is intentionally
+still no vision, agent loop or GUI yet.
 
 Delivered so far:
 
@@ -16,17 +16,20 @@ Delivered so far:
   structured logging + event bus, the dependency container and the Typer CLI.
 - **Phase 1** - conversation models and OpenAI serialisation, the `LLMClient`
   protocol and `LLMResponse`, the `OpenAICompatibleClient` (Ollama / LM Studio)
-  with optional streaming and clear error mapping, and the defensive tool-call
-  parser plus repair-message helper.
-- **Phase 2** - the `Tool` protocol, `ToolResult`, `ToolContext` and OpenAI
-  spec generation; a registry/decorator and the `ToolManager` (validation,
-  safety gate, execution, event-bus logging); file tools (`file_read`,
-  `file_write`, `file_list`, `dir_create`) and terminal tools (`run_command`,
-  `run_python`); and lazy `tool_manager` / `tool_context` container properties.
+  with optional streaming, and the defensive tool-call parser.
+- **Phase 2** - the `Tool` protocol, `ToolResult`, `ToolContext`, OpenAI spec
+  generation, the `ToolManager`, and file/terminal tools.
+- **Phase 3** - `BrowserController` (Playwright/Chromium) and browser tools
+  (`browser_open`, `browser_goto`, `browser_get_text`, `browser_click`,
+  `browser_type`, `browser_extract_links`, `browser_search`); `DesktopController`
+  (PyAutoGUI/PyGetWindow, lazy imports) and desktop tools (`desktop_move`,
+  `desktop_click`, `desktop_double_click`, `desktop_scroll`, `desktop_type`,
+  `desktop_press`, `desktop_activate_window`); container singletons wired into
+  the tool context, with a browser cleanup hook on shutdown.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer, the
-tool-call contract and the tool system, and [`docs/INSTALL.md`](docs/INSTALL.md)
-for detailed setup notes.
+tool-call contract, the tool system and the controllers, and
+[`docs/INSTALL.md`](docs/INSTALL.md) for detailed setup notes.
 
 ## Requirements
 
