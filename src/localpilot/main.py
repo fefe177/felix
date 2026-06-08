@@ -63,6 +63,9 @@ def run(
     autonomous: bool = typer.Option(
         False, "--autonomous", help="Use the autonomous safety mode."
     ),
+    multi_agent: bool = typer.Option(
+        False, "--multi-agent", help="Use the multi-agent orchestrator instead of the single agent."
+    ),
     config: Path | None = _ConfigOption,
 ) -> None:
     """Run the agent on a goal, or report readiness when no goal is given."""
@@ -70,6 +73,7 @@ def run(
     app_config = load_config(str(config) if config is not None else None)
     configure_logging(app_config.log_level)
     mode = _select_mode(safe, balanced, autonomous, app_config.safety.mode)
+    use_multi_agent = multi_agent or app_config.multi_agent
 
     if goal is None and sys.stdin.isatty():
         entered = typer.prompt(
@@ -78,24 +82,28 @@ def run(
         goal = entered.strip() or None
 
     container = Container(app_config)
-    asyncio.run(_run_lifecycle(container, app_config, goal, mode))
+    asyncio.run(_run_lifecycle(container, app_config, goal, mode, use_multi_agent))
 
 
 async def _run_lifecycle(
-    container: Container, app_config: AppConfig, goal: str | None, mode: str
+    container: Container,
+    app_config: AppConfig,
+    goal: str | None,
+    mode: str,
+    multi_agent: bool,
 ) -> None:
     """Start the container, run the agent (if a goal is set) and shut down."""
 
     try:
         await container.startup()
         if goal:
-            loop = container.create_agent_loop(CLIConfirmationProvider())
-            result = await loop.run(goal, mode)
+            runner = container.create_runner(multi_agent, CLIConfirmationProvider())
+            result = await runner.run(goal, mode)
             container.logger.info(
                 "agent_done",
                 task_id=result.task_id,
                 status=result.status,
-                steps=len(result.state.history),
+                multi_agent=multi_agent,
             )
             typer.echo(f"\nTask {result.task_id} - Status: {result.status}")
             typer.echo(result.summary)
@@ -107,6 +115,7 @@ async def _run_lifecycle(
                 backend=app_config.llm.backend,
                 model=app_config.llm.model,
                 safety_mode=mode,
+                multi_agent=multi_agent,
             )
     finally:
         await container.shutdown()

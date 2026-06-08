@@ -4,13 +4,14 @@ LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
 to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
 Studio) and to operate the desktop, browser and terminal on your behalf.
 
-## Status: Phase 6 (the autonomous agent)
+## Status: Phase 7 (optional multi-agent mode)
 
 This repository contains the foundation, the LLM layer, the tool system, the
-browser/desktop controllers, the vision system, the memory system and now the
-autonomous agent: state, planner, prompts, the real safety gate and the main
-Observe -> Think -> Plan -> Act -> Verify -> Learn loop. There is intentionally
-still no multi-agent orchestration (Phase 7) or GUI (Phase 8) yet.
+browser/desktop controllers, the vision system, the memory system, the
+autonomous single-agent loop and now the optional multi-agent orchestrator
+(planner / executor / debug / research roles). Multi-agent mode is off by
+default; the single-agent path is unchanged. There is intentionally still no GUI
+(Phase 8) yet.
 
 Delivered so far:
 
@@ -42,6 +43,10 @@ Delivered so far:
   (Observe -> Think -> Plan -> Act -> Verify -> Learn) with parse-repair,
   `finish`/`ask_user`, step persistence, strategy learning and event streaming;
   run with `localpilot run --goal "<goal>" [--safe|--balanced|--autonomous]`.
+- **Phase 7** - the optional multi-agent mode: planner/executor/debug/research
+  roles (with per-role tool subsets) coordinated by an `Orchestrator` that
+  reuses the single-agent loop and recovers from failures via the debug role;
+  enabled with `--multi-agent` or `multi_agent: true` (single-agent is default).
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer, the
 tool-call contract, the tool system, the controllers, the vision system, the

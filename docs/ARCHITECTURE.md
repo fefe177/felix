@@ -51,7 +51,8 @@ future GUI can stream the agent's reasoning and actions in real time.
 - **terminal** - sandboxed command execution with a command blocklist and a
   configurable working directory.
 - **agent** - the single-agent reasoning loop described above.
-- **multiagent** - orchestration of multiple cooperating agents.
+- **multiagent** - optional orchestration of role-specialised agents (planner,
+  executor, debug, research) reusing the single-agent loop.
 - **server** - a local FastAPI + websocket server exposing control and the
   event stream to a GUI.
 
@@ -256,6 +257,29 @@ The container exposes a `safety_gate`, wires `static_guard` into the
 `tool_context`, and builds a fully-wired loop via `create_agent_loop(...)`. The
 CLI runs it with `localpilot run --goal "<goal>" [--safe|--balanced|--autonomous]`.
 
+## Multi-agent mode (optional)
+
+The `localpilot.multiagent` package adds an optional orchestration layer on top
+of the single-agent loop. It is off by default (`multi_agent: false`); the
+single-agent path is unchanged when disabled.
+
+- **`roles.py`** - the `AgentRole` protocol and four roles, each with a
+  system-prompt suffix and an allowed-tool predicate: `PlannerAgent`
+  (read-only planning), `ExecutorAgent` (all tools, subject to safety),
+  `DebugAgent` (reads terminal/logs/files to diagnose failures) and
+  `ResearchAgent` (browser/vision/search). Each suffix embeds a `[[ROLE:<name>]]`
+  marker.
+- **`orchestrator.py`** - `Orchestrator.run(goal, mode)`: the planner produces
+  the plan; for each step a role is chosen (research keywords -> research, else
+  executor); a step is executed by a **reused** `AgentLoop` configured with the
+  role's tool subset and prompt suffix (no tool logic is duplicated). On failure
+  the debug role analyses the step and its hint feeds bounded executor retries.
+  Roles share the long-term and short-term memory and the event bus; every role
+  switch is published for the GUI.
+
+The container's `create_runner(multi_agent, ...)` returns the `Orchestrator`
+when enabled and the `AgentLoop` otherwise; the CLI adds `--multi-agent`.
+
 ## Safety modes
 
 A configurable safety mode governs how much autonomy the agent has:
@@ -286,22 +310,22 @@ Phase 0 delivers only the foundations:
 - the Typer CLI (`run`, `config`);
 - tests and project metadata.
 
-## Phase 6 (current state)
+## Phase 7 (current state)
 
-Phase 6 is the heart of the system: the autonomous agent.
+Phase 7 adds the optional multi-agent mode:
 
-- `AgentState` / `PlanStep` working state;
-- the planner, the system/planner/verify prompts;
-- the real async `SafetyGate` (Decision + confirmation provider), replacing the
-  Phase 2 placeholder and wired into the `ToolManager`;
-- the `AgentLoop` (Observe -> Think -> Plan -> Act -> Verify -> Learn) with
-  parse-repair, the `finish` / `ask_user` control tools, step persistence,
-  strategy learning and event streaming, bounded by `agent.max_iterations`;
-- the `run --goal ... [--safe|--balanced|--autonomous]` CLI command.
+- the `AgentRole` protocol and the planner/executor/debug/research roles with
+  per-role tool subsets and prompt suffixes;
+- the `Orchestrator` coordinating roles over one shared plan, memory and event
+  bus, reusing the single-agent `AgentLoop` for each step (no duplicated tool
+  logic) and recovering from failures via the debug role and bounded retries;
+- `multi_agent` config plus the `--multi-agent` CLI flag and
+  `Container.create_runner(...)`; the single-agent path remains the default.
 
 Earlier phases delivered the configuration system, logging and event bus, the
 container, the CLI, the LLM layer with the tool-call parser, the tool system
 with file/terminal/browser/desktop/vision tools, the controllers, the vision
-system and the memory system.
+system, the memory system and the autonomous single-agent loop with its safety
+gate.
 
-No multi-agent orchestration (Phase 7) or GUI (Phase 8) is implemented yet.
+No GUI (Phase 8) is implemented yet.

@@ -25,6 +25,7 @@ from localpilot.llm.openai_compatible import OpenAICompatibleClient
 from localpilot.logging.setup import EventBus
 from localpilot.memory.db import Database
 from localpilot.memory.long_term import LongTermMemory
+from localpilot.multiagent.orchestrator import Orchestrator
 from localpilot.tools import ToolContext, ToolManager, get_builtin_tools
 
 
@@ -160,6 +161,21 @@ class Container:
         connected.
         """
 
+        return AgentLoop(self, confirmation_provider)
+
+    def create_runner(
+        self,
+        multi_agent: bool,
+        confirmation_provider: ConfirmationProvider | None = None,
+    ) -> AgentLoop | Orchestrator:
+        """Build the runner for a goal: the orchestrator if ``multi_agent`` is set.
+
+        Both returned objects expose ``run(goal, safety_mode)``; the default
+        (single-agent) path is the :class:`AgentLoop`.
+        """
+
+        if multi_agent:
+            return Orchestrator(self, confirmation_provider)
         return AgentLoop(self, confirmation_provider)
 
     async def startup(self) -> None:

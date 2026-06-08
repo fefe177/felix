@@ -61,11 +61,24 @@ class AgentLoop:
         self,
         container: Container,
         confirmation_provider: ConfirmationProvider | None = None,
+        *,
+        tool_manager: ToolManager | None = None,
+        system_prompt_suffix: str = "",
+        enable_planning: bool = True,
+        short_term: ShortTermMemory | None = None,
     ) -> None:
-        """Wire collaborators from ``container`` and store the confirm provider."""
+        """Wire collaborators from ``container`` and store the confirm provider.
+
+        The keyword-only overrides let the multi-agent layer reuse the loop with
+        a restricted tool set, a role-specific prompt suffix, planning disabled
+        and a shared short-term memory, without duplicating any tool logic. Their
+        defaults preserve the single-agent (Phase 6) behaviour exactly.
+        """
 
         self._llm: LLMClient = container.llm_client
-        self._tools: ToolManager = container.tool_manager
+        self._tools: ToolManager = (
+            tool_manager if tool_manager is not None else container.tool_manager
+        )
         self._ctx: ToolContext = container.tool_context
         self._memory: LongTermMemory = container.memory
         self._safety: SafetyGate = container.safety_gate
@@ -75,7 +88,9 @@ class AgentLoop:
         self._confirm = confirmation_provider
         self._planner = Planner(self._llm)
         self._max_iterations = self._config.agent.max_iterations
-        self._short_term = ShortTermMemory()
+        self._suffix = system_prompt_suffix
+        self._enable_planning = enable_planning
+        self._short_term = short_term if short_term is not None else ShortTermMemory()
 
     async def run(self, goal: str, safety_mode: str) -> AgentRunResult:
         """Execute ``goal`` under ``safety_mode`` and return the result."""
@@ -86,7 +101,10 @@ class AgentLoop:
         self._short_term.set_goal(goal)
         await self._emit("agent_start", task_id=task_id, goal=goal, safety_mode=safety_mode)
 
-        state.plan = await self._planner.make_plan(goal, self._memory)
+        if self._enable_planning:
+            state.plan = await self._planner.make_plan(goal, self._memory)
+        else:
+            state.plan = [PlanStep(idx=0, description=goal)]
         await self._emit(
             "agent_plan", task_id=task_id, plan=[step.model_dump() for step in state.plan]
         )
@@ -291,8 +309,11 @@ class AgentLoop:
         if last_observation:
             user_parts += ["", "Letzte Beobachtung:", last_observation]
         user_parts += ["", "Waehle den naechsten Tool-Call gemaess Vertrag."]
+        system = system_prompt(specs, state.safety_mode)
+        if self._suffix:
+            system = f"{system}\n\n{self._suffix}"
         return [
-            Message(role=Role.SYSTEM, content=system_prompt(specs, state.safety_mode)),
+            Message(role=Role.SYSTEM, content=system),
             Message(role=Role.USER, content="\n".join(user_parts)),
         ]
 

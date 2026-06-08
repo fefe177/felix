@@ -130,6 +130,7 @@ class AppConfig(BaseSettings):
     safety: SafetyConfig = Field(default_factory=SafetyConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
+    multi_agent: bool = False
     log_level: str = "INFO"
 
     @classmethod

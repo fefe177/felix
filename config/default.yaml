@@ -57,3 +57,6 @@ server:
 agent:
   max_iterations: 12
   max_repair_attempts: 2
+
+# Multi-agent mode is opt-in; the single-agent path is the default.
+multi_agent: false
