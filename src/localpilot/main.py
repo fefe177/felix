@@ -17,6 +17,7 @@ from pathlib import Path
 import typer
 
 from localpilot.config.loader import load_config
+from localpilot.config.schema import AppConfig
 from localpilot.container import Container
 from localpilot.logging.setup import configure_logging
 
@@ -43,7 +44,14 @@ def run(config: Path | None = _ConfigOption) -> None:
     configure_logging(app_config.log_level)
 
     container = Container(app_config)
+    asyncio.run(_run_lifecycle(container, app_config))
+
+
+async def _run_lifecycle(container: Container, app_config: AppConfig) -> None:
+    """Start the container, report readiness and always shut down cleanly."""
+
     try:
+        await container.startup()
         container.logger.info(
             "LocalPilot bereit (Phase 0)",
             backend=app_config.llm.backend,
@@ -51,8 +59,7 @@ def run(config: Path | None = _ConfigOption) -> None:
             safety_mode=app_config.safety.mode,
         )
     finally:
-        # Cleanup hook: stop the browser if it was ever started.
-        asyncio.run(container.shutdown())
+        await container.shutdown()
 
 
 @app.command("config")

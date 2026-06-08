@@ -192,6 +192,34 @@ The `localpilot.vision` package lets the agent "see" the screen.
 The container wires the LLM client into the `ToolContext` (vision description's
 dependency); the OCR engine is the lazily-initialised vision service.
 
+## Memory system
+
+The `localpilot.memory` package gives the agent recall across steps and
+sessions.
+
+- **`db.py`** - `Database`, an async `aiosqlite` wrapper with WAL mode,
+  foreign-key enforcement, idempotent schema initialisation (`schema.sql`) and
+  small `execute`/`fetchall`/`fetchone` helpers.
+- **`schema.sql`** - tables for `tasks`, `steps`, `errors`, `preferences` and
+  `strategies` (UUID-string ids, ISO-8601 timestamps) with indexes on
+  `task_id`/`status`.
+- **`long_term.py`** - `LongTermMemory`: create tasks and set their
+  result/error/status, append steps, log and read errors, get/set preferences,
+  record strategies and bump their success/failure tallies (`find_strategies`
+  ranks by success rate), and read recent tasks or a task with its ordered
+  steps. Reads return typed records (`TaskRecord`, `StepRecord`, ...).
+- **`short_term.py`** - `ShortTermMemory`: transient, per-task working memory
+  with the current goal, a bounded history of observations/actions and a
+  scratchpad; `as_context_text()` renders a compact prompt summary.
+- **`vector.py`** - `VectorMemory`: optional semantic memory over `sqlite-vec`,
+  gated by `memory.vector_enabled` and a configured embedding model. When the
+  feature is off or `sqlite-vec` is missing, every method is a safe no-op and
+  `status()` explains why. Embeddings use the OpenAI-compatible `/v1/embeddings`
+  endpoint.
+
+The container exposes lazy `database` and `memory` properties; `startup()`
+connects the database and initialises the schema, and `shutdown()` closes it.
+
 ## Safety modes
 
 A configurable safety mode governs how much autonomy the agent has:
@@ -222,21 +250,22 @@ Phase 0 delivers only the foundations:
 - the Typer CLI (`run`, `config`);
 - tests and project metadata.
 
-## Phase 4 (current state)
+## Phase 5 (current state)
 
-Phase 4 adds the vision system and its tools:
+Phase 5 adds the memory system:
 
-- screen capture (`mss`), lazy OCR (`rapidocr-onnxruntime`), VLM description
-  (reusing the OpenAI-compatible client with the OpenAI vision format) and
-  heuristic text-based element finding;
-- the `vision_screenshot`, `vision_describe`, `vision_ocr` and `vision_find`
-  tools;
-- the LLM client wired into the `ToolContext` for vision description.
+- an async SQLite database (`aiosqlite`, WAL) with an idempotent schema;
+- long-term memory for tasks, steps, errors, preferences and strategies, with
+  typed record models;
+- bounded in-memory short-term working memory with a prompt summary;
+- optional `sqlite-vec` vector memory that degrades to a clear no-op;
+- lazy `database` / `memory` container properties plus `startup()` /
+  `shutdown()` wired into `main.py run`.
 
-Earlier phases delivered the configuration system, structured logging and event
-bus, the dependency container, the CLI, the LLM layer with the defensive
-tool-call parser, the tool-system foundation with file/terminal tools, and the
-browser and desktop controllers with their tools.
+Earlier phases delivered the configuration system, logging and event bus, the
+container, the CLI, the LLM layer with the tool-call parser, the tool system
+with file/terminal tools, the browser and desktop controllers, and the vision
+system.
 
 No agent loop, multi-agent or server functionality is implemented yet — those
 arrive in later phases.

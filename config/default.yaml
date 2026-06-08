@@ -23,6 +23,7 @@ vision:
 memory:
   db_path: ./workspace/localpilot.db
   vector_enabled: false
+  embedding_model: null
 
 browser:
   headless: false

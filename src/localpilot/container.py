@@ -21,6 +21,8 @@ from localpilot.desktop.controller import DesktopController
 from localpilot.llm.base import LLMClient
 from localpilot.llm.openai_compatible import OpenAICompatibleClient
 from localpilot.logging.setup import EventBus
+from localpilot.memory.db import Database
+from localpilot.memory.long_term import LongTermMemory
 from localpilot.tools import ToolContext, ToolManager, get_builtin_tools
 
 
@@ -38,6 +40,8 @@ class Container:
         self._tool_context: ToolContext | None = None
         self._browser_controller: BrowserController | None = None
         self._desktop_controller: DesktopController | None = None
+        self._database: Database | None = None
+        self._memory: LongTermMemory | None = None
 
     @property
     def config(self) -> AppConfig:
@@ -117,12 +121,36 @@ class Container:
             )
         return self._tool_context
 
-    async def shutdown(self) -> None:
-        """Release shared resources, stopping the browser if it was started.
+    @property
+    def database(self) -> Database:
+        """The lazily created memory database (connected during :meth:`startup`)."""
 
-        Safe to call even when nothing was started; controllers are only
-        touched if they were created.
+        if self._database is None:
+            self._database = Database(self._config.memory.db_path)
+        return self._database
+
+    @property
+    def memory(self) -> LongTermMemory:
+        """The lazily created long-term memory over the database."""
+
+        if self._memory is None:
+            self._memory = LongTermMemory(self.database)
+        return self._memory
+
+    async def startup(self) -> None:
+        """Connect the database and initialise the schema (idempotent)."""
+
+        await self.database.connect()
+        await self.database.init_schema()
+
+    async def shutdown(self) -> None:
+        """Release shared resources: stop the browser and close the database.
+
+        Safe to call even when nothing was started; resources are only touched
+        if they were created.
         """
 
         if self._browser_controller is not None:
             await self._browser_controller.stop()
+        if self._database is not None:
+            await self._database.close()

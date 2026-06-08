@@ -47,6 +47,7 @@ class MemoryConfig(BaseModel):
 
     db_path: str = "./workspace/localpilot.db"
     vector_enabled: bool = False
+    embedding_model: str | None = None
 
 
 class BrowserConfig(BaseModel):

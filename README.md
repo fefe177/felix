@@ -4,11 +4,11 @@ LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
 to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
 Studio) and to operate the desktop, browser and terminal on your behalf.
 
-## Status: Phase 4 (vision system and tools)
+## Status: Phase 5 (memory system)
 
 This repository contains the foundation, the LLM layer, the tool system, the
-browser and desktop controllers, and now the vision system. There is
-intentionally still no agent loop or GUI yet.
+browser/desktop controllers, the vision system and now the memory system. There
+is intentionally still no agent loop or GUI yet.
 
 Delivered so far:
 
@@ -30,10 +30,14 @@ Delivered so far:
   (`rapidocr-onnxruntime`), VLM description (OpenAI vision format) and heuristic
   text-based element finding, exposed as `vision_screenshot`, `vision_describe`,
   `vision_ocr` and `vision_find` tools.
+- **Phase 5** - the memory system: an async SQLite database (`aiosqlite`, WAL),
+  long-term memory (tasks, steps, errors, preferences, strategies), bounded
+  short-term working memory, and optional `sqlite-vec` vector memory that
+  degrades to a no-op; wired into the container with `startup`/`shutdown`.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer, the
-tool-call contract, the tool system, the controllers and the vision system, and
-[`docs/INSTALL.md`](docs/INSTALL.md) for detailed setup notes.
+tool-call contract, the tool system, the controllers, the vision system and the
+memory system, and [`docs/INSTALL.md`](docs/INSTALL.md) for detailed setup notes.
 
 ## Requirements
 

@@ -67,7 +67,13 @@ warn_unused_configs = true
 
 [[tool.mypy.overrides]]
 # Third-party libraries that ship no type information.
-module = ["pyautogui.*", "pygetwindow.*", "mss.*", "rapidocr_onnxruntime.*"]
+module = [
+    "pyautogui.*",
+    "pygetwindow.*",
+    "mss.*",
+    "rapidocr_onnxruntime.*",
+    "sqlite_vec",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
