@@ -4,34 +4,29 @@ LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
 to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
 Studio) and to operate the desktop, browser and terminal on your behalf.
 
-## Status: Phase 1 (LLM layer & tool-call parser)
+## Status: Phase 2 (tool system + file/terminal tools)
 
-This repository contains the foundation plus the model-facing LLM layer. There
-is intentionally still no concrete tool, no agent loop and no GUI yet.
+This repository contains the foundation, the model-facing LLM layer and now the
+tool-system foundation with the two simplest tool families. There is
+intentionally still no browser, desktop, vision, agent loop or GUI yet.
 
-Phase 0 delivered:
+Delivered so far:
 
-- the full package layout with placeholder sub-packages for later phases;
-- a typed, validated configuration system (Pydantic + YAML + `.env`);
-- structured logging (pretty console + JSON file) and an in-process event bus;
-- a lightweight dependency container;
-- a Typer command-line interface with `run` and `config` commands;
-- tests and project metadata.
+- **Phase 0** - package layout, typed configuration (Pydantic + YAML + `.env`),
+  structured logging + event bus, the dependency container and the Typer CLI.
+- **Phase 1** - conversation models and OpenAI serialisation, the `LLMClient`
+  protocol and `LLMResponse`, the `OpenAICompatibleClient` (Ollama / LM Studio)
+  with optional streaming and clear error mapping, and the defensive tool-call
+  parser plus repair-message helper.
+- **Phase 2** - the `Tool` protocol, `ToolResult`, `ToolContext` and OpenAI
+  spec generation; a registry/decorator and the `ToolManager` (validation,
+  safety gate, execution, event-bus logging); file tools (`file_read`,
+  `file_write`, `file_list`, `dir_create`) and terminal tools (`run_command`,
+  `run_python`); and lazy `tool_manager` / `tool_context` container properties.
 
-Phase 1 adds:
-
-- conversation message models and OpenAI-format serialisation;
-- an `LLMClient` protocol and a normalised `LLMResponse`;
-- an `OpenAICompatibleClient` (Ollama / LM Studio) with optional streaming and
-  clear `LLMTimeoutError` / `LLMConnectionError` mapping;
-- a defensive tool-call parser (`extract_tool_calls`) that prefers native tool
-  calls and otherwise parses JSON out of model text, plus a repair-message
-  helper;
-- a lazy `llm_client` property on the container.
-
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer and the
-tool-call contract, and [`docs/INSTALL.md`](docs/INSTALL.md) for detailed setup
-notes.
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer, the
+tool-call contract and the tool system, and [`docs/INSTALL.md`](docs/INSTALL.md)
+for detailed setup notes.
 
 ## Requirements
 

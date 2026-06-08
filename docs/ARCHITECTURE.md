@@ -109,7 +109,33 @@ OpenAI-compatible `/v1` endpoint (Ollama, LM Studio).
 
 This realises the "structured tool call in, validated call out" half of the
 contract; argument-schema validation and execution arrive with the tool
-registry in a later phase.
+registry described next.
+
+## Tool system
+
+The `localpilot.tools` package implements the execution half of the tool-call
+contract.
+
+- **Foundation** (`base.py`) - `ToolResult` (`ok`, `output`, `error`, `meta`),
+  the `Tool` protocol (`name`, `description`, `args_model`, async `run`), the
+  `ToolContext` (config, logger, event bus, workdir and a `safety_gate`
+  callback that is permissive until Phase 6) and `build_tool_spec`, which turns
+  a tool's `args_model` into an OpenAI tool spec via `model_json_schema()`.
+- **Registration** (`decorators.py`) - a small `ToolRegistry` whose `register`
+  class decorator instantiates and stores tools by name. The built-in tools
+  register into the shared `builtin_tools` registry.
+- **Manager** (`registry.py`) - `ToolManager` produces specs via `get_specs()`
+  and runs a `ToolCall` through `execute()`: unknown tool, invalid arguments
+  (Pydantic validation), a blocked safety gate or a raised exception each become
+  an `ok=False` `ToolResult` with a model-readable message (tracebacks go into
+  `meta`). Every invocation is logged and published on the event bus
+  (`tool_name`, `args`, `ok`, `duration_ms`).
+- **File tools** (`file_tools.py`) - `file_read` (encoding fallback, size
+  limit), `file_write` (honours `restrict_writes_to_workdir`, creates parents),
+  `file_list` and `dir_create`. Blocking I/O runs in `asyncio.to_thread`.
+- **Terminal tools** (`terminal_tools.py`) - `run_command` (shell, screened
+  against `command_blocklist`, timeout, output truncation) and `run_python`
+  (inline code or a file via the current interpreter, same limits).
 
 ## Safety modes
 
@@ -141,15 +167,21 @@ Phase 0 delivers only the foundations:
 - the Typer CLI (`run`, `config`);
 - tests and project metadata.
 
-## Phase 1 (current state)
+## Phase 2 (current state)
 
-Phase 1 adds the LLM layer and the tool-call parser described above:
+Phase 2 adds the tool-system foundation and the two simplest, safest tool
+families:
 
-- conversation message models and OpenAI serialisation;
-- the `LLMClient` protocol and `LLMResponse` model;
-- the `OpenAICompatibleClient` with streaming support and clear error mapping;
-- the defensive tool-call parser and repair-message helper;
-- a lazy `llm_client` property on the container.
+- the `Tool` protocol, `ToolResult`, `ToolContext` and spec generation;
+- a lightweight registry/decorator and the `ToolManager` (validation, safety
+  gate, execution, event-bus logging);
+- file tools (`file_read`, `file_write`, `file_list`, `dir_create`) and
+  terminal tools (`run_command`, `run_python`);
+- lazy `tool_manager` and `tool_context` properties on the container.
 
-No concrete tools, agent loop, vision, browser, desktop, terminal, multi-agent
-or server functionality is implemented yet — those arrive in later phases.
+Earlier phases delivered the configuration system, structured logging and event
+bus, the dependency container, the CLI, and the LLM layer with the defensive
+tool-call parser.
+
+No browser, desktop, vision, agent loop, multi-agent or server functionality is
+implemented yet — those arrive in later phases.

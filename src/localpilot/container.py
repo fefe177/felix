@@ -11,12 +11,15 @@ injection framework is used.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import structlog
 
 from localpilot.config.schema import AppConfig
 from localpilot.llm.base import LLMClient
 from localpilot.llm.openai_compatible import OpenAICompatibleClient
 from localpilot.logging.setup import EventBus
+from localpilot.tools import ToolContext, ToolManager, get_builtin_tools
 
 
 class Container:
@@ -29,6 +32,8 @@ class Container:
         self._logger: structlog.stdlib.BoundLogger | None = None
         self._event_bus: EventBus | None = None
         self._llm_client: LLMClient | None = None
+        self._tool_manager: ToolManager | None = None
+        self._tool_context: ToolContext | None = None
 
     @property
     def config(self) -> AppConfig:
@@ -59,3 +64,30 @@ class Container:
         if self._llm_client is None:
             self._llm_client = OpenAICompatibleClient(self._config.llm)
         return self._llm_client
+
+    @property
+    def tool_manager(self) -> ToolManager:
+        """The lazily created tool manager holding the built-in tools."""
+
+        if self._tool_manager is None:
+            self._tool_manager = ToolManager(get_builtin_tools())
+        return self._tool_manager
+
+    @property
+    def tool_context(self) -> ToolContext:
+        """The lazily created tool context, built from the configuration.
+
+        The working directory (from ``config.terminal.workdir``) is resolved and
+        created if missing so tools and subprocesses have a valid ``cwd``.
+        """
+
+        if self._tool_context is None:
+            workdir = Path(self._config.terminal.workdir).resolve()
+            workdir.mkdir(parents=True, exist_ok=True)
+            self._tool_context = ToolContext(
+                config=self._config,
+                logger=self.logger,
+                event_bus=self.event_bus,
+                workdir=workdir,
+            )
+        return self._tool_context
