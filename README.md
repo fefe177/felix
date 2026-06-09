@@ -4,14 +4,13 @@ LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
 to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
 Studio) and to operate the desktop, browser and terminal on your behalf.
 
-## Status: Phase 7 (optional multi-agent mode)
+## Status: Phase 8 (HTTP/WebSocket control server)
 
-This repository contains the foundation, the LLM layer, the tool system, the
-browser/desktop controllers, the vision system, the memory system, the
-autonomous single-agent loop and now the optional multi-agent orchestrator
-(planner / executor / debug / research roles). Multi-agent mode is off by
-default; the single-agent path is unchanged. There is intentionally still no GUI
-(Phase 8) yet.
+This repository contains the full agent stack plus an HTTP/WebSocket control
+server that a desktop GUI will later talk to. The server streams agent events
+over a WebSocket and exposes REST endpoints to start/cancel runs, answer safety
+confirmations and browse memory. There are intentionally **no GUI files** yet -
+this phase is the Python backend only.
 
 Delivered so far:
 
@@ -47,6 +46,11 @@ Delivered so far:
   roles (with per-role tool subsets) coordinated by an `Orchestrator` that
   reuses the single-agent loop and recovers from failures via the debug role;
   enabled with `--multi-agent` or `multi_agent: true` (single-agent is default).
+- **Phase 8** - the HTTP/WebSocket control server (FastAPI): `/ws/events`
+  streams all agent events; REST endpoints start/cancel runs (one at a time),
+  deliver safety confirmations (`WebUIConfirmationProvider`), and read tasks,
+  preferences, strategies, screenshots, config and health. Start it with
+  `localpilot serve`.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer, the
 tool-call contract, the tool system, the controllers, the vision system, the
@@ -88,6 +92,15 @@ localpilot run --goal "Erstelle eine Datei notes.txt im Arbeitsverzeichnis" --ba
 Without `--goal`, `localpilot run` prompts interactively (or just reports
 readiness when run non-interactively). Use `--safe` / `--balanced` /
 `--autonomous` to choose the safety mode.
+
+Start the control server (REST + WebSocket) for the future GUI:
+
+```powershell
+localpilot serve
+```
+
+Then `GET http://127.0.0.1:8765/api/health` and connect a WebSocket to
+`ws://127.0.0.1:8765/ws/events` to stream agent events.
 
 Print the fully merged configuration as JSON:
 

@@ -1,8 +1,9 @@
 # LocalPilot Architecture
 
-This document describes the intended architecture of LocalPilot in my own
-words. **Only the scaffold described in "Phase 0" below exists today**; the
-remaining components are design targets for later phases.
+This document describes the architecture of LocalPilot in my own words. The
+implemented scope is summarised in the per-phase "current state" sections at the
+end; the project is built up phase by phase (Phases 0-8 are implemented, the
+desktop GUI is a later phase).
 
 ## Goals
 
@@ -280,6 +281,33 @@ single-agent path is unchanged when disabled.
 The container's `create_runner(multi_agent, ...)` returns the `Orchestrator`
 when enabled and the `AgentLoop` otherwise; the CLI adds `--multi-agent`.
 
+## Control server
+
+The `localpilot.server` package exposes the agent over HTTP/WebSocket so a
+desktop GUI (a later phase) can drive it. It is the Python backend only - no GUI
+files.
+
+- **`websocket.py`** - `/ws/events` subscribes a connection to the event bus and
+  forwards every event (thoughts, tool calls, results, screenshot paths, role
+  changes, log lines) as JSON. Each client gets its own queue, so several can
+  listen at once; a concurrent reader detects disconnects.
+- **`routes.py`** - REST: `POST /api/tasks` (start a run; one at a time, else
+  409), `POST /api/tasks/{id}/cancel` (cooperative cancel), `POST /api/confirm`
+  (deliver a safety decision), `GET /api/tasks` and `GET /api/tasks/{id}`,
+  `GET`/`PUT /api/memory/preferences`, `GET /api/memory/strategies`,
+  `GET /api/screenshots/{name}`, `GET /api/config` (secrets redacted) and
+  `GET /api/health`.
+- **`runtime.py`** - the `AgentRunManager` (single background run, cancellation),
+  the `WebUIConfirmationProvider` (a `ConfirmationProvider` whose `confirm`
+  publishes a `confirmation_request` event and awaits the decision from
+  `POST /api/confirm`) and the shared `ServerContext`.
+- **`app.py`** - the FastAPI factory: CORS for the Vite dev origin, the routers,
+  and a lifespan that builds/adopts the container, attaches the provider and
+  bridges the application logger to the event bus so log lines also stream over
+  `/ws/events`; on shutdown it cancels any run and closes the browser/database.
+
+The CLI starts it with `localpilot serve` (host/port from `ServerConfig`).
+
 ## Safety modes
 
 A configurable safety mode governs how much autonomy the agent has:
@@ -310,22 +338,22 @@ Phase 0 delivers only the foundations:
 - the Typer CLI (`run`, `config`);
 - tests and project metadata.
 
-## Phase 7 (current state)
+## Phase 8 (current state)
 
-Phase 7 adds the optional multi-agent mode:
+Phase 8 adds the HTTP/WebSocket control server (the Python backend only - no GUI
+files):
 
-- the `AgentRole` protocol and the planner/executor/debug/research roles with
-  per-role tool subsets and prompt suffixes;
-- the `Orchestrator` coordinating roles over one shared plan, memory and event
-  bus, reusing the single-agent `AgentLoop` for each step (no duplicated tool
-  logic) and recovering from failures via the debug role and bounded retries;
-- `multi_agent` config plus the `--multi-agent` CLI flag and
-  `Container.create_runner(...)`; the single-agent path remains the default.
+- `/ws/events` streaming all agent events to multiple clients;
+- REST endpoints to start (one at a time -> 409) and cancel runs, deliver safety
+  confirmations via the `WebUIConfirmationProvider`, and read tasks,
+  preferences, strategies, screenshots, the redacted config and health;
+- a FastAPI app with CORS, a lifespan managing the container and a logger ->
+  event-bus bridge, and the `localpilot serve` command.
 
 Earlier phases delivered the configuration system, logging and event bus, the
 container, the CLI, the LLM layer with the tool-call parser, the tool system
 with file/terminal/browser/desktop/vision tools, the controllers, the vision
-system, the memory system and the autonomous single-agent loop with its safety
-gate.
+system, the memory system, the autonomous single-agent loop with its safety
+gate, and the optional multi-agent orchestrator.
 
-No GUI (Phase 8) is implemented yet.
+No desktop GUI is implemented yet; it consumes this server in a later phase.

@@ -4,8 +4,9 @@ Exposes a :mod:`typer` application:
 
 * ``run``    - start the agent on a goal (``--goal`` or interactive), or just
   report readiness when no goal is given; ``--safe`` / ``--balanced`` /
-  ``--autonomous`` select the safety mode.
+  ``--autonomous`` select the safety mode, ``--multi-agent`` the orchestrator.
 * ``config`` - print the fully merged configuration as JSON.
+* ``serve``  - start the FastAPI/WebSocket control server.
 
 The module-level ``app`` object is referenced by the ``localpilot`` console
 script defined in ``pyproject.toml``.
@@ -127,6 +128,19 @@ def show_config(config: Path | None = _ConfigOption) -> None:
 
     app_config = load_config(str(config) if config is not None else None)
     typer.echo(app_config.model_dump_json(indent=2))
+
+
+@app.command()
+def serve(config: Path | None = _ConfigOption) -> None:
+    """Start the FastAPI control server (host/port from the server config)."""
+
+    import uvicorn
+
+    from localpilot.server.app import create_app
+
+    app_config = load_config(str(config) if config is not None else None)
+    fastapi_app = create_app(config=app_config)
+    uvicorn.run(fastapi_app, host=app_config.server.host, port=app_config.server.port)
 
 
 if __name__ == "__main__":  # pragma: no cover
