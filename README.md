@@ -4,13 +4,13 @@ LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
 to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
 Studio) and to operate the desktop, browser and terminal on your behalf.
 
-## Status: Phase 8 (HTTP/WebSocket control server)
+## Status: Phase 9 (desktop GUI)
 
-This repository contains the full agent stack plus an HTTP/WebSocket control
-server that a desktop GUI will later talk to. The server streams agent events
-over a WebSocket and exposes REST endpoints to start/cancel runs, answer safety
-confirmations and browse memory. There are intentionally **no GUI files** yet -
-this phase is the Python backend only.
+This repository contains the full agent stack, the HTTP/WebSocket control server
+and now a desktop GUI (Electron + React + Vite) in [`gui/`](gui/). The GUI talks
+to the Python backend over REST and the WebSocket event stream: a dashboard to
+start/stop runs, live plan/tool-call/log panels, a screenshot preview, safety
+confirmation dialogs and a memory browser.
 
 Delivered so far:
 
@@ -51,6 +51,11 @@ Delivered so far:
   deliver safety confirmations (`WebUIConfirmationProvider`), and read tasks,
   preferences, strategies, screenshots, config and health. Start it with
   `localpilot serve`.
+- **Phase 9** - the desktop GUI in [`gui/`](gui/) (Electron + React + Vite): a
+  dark-themed dashboard consuming the REST + WebSocket API, with a task panel
+  (goal, safety mode, multi-agent toggle, start/stop, confirmation dialog),
+  live plan / tool-call / log panels, a screenshot preview and a memory browser
+  (tasks with step drilldown, preferences, strategies).
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer, the
 tool-call contract, the tool system, the controllers, the vision system, the
@@ -93,7 +98,7 @@ Without `--goal`, `localpilot run` prompts interactively (or just reports
 readiness when run non-interactively). Use `--safe` / `--balanced` /
 `--autonomous` to choose the safety mode.
 
-Start the control server (REST + WebSocket) for the future GUI:
+Start the control server (REST + WebSocket) consumed by the GUI:
 
 ```powershell
 localpilot serve
@@ -101,6 +106,30 @@ localpilot serve
 
 Then `GET http://127.0.0.1:8765/api/health` and connect a WebSocket to
 `ws://127.0.0.1:8765/ws/events` to stream agent events.
+
+### GUI starten
+
+The desktop GUI lives in [`gui/`](gui/). In development, Electron starts the
+backend itself, so you only need:
+
+```bash
+cd gui
+npm install
+npm run dev
+```
+
+To run the backend separately (e.g. to watch its logs), start it first and tell
+Electron not to spawn its own:
+
+```bash
+localpilot serve
+# in another terminal:
+cd gui && LOCALPILOT_EXTERNAL_BACKEND=1 npm run dev
+```
+
+`npm run build` bundles the renderer and `npm start` runs Electron against the
+build. See [`gui/README.md`](gui/README.md) for the full dev/build details and a
+manual smoke check.
 
 Print the fully merged configuration as JSON:
 

@@ -1,0 +1,46 @@
+{
+  "name": "localpilot-gui",
+  "version": "0.0.0",
+  "private": true,
+  "description": "LocalPilot desktop GUI (Electron + React + Vite).",
+  "main": "electron/main.js",
+  "scripts": {
+    "dev": "concurrently -k -n vite,electron \"npm:dev:vite\" \"npm:dev:electron\"",
+    "dev:vite": "vite",
+    "dev:electron": "wait-on tcp:127.0.0.1:5173 && cross-env ELECTRON_DEV=1 electron electron/main.js",
+    "build": "tsc --noEmit && vite build",
+    "start": "electron electron/main.js",
+    "package": "npm run build && electron-builder",
+    "test": "vitest run",
+    "lint:types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^9.0.1",
+    "cross-env": "^7.0.3",
+    "electron": "^32.1.2",
+    "electron-builder": "^25.1.7",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.8",
+    "vitest": "^2.1.1",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "eu.bieder.localpilot",
+    "productName": "LocalPilot",
+    "files": [
+      "dist/**",
+      "electron/**"
+    ],
+    "directories": {
+      "output": "release"
+    }
+  }
+}

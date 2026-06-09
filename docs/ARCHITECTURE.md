@@ -2,8 +2,8 @@
 
 This document describes the architecture of LocalPilot in my own words. The
 implemented scope is summarised in the per-phase "current state" sections at the
-end; the project is built up phase by phase (Phases 0-8 are implemented, the
-desktop GUI is a later phase).
+end; the project is built up phase by phase (Phases 0-9 are implemented, from the
+configuration scaffold through the autonomous agent to the desktop GUI).
 
 ## Goals
 
@@ -308,6 +308,28 @@ files.
 
 The CLI starts it with `localpilot serve` (host/port from `ServerConfig`).
 
+## Desktop GUI
+
+The `gui/` directory holds the desktop GUI (Electron + React + Vite); it is a
+pure client of the control server and contains no agent logic.
+
+- **Electron** (`electron/main.js`, `preload.js`) - creates the window (Vite dev
+  server in dev, built files in production), optionally starts the Python
+  backend (`localpilot serve`) as a child process, waits for `/api/health` and
+  stops it on quit. The preload exposes only the backend base URL to the
+  renderer (context isolation on, node integration off). Backend command/URL are
+  configurable via environment variables.
+- **API layer** (`src/api/`) - `client.ts` wraps the REST endpoints (typed,
+  with an `ApiError`), `config.ts` resolves the backend URL, and
+  `useEventStream.ts` subscribes to `/ws/events` and reduces the raw events into
+  typed state (run status, plan, tool calls, logs, screenshot, pending
+  confirmation), reconnecting automatically.
+- **Components** (`src/components/`) - a dark dashboard: `TaskPanel` (goal,
+  safety mode, multi-agent toggle, start/stop, `ConfirmDialog` for SAFE/BALANCED
+  confirmations), `PlanView`, `ToolCalls`, `LiveLogs`, `ScreenshotPreview` and
+  `MemoryView` (tasks with step drilldown, preferences, strategies). Connection
+  and error states are surfaced clearly.
+
 ## Safety modes
 
 A configurable safety mode governs how much autonomy the agent has:
@@ -356,4 +378,18 @@ with file/terminal/browser/desktop/vision tools, the controllers, the vision
 system, the memory system, the autonomous single-agent loop with its safety
 gate, and the optional multi-agent orchestrator.
 
-No desktop GUI is implemented yet; it consumes this server in a later phase.
+## Phase 9 (current state)
+
+Phase 9 adds the desktop GUI in `gui/` (Electron + React + Vite), a pure client
+of the Phase 8 control server:
+
+- an Electron shell that can start/stop the Python backend and exposes only its
+  base URL to the renderer;
+- a typed REST client and a reconnecting `useEventStream` hook over `/ws/events`;
+- a dark dashboard (task panel with confirmation dialog, plan, tool calls, live
+  logs, screenshot preview) and a memory browser;
+- a light Vitest unit test for the REST client and a documented manual smoke
+  check.
+
+The GUI completes the LocalPilot stack from configuration through the autonomous
+agent to a desktop interface.
