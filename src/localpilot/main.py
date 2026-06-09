@@ -24,6 +24,7 @@ from localpilot.agent.safety import CLIConfirmationProvider
 from localpilot.config.loader import load_config
 from localpilot.config.schema import AppConfig
 from localpilot.container import Container
+from localpilot.llm.errors import LLMError
 from localpilot.logging.setup import configure_logging
 
 app = typer.Typer(
@@ -99,7 +100,16 @@ async def _run_lifecycle(
         await container.startup()
         if goal:
             runner = container.create_runner(multi_agent, CLIConfirmationProvider())
-            result = await runner.run(goal, mode)
+            try:
+                result = await runner.run(goal, mode)
+            except LLMError as exc:
+                typer.echo(f"LLM-Fehler: {exc}", err=True)
+                typer.echo(
+                    "Laeuft ein lokales LLM-Backend (Ollama/LM Studio) und ist das Modell "
+                    "geladen? Pruefe llm.base_url und llm.model.",
+                    err=True,
+                )
+                raise typer.Exit(code=1) from exc
             container.logger.info(
                 "agent_done",
                 task_id=result.task_id,

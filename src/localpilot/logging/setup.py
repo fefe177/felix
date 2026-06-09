@@ -6,9 +6,10 @@ logging module with two handlers running simultaneously:
 * a colourful, human-friendly console renderer on ``stdout``;
 * a machine-readable JSON renderer appended to ``logs/localpilot.jsonl``.
 
-:class:`EventBus` is a tiny ``asyncio``-based publish/subscribe helper that
-later phases (e.g. the GUI) can consume. It is intentionally not wired into the
-logging pipeline yet.
+:class:`EventBus` is a tiny ``asyncio``-based publish/subscribe helper used to
+stream agent activity. The agent loop and tools publish structured events to it,
+and the control server forwards them (plus bridged log lines) to GUI clients
+over ``/ws/events``.
 """
 
 from __future__ import annotations

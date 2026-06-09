@@ -1,9 +1,9 @@
 # LocalPilot Architecture
 
-This document describes the architecture of LocalPilot in my own words. The
-implemented scope is summarised in the per-phase "current state" sections at the
-end; the project is built up phase by phase (Phases 0-9 are implemented, from the
-configuration scaffold through the autonomous agent to the desktop GUI).
+This document describes the architecture of LocalPilot. The implemented scope is
+summarised in the "Implementation status" section at the end; all phases (0-10)
+are implemented, from the configuration scaffold through the autonomous agent
+and the control server to the desktop GUI.
 
 ## Goals
 
@@ -14,8 +14,7 @@ terminal and screen vision. Everything stays local for privacy and control.
 
 ## The agent loop
 
-The core of LocalPilot (a later phase) is a perceive → think → act → observe
-loop:
+The core of LocalPilot is a perceive → think → act → observe loop:
 
 1. **Perceive.** Gather the current context: the user goal, recent history,
    relevant memory, and — when needed — a screenshot plus OCR/vision analysis
@@ -28,8 +27,8 @@ loop:
 4. **Observe.** Feed the tool results back into the context and repeat until the
    goal is met, a stop condition fires, or the user intervenes.
 
-Events emitted at each step are published on an in-process event bus so a
-future GUI can stream the agent's reasoning and actions in real time.
+Events emitted at each step are published on an in-process event bus so the GUI
+can stream the agent's reasoning and actions in real time.
 
 ## Components
 
@@ -222,6 +221,28 @@ sessions.
 The container exposes lazy `database` and `memory` properties; `startup()`
 connects the database and initialises the schema, and `shutdown()` closes it.
 
+## Data model
+
+Persistent state lives in a single SQLite database (`schema.sql`); identifiers
+are UUID strings and timestamps are ISO-8601 UTC strings.
+
+- **tasks** (`id`, `created_at`, `status`, `goal`, `safety_mode`, `result`,
+  `error`) - one row per run. `status` moves `running -> completed | failed |
+  needs_input`.
+- **steps** (`id`, `task_id`, `idx`, `thought`, `tool`, `arguments_json`,
+  `result_json`, `ok`, `created_at`) - the ordered actions of a task; arguments
+  and results are stored as JSON.
+- **errors** (`id`, `task_id`, `step_id`, `kind`, `message`, `traceback`,
+  `created_at`) - failures encountered during a run.
+- **preferences** (`key`, `value`, `updated_at`) - user preferences.
+- **strategies** (`id`, `pattern`, `description`, `success_count`, `fail_count`,
+  `last_used_at`) - reusable strategies the agent reinforces over time; their
+  success rate is used for ranking.
+
+Reads return typed Pydantic records (`TaskRecord`, `StepRecord`, `ErrorRecord`,
+`StrategyRecord`); `get_task_with_steps` returns a nested `{"task", "steps"}`
+structure used by the API and GUI.
+
 ## Agent loop
 
 The `localpilot.agent` package is the heart of the system: the autonomous loop
@@ -349,47 +370,38 @@ commands, per-tool timeouts, an optional restriction that confines file writes
 to the workspace directory, and PyAutoGUI's fail-safe corner to abort desktop
 control.
 
-## Phase 0 (current state)
+## Extending LocalPilot: adding a tool
 
-Phase 0 delivers only the foundations:
+A tool is a small class satisfying the `Tool` protocol (`name`, `description`,
+`args_model`, async `run`). In short:
 
-- the full package layout with placeholder sub-packages;
-- the configuration schema, loader and default files;
-- structured logging and the event bus;
-- the dependency container;
-- the Typer CLI (`run`, `config`);
-- tests and project metadata.
+1. Write a Pydantic `args_model` and a tool class with an async `run` returning
+   a `ToolResult`.
+2. Register it with `@builtin_tools.register` and import the module from
+   `tools/__init__.py` so the decorator runs.
+3. Optionally classify its risk in `agent/safety.py` (`TOOL_RISK`).
 
-## Phase 8 (current state)
+The manager then validates arguments, applies the safety gate, advertises the
+tool to the LLM and logs/streams every call - no other wiring is needed. See
+[`docs/CUSTOM_TOOLS.md`](CUSTOM_TOOLS.md) for a complete, runnable `hello`
+example.
 
-Phase 8 adds the HTTP/WebSocket control server (the Python backend only - no GUI
-files):
+## Implementation status
 
-- `/ws/events` streaming all agent events to multiple clients;
-- REST endpoints to start (one at a time -> 409) and cancel runs, deliver safety
-  confirmations via the `WebUIConfirmationProvider`, and read tasks,
-  preferences, strategies, screenshots, the redacted config and health;
-- a FastAPI app with CORS, a lifespan managing the container and a logger ->
-  event-bus bridge, and the `localpilot serve` command.
+All phases (0-10) are implemented:
 
-Earlier phases delivered the configuration system, logging and event bus, the
-container, the CLI, the LLM layer with the tool-call parser, the tool system
-with file/terminal/browser/desktop/vision tools, the controllers, the vision
-system, the memory system, the autonomous single-agent loop with its safety
-gate, and the optional multi-agent orchestrator.
-
-## Phase 9 (current state)
-
-Phase 9 adds the desktop GUI in `gui/` (Electron + React + Vite), a pure client
-of the Phase 8 control server:
-
-- an Electron shell that can start/stop the Python backend and exposes only its
-  base URL to the renderer;
-- a typed REST client and a reconnecting `useEventStream` hook over `/ws/events`;
-- a dark dashboard (task panel with confirmation dialog, plan, tool calls, live
-  logs, screenshot preview) and a memory browser;
-- a light Vitest unit test for the REST client and a documented manual smoke
-  check.
-
-The GUI completes the LocalPilot stack from configuration through the autonomous
-agent to a desktop interface.
+- **0** - package layout, typed configuration, structured logging + event bus,
+  dependency container, Typer CLI.
+- **1** - LLM layer: messages, `LLMClient` protocol, OpenAI-compatible client,
+  defensive tool-call parser.
+- **2** - tool system foundation + file/terminal tools.
+- **3** - browser (Playwright) and desktop (PyAutoGUI) controllers and tools.
+- **4** - vision system: capture, OCR, VLM description, element finding.
+- **5** - memory: SQLite long-term store, short-term working memory, optional
+  vector memory.
+- **6** - the autonomous single-agent loop, planner, prompts and the real safety
+  gate.
+- **7** - the optional multi-agent orchestrator (planner/executor/debug/research).
+- **8** - the HTTP/WebSocket control server.
+- **9** - the desktop GUI (Electron + React + Vite).
+- **10** - documentation, example configurations, license and end-to-end checks.

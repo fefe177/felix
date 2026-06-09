@@ -1,9 +1,10 @@
 """A small dependency container for LocalPilot.
 
 The :class:`Container` owns the validated :class:`AppConfig` and lazily
-constructs shared, cross-cutting services. In Phase 0 the only services are the
-structured logger and the in-process :class:`EventBus`; later phases will add
-lazy properties for the LLM client, tool registry, memory store and so on.
+constructs the shared, cross-cutting services: the structured logger and event
+bus, the LLM client, the tool manager and context, the browser/desktop
+controllers, the memory database, the safety gate, and factories for the agent
+loop and multi-agent orchestrator.
 
 Lazy initialisation is done with plain attributes — no external dependency
 injection framework is used.

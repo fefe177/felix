@@ -1,11 +1,23 @@
-# Example LLM model profiles for LocalPilot.
+# Example LLM / vision model profiles for LocalPilot.
 #
-# Copy one of the `llm:` blocks below into your own config file (or pass it via
-# `localpilot run --config <file>`) to switch the active model. Each profile
-# targets a local, OpenAI-compatible endpoint (Ollama or LM Studio).
+# Each profile is a self-contained config fragment. Copy one profile's keys into
+# your own YAML file and run it with:
+#
+#     localpilot run --config my-config.yaml --goal "..."
+#
+# (A profile file like this one is documentation; `--config` deep-merges any YAML
+# over config/default.yaml, so a file containing just an `llm:` block also works.)
+#
+# Pull the models first, e.g. with Ollama:
+#     ollama pull qwen3:8b
+#     ollama pull deepseek-r1:14b
+#     ollama pull qwen2.5vl:7b      # a vision-language model (VLM) for vision_describe
+#
+# LM Studio: load the model in the app and enable its OpenAI-compatible server
+# (default http://localhost:1234/v1).
 
 profiles:
-  # Qwen3 8B on Ollama - a balanced general-purpose default.
+  # --- Ollama: Qwen3 8B - balanced general-purpose default. ---
   qwen3:
     llm:
       backend: ollama
@@ -16,7 +28,7 @@ profiles:
       max_tokens: 4096
       request_timeout_s: 120
 
-  # DeepSeek-R1 14B on Ollama - stronger step-by-step reasoning, slower.
+  # --- Ollama: DeepSeek-R1 14B - stronger step-by-step reasoning, slower. ---
   deepseek-r1:
     llm:
       backend: ollama
@@ -27,8 +39,21 @@ profiles:
       max_tokens: 8192
       request_timeout_s: 240
 
-  # Llama 3.x 8B Instruct served by LM Studio.
-  llama3:
+  # --- Ollama: Llama 3.x 8B Instruct. ---
+  llama3-ollama:
+    llm:
+      backend: ollama
+      base_url: http://localhost:11434/v1
+      api_key: not-needed
+      model: llama3.1:8b
+      temperature: 0.7
+      max_tokens: 4096
+      request_timeout_s: 120
+
+  # --- LM Studio: Llama 3.x 8B Instruct (OpenAI-compatible server). ---
+  # Note the different base_url and port for LM Studio. The api_key can be any
+  # non-empty string; LM Studio ignores it.
+  llama3-lmstudio:
     llm:
       backend: lmstudio
       base_url: http://localhost:1234/v1
@@ -37,3 +62,21 @@ profiles:
       temperature: 0.7
       max_tokens: 4096
       request_timeout_s: 120
+
+  # --- Vision profile: a reasoning model plus a VLM for screen understanding. ---
+  # `llm.model` is the text/agent model; `vision.model` is the vision-language
+  # model used by the vision_describe tool. OCR (vision_ocr) runs locally and
+  # needs no model here.
+  qwen3-vision:
+    llm:
+      backend: ollama
+      base_url: http://localhost:11434/v1
+      api_key: not-needed
+      model: qwen3:8b
+      temperature: 0.7
+      max_tokens: 4096
+      request_timeout_s: 120
+    vision:
+      enabled: true
+      model: qwen2.5vl:7b
+      ocr_enabled: true

@@ -1,164 +1,224 @@
 # LocalPilot
 
-LocalPilot is an autonomous local desktop agent for Windows 11. It is designed
-to run entirely against local, OpenAI-compatible LLM backends (Ollama or LM
-Studio) and to operate the desktop, browser and terminal on your behalf.
+**LocalPilot** is an autonomous desktop agent that runs entirely on your own
+machine. It reasons with a local, OpenAI-compatible LLM (via
+[Ollama](https://ollama.com/) or [LM Studio](https://lmstudio.ai/)) and acts on
+the world through tools: the file system, the terminal, a browser, the desktop
+(mouse/keyboard/windows) and screen vision (screenshots + OCR + a vision model).
+Nothing leaves your computer.
 
-## Status: Phase 9 (desktop GUI)
+It ships as a **CLI**, an **HTTP/WebSocket control server**, and an **Electron
+desktop GUI**.
 
-This repository contains the full agent stack, the HTTP/WebSocket control server
-and now a desktop GUI (Electron + React + Vite) in [`gui/`](gui/). The GUI talks
-to the Python backend over REST and the WebSocket event stream: a dashboard to
-start/stop runs, live plan/tool-call/log panels, a screenshot preview, safety
-confirmation dialogs and a memory browser.
+> Status: **Phases 0-10 complete** - from the configuration scaffold through the
+> autonomous agent to the desktop GUI and final documentation.
 
-Delivered so far:
+## Features
 
-- **Phase 0** - package layout, typed configuration (Pydantic + YAML + `.env`),
-  structured logging + event bus, the dependency container and the Typer CLI.
-- **Phase 1** - conversation models and OpenAI serialisation, the `LLMClient`
-  protocol and `LLMResponse`, the `OpenAICompatibleClient` (Ollama / LM Studio)
-  with optional streaming, and the defensive tool-call parser.
-- **Phase 2** - the `Tool` protocol, `ToolResult`, `ToolContext`, OpenAI spec
-  generation, the `ToolManager`, and file/terminal tools.
-- **Phase 3** - `BrowserController` (Playwright/Chromium) and browser tools
-  (`browser_open`, `browser_goto`, `browser_get_text`, `browser_click`,
-  `browser_type`, `browser_extract_links`, `browser_search`); `DesktopController`
-  (PyAutoGUI/PyGetWindow, lazy imports) and desktop tools (`desktop_move`,
-  `desktop_click`, `desktop_double_click`, `desktop_scroll`, `desktop_type`,
-  `desktop_press`, `desktop_activate_window`); container singletons wired into
-  the tool context, with a browser cleanup hook on shutdown.
-- **Phase 4** - the vision system: screen capture (`mss`), lazy OCR
-  (`rapidocr-onnxruntime`), VLM description (OpenAI vision format) and heuristic
-  text-based element finding, exposed as `vision_screenshot`, `vision_describe`,
-  `vision_ocr` and `vision_find` tools.
-- **Phase 5** - the memory system: an async SQLite database (`aiosqlite`, WAL),
-  long-term memory (tasks, steps, errors, preferences, strategies), bounded
-  short-term working memory, and optional `sqlite-vec` vector memory that
-  degrades to a no-op; wired into the container with `startup`/`shutdown`.
-- **Phase 6** - the autonomous agent: `AgentState`/`PlanStep`, the planner, the
-  system/planner/verify prompts, the real async `SafetyGate` (with a
-  confirmation provider) wired into the tool manager, and the `AgentLoop`
-  (Observe -> Think -> Plan -> Act -> Verify -> Learn) with parse-repair,
-  `finish`/`ask_user`, step persistence, strategy learning and event streaming;
-  run with `localpilot run --goal "<goal>" [--safe|--balanced|--autonomous]`.
-- **Phase 7** - the optional multi-agent mode: planner/executor/debug/research
-  roles (with per-role tool subsets) coordinated by an `Orchestrator` that
-  reuses the single-agent loop and recovers from failures via the debug role;
-  enabled with `--multi-agent` or `multi_agent: true` (single-agent is default).
-- **Phase 8** - the HTTP/WebSocket control server (FastAPI): `/ws/events`
-  streams all agent events; REST endpoints start/cancel runs (one at a time),
-  deliver safety confirmations (`WebUIConfirmationProvider`), and read tasks,
-  preferences, strategies, screenshots, config and health. Start it with
-  `localpilot serve`.
-- **Phase 9** - the desktop GUI in [`gui/`](gui/) (Electron + React + Vite): a
-  dark-themed dashboard consuming the REST + WebSocket API, with a task panel
-  (goal, safety mode, multi-agent toggle, start/stop, confirmation dialog),
-  live plan / tool-call / log panels, a screenshot preview and a memory browser
-  (tasks with step drilldown, preferences, strategies).
+- **Local-first**: any OpenAI-compatible `/v1` backend (Ollama, LM Studio). No
+  cloud, no API keys required.
+- **Autonomous agent loop**: Observe -> Think -> Plan -> Act -> Verify -> Learn,
+  with a defensive tool-call parser and a one-shot self-repair on bad output.
+- **Tools**: `file_read/write/list`, `dir_create`, `run_command`, `run_python`,
+  browser (`browser_open/goto/get_text/click/type/extract_links/search`),
+  desktop (`desktop_move/click/double_click/scroll/type/press/activate_window`)
+  and vision (`vision_screenshot/describe/ocr/find`).
+- **Safety gate** with three modes (safe / balanced / autonomous), confirmation
+  prompts and always-on guardrails (command blocklist, workdir write
+  restriction, timeouts, PyAutoGUI fail-safe).
+- **Memory**: SQLite long-term store (tasks, steps, errors, preferences,
+  strategies), bounded short-term working memory, optional `sqlite-vec` vector
+  memory.
+- **Optional multi-agent** orchestration (planner / executor / debug / research).
+- **Control server** (FastAPI): REST + a `/ws/events` WebSocket stream.
+- **Desktop GUI** (Electron + React + Vite): live dashboard, confirmations,
+  memory browser.
 
-See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the LLM layer, the
-tool-call contract, the tool system, the controllers, the vision system, the
-memory system and the agent loop, and [`docs/INSTALL.md`](docs/INSTALL.md) for
-detailed setup notes.
+## Architecture
+
+```mermaid
+flowchart TB
+    subgraph UI["Interfaces"]
+        CLI["CLI (localpilot run)"]
+        GUI["Electron GUI"]
+    end
+    GUI <-->|"REST + /ws/events"| Server["FastAPI control server"]
+    CLI --> Container
+    Server --> Container
+
+    subgraph Core["localpilot core"]
+        Container["Container (DI)"]
+        Agent["Agent loop / Orchestrator"]
+        Safety["Safety gate"]
+        Tools["Tool manager"]
+        Memory["Memory (SQLite)"]
+        Bus["Event bus"]
+        Container --> Agent --> Tools
+        Agent --> Safety
+        Agent --> Memory
+        Agent --> Bus
+    end
+
+    LLM["LLM client (Ollama / LM Studio)"]
+    Agent <--> LLM
+
+    Tools --> FileT["file / terminal"]
+    Tools --> Browser["browser (Playwright)"]
+    Tools --> Desktop["desktop (PyAutoGUI)"]
+    Tools --> Vision["vision (mss + OCR + VLM)"]
+    Bus -->|stream| Server
+```
+
+```text
+CLI ──┐                         ┌── file / terminal
+      ├─► Container ─► Agent ───►│   browser (Playwright)
+GUI ─►Server ─┘        │  │  │   ├── desktop (PyAutoGUI)
+   (REST + WS)         │  │  │   └── vision (mss + OCR + VLM)
+                       │  │  └─► Memory (SQLite)
+                       │  └────► Safety gate (safe/balanced/autonomous)
+                       └───────► LLM client ◄─► Ollama / LM Studio
+```
+
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the full design (agent
+loop, tool-call contract, data model, safety modes, multi-agent, control server,
+GUI, and how to add your own tool).
 
 ## Requirements
 
-- Windows 11
-- Python 3.11+
+- **Windows 11** for desktop/vision automation (the rest runs on Linux/macOS for
+  development).
+- **Python 3.11+**.
+- **Node.js 18+** for the GUI.
+- A local LLM backend with models pulled, e.g. Ollama:
 
-## Installation
+  ```bash
+  ollama pull qwen3:8b          # agent / reasoning model
+  ollama pull qwen2.5vl:7b      # vision-language model (for vision_describe)
+  ```
 
-```powershell
+  Or LM Studio with its OpenAI server enabled on `http://localhost:1234/v1`.
+
+## Installation (backend)
+
+```bash
 python -m venv .venv
-.\.venv\Scripts\activate
+# Windows:  .\.venv\Scripts\activate
+# Linux/macOS:  source .venv/bin/activate
 pip install -e ".[dev]"
-playwright install chromium
+playwright install chromium     # browser tools (safe to run even if unused)
+cp .env.example .env            # optional: edit overrides
 ```
 
-`playwright install chromium` downloads the browser used by later phases; it is
-harmless to run now.
+Full details incl. Windows-specific notes: [`docs/INSTALL.md`](docs/INSTALL.md).
 
-## Usage
+## Usage - CLI
 
-Start LocalPilot (Phase 0 only loads config, initialises logging and reports
-readiness, then exits):
+Run the agent on a goal:
 
-```powershell
-localpilot run
+```bash
+localpilot run --goal "Lege im Workspace eine Datei notiz.txt mit 'hallo' an und lies sie wieder" --balanced
 ```
 
-Run the agent on a goal (needs a reachable local LLM backend):
+- Safety mode: `--safe` | `--balanced` (default) | `--autonomous`.
+- `--multi-agent` uses the orchestrator instead of the single agent.
+- Without `--goal`, `run` prompts interactively (or just reports readiness when
+  non-interactive).
+- `localpilot config` prints the merged configuration; `--config my.yaml` merges
+  a custom file over the defaults.
 
-```powershell
-localpilot run --goal "Erstelle eine Datei notes.txt im Arbeitsverzeichnis" --balanced
+Start the control server (REST + WebSocket):
+
+```bash
+localpilot serve   # http://127.0.0.1:8765 ; ws://127.0.0.1:8765/ws/events
 ```
 
-Without `--goal`, `localpilot run` prompts interactively (or just reports
-readiness when run non-interactively). Use `--safe` / `--balanced` /
-`--autonomous` to choose the safety mode.
-
-Start the control server (REST + WebSocket) consumed by the GUI:
-
-```powershell
-localpilot serve
-```
-
-Then `GET http://127.0.0.1:8765/api/health` and connect a WebSocket to
-`ws://127.0.0.1:8765/ws/events` to stream agent events.
-
-### GUI starten
-
-The desktop GUI lives in [`gui/`](gui/). In development, Electron starts the
-backend itself, so you only need:
+## Usage - GUI
 
 ```bash
 cd gui
 npm install
-npm run dev
+npm run dev        # Vite + Electron; Electron starts the backend itself
 ```
 
-To run the backend separately (e.g. to watch its logs), start it first and tell
-Electron not to spawn its own:
+To run the backend separately (e.g. to watch its logs):
 
 ```bash
 localpilot serve
-# in another terminal:
 cd gui && LOCALPILOT_EXTERNAL_BACKEND=1 npm run dev
 ```
 
-`npm run build` bundles the renderer and `npm start` runs Electron against the
-build. See [`gui/README.md`](gui/README.md) for the full dev/build details and a
-manual smoke check.
+`npm run build` bundles the renderer and `npm start` runs Electron against it.
+See [`gui/README.md`](gui/README.md). On Windows, `scripts/dev_run.ps1` starts
+both for you.
 
-Print the fully merged configuration as JSON:
+## Configuration
 
-```powershell
-localpilot config
+Layered, lowest precedence first: `config/default.yaml` -> a `--config` YAML file
+-> `.env` / environment (`LOCALPILOT_` prefix, `__` for nesting, e.g.
+`LOCALPILOT_LLM__MODEL=qwen3:14b`). Ready-made model/vision profiles live in
+[`config/models.example.yaml`](config/models.example.yaml); all environment
+variables are documented in [`.env.example`](.env.example).
+
+## Safety
+
+The agent only affects the world through tools, and every tool call passes the
+**safety gate**:
+
+- **safe** - every action requires confirmation.
+- **balanced** (default) - read-only / browser / vision actions run
+  automatically; writes, terminal and desktop actions require confirmation.
+- **autonomous** - **no per-action confirmation**. The agent will write files,
+  run shell commands, control the mouse/keyboard and drive the browser on its
+  own.
+
+> ⚠️ **`--autonomous` lets the model act without asking.** Run it only with goals
+> and models you trust, ideally with `safety.restrict_writes_to_workdir: true`
+> (the default) so writes stay inside the workspace. Static guardrails always
+> apply in every mode: a **command blocklist**, **per-tool timeouts**, the
+> **workdir write restriction**, and PyAutoGUI's **fail-safe** (slam the mouse
+> into a screen corner to abort). Blocklisted shell commands and out-of-workdir
+> writes are hard-denied even in autonomous mode.
+
+## Known limitations
+
+LocalPilot is honest about what local, open models can and cannot do today:
+
+- **Tool-calling reliability** depends on the model. Smaller local models
+  sometimes emit malformed JSON; the parser strips code fences, matches braces
+  defensively and asks for one repair, but a weak model can still fail a step.
+  Prefer capable instruct/reasoning models (e.g. Qwen3, DeepSeek-R1).
+- **Vision is approximate.** OCR (`rapidocr-onnxruntime`) is solid for clear
+  text but struggles with small/stylised fonts; element finding is
+  **text/heuristic-based**, not pixel-accurate UI segmentation, so icon-only
+  controls without labels cannot be located.
+- **Desktop automation** needs an interactive session, is affected by display
+  scaling, and cannot control more-privileged windows than LocalPilot itself.
+- **Browser** features require `playwright install chromium`; without it the
+  browser tools and tests are skipped.
+- **No sandbox.** Tools run with your user's privileges. The safety modes and
+  guardrails reduce risk but do not isolate execution - review autonomous goals.
+
+## Project layout
+
 ```
-
-Use a custom configuration file (deep-merged over the defaults):
-
-```powershell
-localpilot run --config path\to\my-config.yaml
+src/localpilot/      Python package: config, llm, tools, browser, desktop,
+                     vision, memory, agent, multiagent, server, container, CLI
+config/              default.yaml + example model profiles
+docs/                ARCHITECTURE, INSTALL, CUSTOM_TOOLS
+gui/                 Electron + React + Vite desktop app
+scripts/             helper scripts (dev_run.ps1 / dev_run.sh)
+tests/               pytest suite
 ```
-
-### Configuration
-
-Configuration is layered, lowest precedence first:
-
-1. `config/default.yaml` - bundled defaults.
-2. An optional YAML file passed via `--config`.
-3. `.env` file and process environment variables, prefixed with `LOCALPILOT_`
-   and nesting via `__` (e.g. `LOCALPILOT_LLM__MODEL=qwen3:14b`).
-
-Copy `.env.example` to `.env` to set overrides, and see
-`config/models.example.yaml` for ready-made model profiles.
 
 ## Development
 
-```powershell
-pytest          # run the test suite
-ruff check .    # lint
-mypy            # type-check src/localpilot (strict)
+```bash
+pytest          # test suite
+ruff check .    # lint (line length 100)
+mypy            # strict type-check of src/localpilot
+cd gui && npm test   # GUI unit tests (Vitest)
 ```
+
+## License
+
+MIT - see [`LICENSE`](LICENSE).
