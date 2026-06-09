@@ -55,11 +55,43 @@ the UI still opens, displaying the connection status and reconnecting.
 ```bash
 npm run build      # type-check + bundle the renderer into dist/
 npm start          # run Electron against the built files
-npm run package    # build a distributable with electron-builder (into release/)
 ```
 
 - **Dev mode** loads `http://localhost:5173` (hot reload) via Vite.
 - **Build mode** loads the static files from `dist/` inside Electron.
+
+## Packaging a Windows installer (electron-builder)
+
+```bash
+npm run dist:win   # builds a Windows NSIS installer + a portable .exe into release/
+# or, for the current platform:
+npm run dist
+```
+
+This produces, in `release/`:
+
+- `LocalPilot Setup <version>.exe` - an NSIS installer (lets the user choose the
+  install location, creates a desktop shortcut), and
+- `LocalPilot <version>.exe` - a portable single-file executable.
+
+The branded icon comes from `assets/icon.ico` (a 512px source is in
+`assets/icon.png`).
+
+### Important: where to build, and the Python backend
+
+- **Build on Windows** for a Windows installer. Building a Windows target on
+  Linux/macOS additionally needs Wine; on a network-restricted machine the build
+  fails because electron-builder must download the Electron/Windows binaries.
+- The installer packages **only the GUI**. The Python backend is **not** bundled.
+  On the target machine, install the LocalPilot Python package and make sure the
+  `localpilot` command is on `PATH` (the GUI spawns `localpilot serve` on
+  startup). Alternatively set, before launching:
+  - `LOCALPILOT_PYTHON` - e.g. `C:\path\to\python.exe` (the GUI then runs
+    `python -m localpilot.main serve`), or
+  - `LOCALPILOT_BACKEND_CMD` - a full command to start the backend, or
+  - `LOCALPILOT_EXTERNAL_BACKEND=1` - if you start `localpilot serve` yourself.
+- Bundling the Python backend into the installer (e.g. with PyInstaller) is
+  possible but out of scope here.
 
 ## Tests
 

@@ -1,6 +1,6 @@
 {
   "name": "localpilot-gui",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "description": "LocalPilot desktop GUI (Electron + React + Vite).",
   "main": "electron/main.js",
@@ -11,6 +11,8 @@
     "build": "tsc --noEmit && vite build",
     "start": "electron electron/main.js",
     "package": "npm run build && electron-builder",
+    "dist": "npm run build && electron-builder",
+    "dist:win": "npm run build && electron-builder --win",
     "test": "vitest run",
     "lint:types": "tsc --noEmit"
   },
@@ -35,12 +37,28 @@
   "build": {
     "appId": "eu.bieder.localpilot",
     "productName": "LocalPilot",
+    "copyright": "Copyright (c) 2026 LocalPilot contributors",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
     "files": [
       "dist/**",
       "electron/**"
     ],
-    "directories": {
-      "output": "release"
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "LocalPilot"
     }
   }
 }
