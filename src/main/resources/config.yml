@@ -255,15 +255,28 @@ shop:
       name: "&eEssen"
       icon: COOKED_BEEF
       items:
-        BREAD:          {buy: 6.0,   sell: 2.0}
-        COOKED_BEEF:    {buy: 10.0,  sell: 3.0}
-        COOKED_PORKCHOP: {buy: 10.0, sell: 3.0}
-        COOKED_CHICKEN: {buy: 8.0,   sell: 2.5}
-        COOKED_COD:     {buy: 7.0,   sell: 2.0}
-        GOLDEN_CARROT:  {buy: 30.0,  sell: 8.0}
-        APPLE:          {buy: 5.0,   sell: 1.5}
-        GOLDEN_APPLE:   {buy: 400.0, sell: 100.0}
-        CAKE:           {buy: 40.0,  sell: 10.0}
+        BREAD:           {buy: 6.0,   sell: 2.0}
+        COOKED_BEEF:     {buy: 10.0,  sell: 3.0}
+        COOKED_PORKCHOP: {buy: 10.0,  sell: 3.0}
+        COOKED_CHICKEN:  {buy: 8.0,   sell: 2.5}
+        COOKED_MUTTON:   {buy: 8.0,   sell: 2.5}
+        COOKED_RABBIT:   {buy: 8.0,   sell: 2.5}
+        COOKED_COD:      {buy: 7.0,   sell: 2.0}
+        COOKED_SALMON:   {buy: 9.0,   sell: 2.8}
+        BAKED_POTATO:    {buy: 4.0,   sell: 1.2}
+        PUMPKIN_PIE:     {buy: 12.0,  sell: 3.5}
+        MUSHROOM_STEW:   {buy: 10.0,  sell: 3.0}
+        RABBIT_STEW:     {buy: 14.0,  sell: 4.0}
+        BEETROOT_SOUP:   {buy: 10.0,  sell: 3.0}
+        SWEET_BERRIES:   {buy: 3.0,   sell: 0.8}
+        GLOW_BERRIES:    {buy: 4.0,   sell: 1.0}
+        HONEY_BOTTLE:    {buy: 8.0,   sell: 2.0}
+        COOKIE:          {buy: 2.0,   sell: 0.5}
+        DRIED_KELP:      {buy: 2.0,   sell: 0.5}
+        APPLE:           {buy: 5.0,   sell: 1.5}
+        GOLDEN_CARROT:   {buy: 30.0,  sell: 8.0}
+        GOLDEN_APPLE:    {buy: 400.0, sell: 100.0}
+        CAKE:            {buy: 40.0,  sell: 10.0}
     end:
       # Icon im Hauptmenue: End Stone. Klick darauf -> diese Kategorie.
       name: "&5End"
@@ -277,3 +290,16 @@ shop:
         CHORUS_FRUIT:       {buy: 4.0,    sell: 1.0}
         POPPED_CHORUS_FRUIT: {buy: 6.0,   sell: 1.5}
         DRAGON_BREATH:      {buy: 60.0,   sell: 15.0}
+    pvp:
+      # Icon neben dem End Stone. Nur wichtige PVP-Verbrauchsgegenstaende, KEINE Ruestung.
+      name: "&cPVP"
+      icon: DIAMOND_SWORD
+      items:
+        ENCHANTED_GOLDEN_APPLE: {buy: 2500.0, sell: 600.0}
+        GOLDEN_APPLE:           {buy: 400.0,  sell: 100.0}
+        TOTEM_OF_UNDYING:       {buy: 2000.0, sell: 500.0}
+        EXPERIENCE_BOTTLE:      {buy: 20.0,   sell: 5.0}
+        ENDER_PEARL:            {buy: 40.0,   sell: 12.0}
+        GOLDEN_CARROT:          {buy: 30.0,   sell: 8.0}
+        ARROW:                  {buy: 1.0,    sell: 0.2}
+        SPECTRAL_ARROW:         {buy: 3.0,    sell: 0.8}
