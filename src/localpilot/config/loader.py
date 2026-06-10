@@ -12,6 +12,7 @@ of the source ordering defined on :class:`localpilot.config.schema.AppConfig`.
 
 from __future__ import annotations
 
+import sys
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -20,10 +21,23 @@ import yaml
 
 from localpilot.config.schema import AppConfig
 
-# Repository root is three parents up from this file:
-#   <root>/src/localpilot/config/loader.py
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-DEFAULT_CONFIG_PATH = _REPO_ROOT / "config" / "default.yaml"
+
+def _default_config_path() -> Path:
+    """Locate ``config/default.yaml`` in both source and frozen (PyInstaller) runs.
+
+    In a normal install the repository root is three parents up from this file
+    (``<root>/src/localpilot/config/loader.py``). In a PyInstaller bundle the
+    package lives inside the bundle, so the file is shipped under ``config/`` at
+    the bundle root (``sys._MEIPASS``).
+    """
+
+    if getattr(sys, "frozen", False):
+        base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+        return base / "config" / "default.yaml"
+    return Path(__file__).resolve().parents[3] / "config" / "default.yaml"
+
+
+DEFAULT_CONFIG_PATH = _default_config_path()
 
 
 def _read_yaml(path: Path) -> dict[str, Any]:

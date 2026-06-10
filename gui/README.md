@@ -77,21 +77,42 @@ This produces, in `release/`:
 The branded icon comes from `assets/icon.ico` (a 512px source is in
 `assets/icon.png`).
 
-### Important: where to build, and the Python backend
+### Bundling the Python backend (recommended)
 
-- **Build on Windows** for a Windows installer. Building a Windows target on
-  Linux/macOS additionally needs Wine; on a network-restricted machine the build
-  fails because electron-builder must download the Electron/Windows binaries.
-- The installer packages **only the GUI**. The Python backend is **not** bundled.
-  On the target machine, install the LocalPilot Python package and make sure the
-  `localpilot` command is on `PATH` (the GUI spawns `localpilot serve` on
-  startup). Alternatively set, before launching:
-  - `LOCALPILOT_PYTHON` - e.g. `C:\path\to\python.exe` (the GUI then runs
-    `python -m localpilot.main serve`), or
-  - `LOCALPILOT_BACKEND_CMD` - a full command to start the backend, or
-  - `LOCALPILOT_EXTERNAL_BACKEND=1` - if you start `localpilot serve` yourself.
-- Bundling the Python backend into the installer (e.g. with PyInstaller) is
-  possible but out of scope here.
+The installer can ship the **Python backend bundled in** (frozen with
+PyInstaller), so users do not need a separate Python install. The GitHub Actions
+workflow [`build-windows.yml`](../.github/workflows/build-windows.yml) does this
+automatically on a Windows runner:
+
+1. `pyinstaller --noconfirm packaging/localpilot-backend.spec` builds
+   `localpilot-backend` (an onedir app) into `packaging/dist/`.
+2. Its contents are copied into `gui/backend/`.
+3. `npm run dist:win` includes that folder via electron-builder `extraResources`
+   (it lands in `resources/backend/` of the packaged app).
+
+At runtime, `electron/main.js` prefers `resources/backend/localpilot-backend.exe`
+when present and falls back to a separately-installed Python package otherwise.
+
+To build it bundled **locally on Windows**:
+
+```powershell
+pip install -e . pyinstaller
+pyinstaller --noconfirm packaging\localpilot-backend.spec --distpath packaging\dist --workpath packaging\build
+Copy-Item -Recurse -Force packaging\dist\localpilot-backend\* gui\backend\
+cd gui ; npm install ; npm run dist:win
+```
+
+Notes:
+
+- **Build a Windows installer on Windows.** On Linux/macOS, electron-builder
+  needs Wine and must download the Electron/Windows binaries.
+- A plain `npm run dist:win` without staging a backend still works - it just
+  ships the GUI only, and the app then falls back to a Python backend on `PATH`
+  (`LOCALPILOT_PYTHON` / `LOCALPILOT_BACKEND_CMD` /
+  `LOCALPILOT_EXTERNAL_BACKEND=1` override the launch).
+- The bundled backend still needs **Ollama + a model** running, and the
+  **browser** tool needs a Chromium download (`playwright install chromium`);
+  the rest (agent, file/terminal/vision tools, server) works out of the box.
 
 ## Tests
 

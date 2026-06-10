@@ -15,6 +15,7 @@
 //   ELECTRON_DEV                 "1" => load the Vite dev server
 
 const { spawn } = require("node:child_process");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const { app, BrowserWindow, dialog } = require("electron");
@@ -35,6 +36,15 @@ function backendCommand() {
     const parts = process.env.LOCALPILOT_BACKEND_CMD.split(" ").filter(Boolean);
     return { command: parts[0], args: parts.slice(1) };
   }
+  // Prefer the backend bundled into the packaged app (PyInstaller), if present.
+  if (app.isPackaged && process.resourcesPath) {
+    const exeName = process.platform === "win32" ? "localpilot-backend.exe" : "localpilot-backend";
+    const bundled = path.join(process.resourcesPath, "backend", exeName);
+    if (fs.existsSync(bundled)) {
+      return { command: bundled, args: ["serve"] };
+    }
+  }
+  // Otherwise fall back to a separately-installed Python package.
   const python = process.env.LOCALPILOT_PYTHON || "python";
   return { command: python, args: ["-m", "localpilot.main", "serve"] };
 }

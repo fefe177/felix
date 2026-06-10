@@ -208,8 +208,10 @@ Notes:
   **default branch**, so merge this branch into your default branch (or push a
   tag, which works from any branch) to use it.
 - GitHub **Actions** must be enabled for the repository.
-- The installer ships only the GUI; the Python backend is installed separately
-  (see [`gui/README.md`](gui/README.md) -> *Packaging a Windows installer*).
+- The installer **bundles the Python backend** (frozen with PyInstaller), so on
+  the target PC you only need **Ollama + a model** - no separate Python install.
+  The **browser** tool additionally needs `playwright install chromium`. See
+  [`gui/README.md`](gui/README.md) -> *Bundling the Python backend*.
 
 A second workflow, [`ci.yml`](.github/workflows/ci.yml), lints, type-checks and
 tests the backend and GUI on every push/PR.

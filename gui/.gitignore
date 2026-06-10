@@ -3,3 +3,7 @@ dist/
 release/
 *.log
 .vite/
+
+# Bundled backend (staged by CI); keep the directory but not its contents.
+backend/*
+!backend/.gitkeep

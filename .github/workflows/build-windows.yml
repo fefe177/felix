@@ -1,9 +1,10 @@
 name: Build Windows installer
 
-# Builds the desktop GUI into a Windows installer (.exe) on a Windows runner -
-# no Wine needed there. Run it manually from the Actions tab ("Run workflow"),
-# or push a version tag (e.g. v0.1.0) to also publish a GitHub Release with the
-# installer attached for download.
+# Builds a Windows installer (.exe) on a Windows runner - no Wine needed there.
+# The installer BUNDLES the Python backend (frozen with PyInstaller), so users
+# only need Ollama + a model, not a separate Python install. Run it manually
+# from the Actions tab ("Run workflow"), or push a version tag (e.g. v0.1.0) to
+# also publish a GitHub Release with the installer attached for download.
 
 on:
   workflow_dispatch:
@@ -21,6 +22,23 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Build the bundled backend (PyInstaller)
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+          pyinstaller --noconfirm packaging/localpilot-backend.spec --distpath packaging/dist --workpath packaging/build
+
+      - name: Stage backend into the GUI
+        run: |
+          New-Item -ItemType Directory -Force gui/backend | Out-Null
+          Copy-Item -Recurse -Force packaging/dist/localpilot-backend/* gui/backend/
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -30,7 +48,7 @@ jobs:
         working-directory: gui
         run: npm install
 
-      - name: Build Windows installer
+      - name: Build Windows installer (with bundled backend)
         working-directory: gui
         run: npm run dist:win
 

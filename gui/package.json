@@ -46,6 +46,12 @@
       "dist/**",
       "electron/**"
     ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend"
+      }
+    ],
     "win": {
       "icon": "assets/icon.ico",
       "target": [

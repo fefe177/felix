@@ -1,0 +1,4 @@
+# This directory holds the PyInstaller-built backend (localpilot-backend) that
+# the Windows installer bundles via electron-builder extraResources. The CI
+# build stages files here; locally it stays empty (the GUI then falls back to a
+# separately-installed Python backend).
