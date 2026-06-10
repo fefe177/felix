@@ -20,6 +20,14 @@ commands:
     usage: /baltop
     aliases: [balancetop, moneytop]
     permission: bigmc.baltop
+  shop:
+    description: Oeffnet den Adminshop.
+    usage: /shop
+    permission: bigmc.shop
+  sell:
+    description: Verkauft Items aus der Hand oder dem ganzen Inventar.
+    usage: /sell hand|all
+    permission: bigmc.sell
 
 permissions:
   bigmc.money:
@@ -36,4 +44,10 @@ permissions:
     default: true
   bigmc.baltop:
     description: Rangliste der reichsten Spieler anzeigen.
+    default: true
+  bigmc.shop:
+    description: Den Adminshop oeffnen.
+    default: true
+  bigmc.sell:
+    description: Items per /sell verkaufen.
     default: true

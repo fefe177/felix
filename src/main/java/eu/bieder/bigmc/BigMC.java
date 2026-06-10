@@ -8,6 +8,10 @@ import eu.bieder.bigmc.economy.PlayerJoinListener;
 import eu.bieder.bigmc.economy.command.BaltopCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
+import eu.bieder.bigmc.shop.ShopGUI;
+import eu.bieder.bigmc.shop.ShopManager;
+import eu.bieder.bigmc.shop.command.SellCommand;
+import eu.bieder.bigmc.shop.command.ShopCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -27,6 +31,8 @@ public final class BigMC extends JavaPlugin {
     private MessageManager messageManager;
     private Database database;
     private EconomyManager economyManager;
+    private ShopManager shopManager;
+    private ShopGUI shopGUI;
 
     @Override
     public void onEnable() {
@@ -52,11 +58,14 @@ public final class BigMC extends JavaPlugin {
             return;
         }
 
-        // 4. Feature-Manager initialisieren (Phase 1: Wirtschaft)
-        this.economyManager = new EconomyManager(this);
+        // 4. Feature-Manager initialisieren
+        this.economyManager = new EconomyManager(this);   // Phase 1: Wirtschaft
+        this.shopManager = new ShopManager(this);         // Phase 2: Shops
+        this.shopGUI = new ShopGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
+        getServer().getPluginManager().registerEvents(shopGUI, this);
 
         // 6. Commands registrieren
         MoneyCommand moneyCommand = new MoneyCommand(this);
@@ -66,6 +75,10 @@ public final class BigMC extends JavaPlugin {
         getCommand("pay").setExecutor(payCommand);
         getCommand("pay").setTabCompleter(payCommand);
         getCommand("baltop").setExecutor(new BaltopCommand(this));
+        getCommand("shop").setExecutor(new ShopCommand(this));
+        SellCommand sellCommand = new SellCommand(this);
+        getCommand("sell").setExecutor(sellCommand);
+        getCommand("sell").setTabCompleter(sellCommand);
 
         getLogger().info("BigMC v" + getDescription().getVersion() + " wurde aktiviert.");
     }
@@ -99,5 +112,13 @@ public final class BigMC extends JavaPlugin {
 
     public EconomyManager getEconomyManager() {
         return economyManager;
+    }
+
+    public ShopManager getShopManager() {
+        return shopManager;
+    }
+
+    public ShopGUI getShopGUI() {
+        return shopGUI;
     }
 }
