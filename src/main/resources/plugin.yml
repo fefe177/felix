@@ -4,6 +4,8 @@ main: eu.bieder.bigmc.BigMC
 api-version: '1.21'
 author: Felix
 description: Survival-SMP Plugin im Stil von HugoSMP und DonutSMP.
+# NuVotifier ist optional - das Plugin laeuft auch ohne (Soft-Depend).
+softdepend: [Votifier, NuVotifier]
 
 commands:
   money:
@@ -67,6 +69,11 @@ commands:
     usage: /fly | /fly off | /fly time
     aliases: [fliegen]
     permission: bigmc.fly
+  vote:
+    description: Zeigt Vote-Links und holt Belohnungen ab.
+    usage: /vote | /vote claim | /vote test [name]
+    aliases: [voten]
+    permission: bigmc.vote
 
 permissions:
   bigmc.money:
@@ -117,6 +124,12 @@ permissions:
   bigmc.fly:
     description: Befristetes Fliegen kaufen.
     default: true
+  bigmc.vote:
+    description: Vote-Links und Belohnungen.
+    default: true
+  bigmc.vote.admin:
+    description: Votes zum Testen ausloesen.
+    default: op
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
     default: op

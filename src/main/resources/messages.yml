@@ -158,6 +158,16 @@ duel:
   broadcast: "&e%winner% &ahat &e%loser% &aim Duell besiegt!"
   spawn-set: "&aArena-Spawn &e%number% &awurde auf deine Position gesetzt."
 
+vote:
+  broadcast: "&e%player% &ahat für den Server gevotet - danke! &7(/vote)"
+  reward-received: "&aDanke fürs Voten! Du hast &e%money% &aund Items erhalten."
+  pending-claimed: "&aDu hast &e%count% &aausstehende Vote-Belohnung(en) erhalten!"
+  nothing-pending: "&cDu hast keine ausstehenden Vote-Belohnungen."
+  your-votes: "&7Deine Votes: &e%total% &7(ausstehend: &e%pending%&7)"
+  links-header: "&8&m------&r &b&lVoten &8&m------"
+  test-usage: "&cVerwendung: /vote test <name>"
+  test-done: "&7Test-Vote für &e%player% &7ausgelöst."
+
 fly:
   enabled: "&aFliegen aktiviert für &e%time% &a(-%price%)."
   extended: "&aFlugzeit verlängert (-%price%). Verbleibend: &e%total%"

@@ -29,6 +29,10 @@ import eu.bieder.bigmc.stats.StatsListener;
 import eu.bieder.bigmc.stats.StatsManager;
 import eu.bieder.bigmc.stats.command.StatsCommand;
 import eu.bieder.bigmc.stats.command.TopCommand;
+import eu.bieder.bigmc.vote.VoteJoinListener;
+import eu.bieder.bigmc.vote.VoteRewardManager;
+import eu.bieder.bigmc.vote.VotifierListener;
+import eu.bieder.bigmc.vote.command.VoteCommand;
 import eu.bieder.bigmc.shop.ShopManager;
 import eu.bieder.bigmc.shop.command.SellCommand;
 import eu.bieder.bigmc.shop.command.ShopCommand;
@@ -61,6 +65,7 @@ public final class BigMC extends JavaPlugin {
     private DuelKit duelKit;
     private RankManager rankManager;
     private FlyManager flyManager;
+    private VoteRewardManager voteRewardManager;
 
     @Override
     public void onEnable() {
@@ -98,6 +103,7 @@ public final class BigMC extends JavaPlugin {
         this.duelManager = new DuelManager(this);
         this.rankManager = new RankManager(this);         // Phase 7: Raenge
         this.flyManager = new FlyManager(this);           // Phase 8: Fliegen
+        this.voteRewardManager = new VoteRewardManager(this); // Phase 9: Votes
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -107,6 +113,17 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new DuelListener(this), this);
         getServer().getPluginManager().registerEvents(new RankListener(this), this);
         getServer().getPluginManager().registerEvents(new FlyListener(this), this);
+        getServer().getPluginManager().registerEvents(new VoteJoinListener(this), this);
+
+        // Votifier-Listener NUR registrieren, wenn ein Vote-Plugin vorhanden ist
+        // (sonst wuerde die Klasse fehlende Votifier-Klassen nicht laden koennen).
+        if (getServer().getPluginManager().getPlugin("Votifier") != null
+                || getServer().getPluginManager().getPlugin("NuVotifier") != null) {
+            getServer().getPluginManager().registerEvents(new VotifierListener(this), this);
+            getLogger().info("NuVotifier erkannt - Vote-Belohnungen sind aktiv.");
+        } else {
+            getLogger().info("Kein Votifier gefunden - Vote-Belohnungen laufen nur ueber /vote test.");
+        }
 
         // 6. Commands registrieren
         MoneyCommand moneyCommand = new MoneyCommand(this);
@@ -140,6 +157,9 @@ public final class BigMC extends JavaPlugin {
         getCommand("rank").setTabCompleter(rankCommand);
         getCommand("ranks").setExecutor(new RanksCommand(this));
         getCommand("fly").setExecutor(new FlyCommand(this));
+        VoteCommand voteCommand = new VoteCommand(this);
+        getCommand("vote").setExecutor(voteCommand);
+        getCommand("vote").setTabCompleter(voteCommand);
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -238,5 +258,9 @@ public final class BigMC extends JavaPlugin {
 
     public FlyManager getFlyManager() {
         return flyManager;
+    }
+
+    public VoteRewardManager getVoteRewardManager() {
+        return voteRewardManager;
     }
 }

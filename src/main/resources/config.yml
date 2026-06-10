@@ -47,6 +47,24 @@ stats:
   # Anzahl der Eintraege in /top
   top-size: 10
 
+# Vote-Belohnungen (ueber NuVotifier). %player% wird in Befehlen ersetzt.
+vote:
+  # Sieg/Vote im Chat fuer alle ankuendigen?
+  broadcast: true
+  # Geld pro Vote
+  money: 500.0
+  # Item-Belohnungen pro Vote (Material: Anzahl)
+  items:
+    DIAMOND: 1
+    EXPERIENCE_BOTTLE: 8
+  # Konsolen-Befehle pro Vote (z.B. Crate-Key). Leer lassen, wenn nicht gewuenscht.
+  commands: []
+  # Vote-Links, die /vote anzeigt
+  links:
+    - "&7Vote für uns und erhalte Belohnungen:"
+    - "&b» &fhttps://example.com/vote1"
+    - "&b» &fhttps://example.com/vote2"
+
 # Flug-Einstellungen (kostenpflichtiges, befristetes Fliegen)
 fly:
   # Preis pro Kauf
