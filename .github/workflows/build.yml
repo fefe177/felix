@@ -1,0 +1,32 @@
+name: Build BigMC
+
+# Baut das Plugin bei jedem Push und stellt die fertige BigMC.jar
+# als Download-Artefakt bereit. Laeuft auch manuell ueber "Run workflow".
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Code auschecken
+        uses: actions/checkout@v4
+
+      - name: JDK 21 einrichten
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Mit Maven bauen
+        run: mvn -B clean package
+
+      - name: BigMC.jar als Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: BigMC
+          path: target/BigMC.jar
+          if-no-files-found: error
