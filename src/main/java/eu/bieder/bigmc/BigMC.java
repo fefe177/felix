@@ -1,5 +1,8 @@
 package eu.bieder.bigmc;
 
+import eu.bieder.bigmc.auction.AuctionHouseGUI;
+import eu.bieder.bigmc.auction.AuctionManager;
+import eu.bieder.bigmc.auction.command.AhCommand;
 import eu.bieder.bigmc.config.ConfigManager;
 import eu.bieder.bigmc.config.MessageManager;
 import eu.bieder.bigmc.database.Database;
@@ -33,6 +36,8 @@ public final class BigMC extends JavaPlugin {
     private EconomyManager economyManager;
     private ShopManager shopManager;
     private ShopGUI shopGUI;
+    private AuctionManager auctionManager;
+    private AuctionHouseGUI auctionHouseGUI;
 
     @Override
     public void onEnable() {
@@ -62,10 +67,13 @@ public final class BigMC extends JavaPlugin {
         this.economyManager = new EconomyManager(this);   // Phase 1: Wirtschaft
         this.shopManager = new ShopManager(this);         // Phase 2: Shops
         this.shopGUI = new ShopGUI(this);
+        this.auctionManager = new AuctionManager(this);   // Phase 3: Auktionshaus
+        this.auctionHouseGUI = new AuctionHouseGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(shopGUI, this);
+        getServer().getPluginManager().registerEvents(auctionHouseGUI, this);
 
         // 6. Commands registrieren
         MoneyCommand moneyCommand = new MoneyCommand(this);
@@ -79,6 +87,18 @@ public final class BigMC extends JavaPlugin {
         SellCommand sellCommand = new SellCommand(this);
         getCommand("sell").setExecutor(sellCommand);
         getCommand("sell").setTabCompleter(sellCommand);
+        AhCommand ahCommand = new AhCommand(this);
+        getCommand("ah").setExecutor(ahCommand);
+        getCommand("ah").setTabCompleter(ahCommand);
+
+        // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
+        long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
+        getServer().getScheduler().runTaskTimer(this, () -> {
+            int expired = auctionManager.expireListings();
+            if (expired > 0) {
+                getLogger().info(expired + " Auktion(en) abgelaufen und ins Abholfach verschoben.");
+            }
+        }, expiryTicks, expiryTicks);
 
         getLogger().info("BigMC v" + getDescription().getVersion() + " wurde aktiviert.");
     }
@@ -120,5 +140,13 @@ public final class BigMC extends JavaPlugin {
 
     public ShopGUI getShopGUI() {
         return shopGUI;
+    }
+
+    public AuctionManager getAuctionManager() {
+        return auctionManager;
+    }
+
+    public AuctionHouseGUI getAuctionHouseGUI() {
+        return auctionHouseGUI;
     }
 }

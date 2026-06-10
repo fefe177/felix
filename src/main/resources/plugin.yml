@@ -28,6 +28,11 @@ commands:
     description: Verkauft Items aus der Hand oder dem ganzen Inventar.
     usage: /sell hand|all
     permission: bigmc.sell
+  ah:
+    description: Oeffnet das Auktionshaus oder stellt Items ein.
+    usage: /ah | /ah sell <preis> | /ah collect
+    aliases: [auktionshaus, auctionhouse]
+    permission: bigmc.ah
 
 permissions:
   bigmc.money:
@@ -50,4 +55,7 @@ permissions:
     default: true
   bigmc.sell:
     description: Items per /sell verkaufen.
+    default: true
+  bigmc.ah:
+    description: Das Auktionshaus benutzen.
     default: true

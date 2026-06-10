@@ -21,6 +21,18 @@ economy:
   # Anzahl der Eintraege in /baltop
   baltop-size: 10
 
+# Auktionshaus-Einstellungen
+auction:
+  # Wie lange ein Angebot aktiv bleibt (in Stunden)
+  duration-hours: 48
+  # Maximale Anzahl gleichzeitig aktiver Auktionen pro Spieler
+  max-listings: 7
+  # Erlaubte Preisspanne pro Angebot
+  min-price: 1.0
+  max-price: 10000000.0
+  # Wie oft auf abgelaufene Auktionen geprueft wird (in Sekunden)
+  expiry-check-seconds: 60
+
 # ------------------------------------------------------------
 # Adminshop: feste Kauf- und Verkaufspreise.
 #   buy  = Kaufpreis pro Stueck (0 = nicht kaufbar)
