@@ -9,6 +9,8 @@ import eu.bieder.bigmc.database.Database;
 import eu.bieder.bigmc.economy.EconomyManager;
 import eu.bieder.bigmc.economy.PlayerJoinListener;
 import eu.bieder.bigmc.economy.command.BaltopCommand;
+import eu.bieder.bigmc.order.OrderManager;
+import eu.bieder.bigmc.order.command.OrderCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
@@ -38,6 +40,7 @@ public final class BigMC extends JavaPlugin {
     private ShopGUI shopGUI;
     private AuctionManager auctionManager;
     private AuctionHouseGUI auctionHouseGUI;
+    private OrderManager orderManager;
 
     @Override
     public void onEnable() {
@@ -69,6 +72,7 @@ public final class BigMC extends JavaPlugin {
         this.shopGUI = new ShopGUI(this);
         this.auctionManager = new AuctionManager(this);   // Phase 3: Auktionshaus
         this.auctionHouseGUI = new AuctionHouseGUI(this);
+        this.orderManager = new OrderManager(this);       // Phase 4: Auftraege
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -90,6 +94,9 @@ public final class BigMC extends JavaPlugin {
         AhCommand ahCommand = new AhCommand(this);
         getCommand("ah").setExecutor(ahCommand);
         getCommand("ah").setTabCompleter(ahCommand);
+        OrderCommand orderCommand = new OrderCommand(this);
+        getCommand("order").setExecutor(orderCommand);
+        getCommand("order").setTabCompleter(orderCommand);
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -148,5 +155,9 @@ public final class BigMC extends JavaPlugin {
 
     public AuctionHouseGUI getAuctionHouseGUI() {
         return auctionHouseGUI;
+    }
+
+    public OrderManager getOrderManager() {
+        return orderManager;
     }
 }

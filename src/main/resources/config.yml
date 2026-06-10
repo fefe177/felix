@@ -33,6 +33,15 @@ auction:
   # Wie oft auf abgelaufene Auktionen geprueft wird (in Sekunden)
   expiry-check-seconds: 60
 
+# Auftragssystem-Einstellungen
+order:
+  # Maximale Anzahl gleichzeitig offener Auftraege pro Spieler
+  max-orders: 5
+  # Kleinster erlaubter Stueckpreis
+  min-price-per-item: 0.01
+  # Maximale Bestellmenge pro Auftrag
+  max-amount: 10000
+
 # ------------------------------------------------------------
 # Adminshop: feste Kauf- und Verkaufspreise.
 #   buy  = Kaufpreis pro Stueck (0 = nicht kaufbar)

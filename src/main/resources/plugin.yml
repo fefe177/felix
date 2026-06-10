@@ -33,6 +33,11 @@ commands:
     usage: /ah | /ah sell <preis> | /ah collect
     aliases: [auktionshaus, auctionhouse]
     permission: bigmc.ah
+  order:
+    description: Auftragssystem - Items bestellen und liefern.
+    usage: /order create|list|fulfill|collect|cancel
+    aliases: [auftrag, orders]
+    permission: bigmc.order
 
 permissions:
   bigmc.money:
@@ -58,4 +63,7 @@ permissions:
     default: true
   bigmc.ah:
     description: Das Auktionshaus benutzen.
+    default: true
+  bigmc.order:
+    description: Das Auftragssystem benutzen.
     default: true
