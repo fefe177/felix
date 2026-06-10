@@ -47,6 +47,64 @@ stats:
   # Anzahl der Eintraege in /top
   top-size: 10
 
+# ------------------------------------------------------------
+# Custom-Spawner: produzieren Items (KEINE Mobs) in einen internen Speicher.
+# Per Rechtsklick oeffnet sich ein GUI zum Abholen. Spawner sind stapelbar
+# (bis max-stack) - mehr Stapel = mehr Produktion und mehr Speicher.
+#   product               -> produziertes Item
+#   amount-per-cycle      -> Menge pro Zyklus (je Stack-Einheit)
+#   interval-seconds      -> Abstand zwischen zwei Zyklen
+#   max-storage-per-stack -> Speicher je Stack-Einheit (Gesamt = * Stapelgroesse)
+#   price                 -> Kaufpreis pro Spawner
+#   display-entity        -> optische Figur im Spawner (optional)
+# ------------------------------------------------------------
+spawners:
+  # Wie oft (in Sekunden) die Produktion berechnet wird
+  production-check-seconds: 10
+  # Maximale Anzahl Spawner, die man zusammenstapeln kann
+  max-stack: 500
+  types:
+    knochen:
+      display-name: "&fKnochen-Spawner"
+      product: BONE
+      amount-per-cycle: 1
+      interval-seconds: 60
+      max-storage-per-stack: 2000
+      price: 10000.0
+      display-entity: SKELETON
+    faden:
+      display-name: "&7Faden-Spawner"
+      product: STRING
+      amount-per-cycle: 1
+      interval-seconds: 60
+      max-storage-per-stack: 2000
+      price: 10000.0
+      display-entity: SPIDER
+    schiesspulver:
+      display-name: "&aSchießpulver-Spawner"
+      product: GUNPOWDER
+      amount-per-cycle: 1
+      interval-seconds: 90
+      max-storage-per-stack: 1500
+      price: 20000.0
+      display-entity: CREEPER
+    fleisch:
+      display-name: "&2Fleisch-Spawner"
+      product: ROTTEN_FLESH
+      amount-per-cycle: 1
+      interval-seconds: 45
+      max-storage-per-stack: 2500
+      price: 8000.0
+      display-entity: ZOMBIE
+    enderperle:
+      display-name: "&5Enderperlen-Spawner"
+      product: ENDER_PEARL
+      amount-per-cycle: 1
+      interval-seconds: 180
+      max-storage-per-stack: 1000
+      price: 50000.0
+      display-entity: ENDERMAN
+
 # Event-Einstellungen: Belohnung fuer alle Teilnehmer beim /event stop.
 event:
   reward:

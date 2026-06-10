@@ -79,6 +79,11 @@ commands:
     usage: /event start <name> | stop | join | leave | info
     aliases: [events]
     permission: bigmc.event
+  spawnershop:
+    description: Oeffnet den Spawner-Shop.
+    usage: /spawnershop
+    aliases: [spawnshop, sshop, spawner]
+    permission: bigmc.spawnershop
 
 permissions:
   bigmc.money:
@@ -140,6 +145,12 @@ permissions:
     default: true
   bigmc.event.admin:
     description: Events starten und beenden.
+    default: op
+  bigmc.spawnershop:
+    description: Den Spawner-Shop oeffnen.
+    default: true
+  bigmc.spawner.admin:
+    description: Fremde Custom-Spawner abbauen/abholen.
     default: op
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.

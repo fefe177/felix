@@ -158,6 +158,26 @@ duel:
   broadcast: "&e%winner% &ahat &e%loser% &aim Duell besiegt!"
   spawn-set: "&aArena-Spawn &e%number% &awurde auf deine Position gesetzt."
 
+spawner:
+  shop-title: "&8» &6Spawner-Shop"
+  shop-price: "&7Preis: &a%price%"
+  shop-click: "&aLinksklick: 1 kaufen &8| &aRechtsklick: 8 kaufen"
+  shop-inventory-full: "&cDein Inventar ist voll - nicht gekaufte Spawner wurden erstattet."
+  bought: "&7Du hast &e%amount%x %type% &7für &c%price% &7gekauft."
+  placed: "&aSpawner platziert: %type%&a. Rechtsklick zum Abholen, weitere Spawner reinklicken zum Stapeln."
+  stacked: "&aSpawner gestapelt: &e+%added% &7(jetzt &e%total%&7)."
+  stack-full: "&cDieser Spawner hat das Maximum von &e%max% &cerreicht."
+  broken: "&7Spawner abgebaut - du hast &e%amount% &7Spawner zurückerhalten."
+  not-owner: "&cDas ist nicht dein Spawner."
+  gone: "&cDieser Spawner existiert nicht mehr."
+  gui-title: "&8» &6Spawner"
+  gui-stack: "&7Stapel: &e%stack%&7/&e%max%"
+  gui-rate: "&7Produktion: &e%amount%x %item% &7alle &e%interval%s"
+  gui-stored: "&7Gespeichert: &e%stored%"
+  gui-collect: "&aAlles abholen"
+  collected: "&aDu hast &e%amount%x %item% &7abgeholt."
+  collect-empty: "&cDer Spawner hat noch nichts produziert."
+
 event:
   usage: "&cVerwendung: /event start <name> | stop | join | leave | info"
   start-usage: "&cVerwendung: /event start <name>"

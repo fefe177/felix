@@ -27,6 +27,11 @@ import eu.bieder.bigmc.rank.command.RanksCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
+import eu.bieder.bigmc.spawner.SpawnerCollectGUI;
+import eu.bieder.bigmc.spawner.SpawnerListener;
+import eu.bieder.bigmc.spawner.SpawnerManager;
+import eu.bieder.bigmc.spawner.SpawnerShopGUI;
+import eu.bieder.bigmc.spawner.command.SpawnerShopCommand;
 import eu.bieder.bigmc.stats.StatsListener;
 import eu.bieder.bigmc.stats.StatsManager;
 import eu.bieder.bigmc.stats.command.StatsCommand;
@@ -69,6 +74,9 @@ public final class BigMC extends JavaPlugin {
     private FlyManager flyManager;
     private VoteRewardManager voteRewardManager;
     private EventManager eventManager;
+    private SpawnerManager spawnerManager;
+    private SpawnerCollectGUI spawnerCollectGUI;
+    private SpawnerShopGUI spawnerShopGUI;
 
     @Override
     public void onEnable() {
@@ -108,6 +116,9 @@ public final class BigMC extends JavaPlugin {
         this.flyManager = new FlyManager(this);           // Phase 8: Fliegen
         this.voteRewardManager = new VoteRewardManager(this); // Phase 9: Votes
         this.eventManager = new EventManager(this);           // Phase 10: Events
+        this.spawnerManager = new SpawnerManager(this);       // Custom-Spawner
+        this.spawnerCollectGUI = new SpawnerCollectGUI(this);
+        this.spawnerShopGUI = new SpawnerShopGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -118,6 +129,9 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new RankListener(this), this);
         getServer().getPluginManager().registerEvents(new FlyListener(this), this);
         getServer().getPluginManager().registerEvents(new VoteJoinListener(this), this);
+        getServer().getPluginManager().registerEvents(new SpawnerListener(this), this);
+        getServer().getPluginManager().registerEvents(spawnerCollectGUI, this);
+        getServer().getPluginManager().registerEvents(spawnerShopGUI, this);
 
         // Votifier-Listener NUR registrieren, wenn ein Vote-Plugin vorhanden ist
         // (sonst wuerde die Klasse fehlende Votifier-Klassen nicht laden koennen).
@@ -167,6 +181,7 @@ public final class BigMC extends JavaPlugin {
         EventCommand eventCommand = new EventCommand(this);
         getCommand("event").setExecutor(eventCommand);
         getCommand("event").setTabCompleter(eventCommand);
+        getCommand("spawnershop").setExecutor(new SpawnerShopCommand(this));
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -180,6 +195,11 @@ public final class BigMC extends JavaPlugin {
         // Spielzeit jede Minute speichern (Schutz vor Datenverlust bei Crash)
         getServer().getScheduler().runTaskTimer(this,
                 () -> statsManager.flushAllPlaytime(), 20L * 60, 20L * 60);
+
+        // Custom-Spawner produzieren regelmaessig Items in ihren Speicher
+        long spawnerTicks = 20L * getConfig().getLong("spawners.production-check-seconds", 10);
+        getServer().getScheduler().runTaskTimer(this,
+                () -> spawnerManager.produceAll(), spawnerTicks, spawnerTicks);
 
         getLogger().info("BigMC v" + getDescription().getVersion() + " wurde aktiviert.");
     }
@@ -277,5 +297,17 @@ public final class BigMC extends JavaPlugin {
 
     public EventManager getEventManager() {
         return eventManager;
+    }
+
+    public SpawnerManager getSpawnerManager() {
+        return spawnerManager;
+    }
+
+    public SpawnerCollectGUI getSpawnerCollectGUI() {
+        return spawnerCollectGUI;
+    }
+
+    public SpawnerShopGUI getSpawnerShopGUI() {
+        return spawnerShopGUI;
     }
 }
