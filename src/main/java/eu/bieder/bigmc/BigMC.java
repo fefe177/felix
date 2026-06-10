@@ -15,6 +15,10 @@ import eu.bieder.bigmc.economy.PlayerJoinListener;
 import eu.bieder.bigmc.economy.command.BaltopCommand;
 import eu.bieder.bigmc.order.OrderManager;
 import eu.bieder.bigmc.order.command.OrderCommand;
+import eu.bieder.bigmc.rank.RankListener;
+import eu.bieder.bigmc.rank.RankManager;
+import eu.bieder.bigmc.rank.command.RankCommand;
+import eu.bieder.bigmc.rank.command.RanksCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
@@ -52,6 +56,7 @@ public final class BigMC extends JavaPlugin {
     private StatsManager statsManager;
     private DuelManager duelManager;
     private DuelKit duelKit;
+    private RankManager rankManager;
 
     @Override
     public void onEnable() {
@@ -87,6 +92,7 @@ public final class BigMC extends JavaPlugin {
         this.statsManager = new StatsManager(this);       // Phase 5: Statistiken
         this.duelKit = new DuelKit(this);                 // Phase 6: Duelle
         this.duelManager = new DuelManager(this);
+        this.rankManager = new RankManager(this);         // Phase 7: Raenge
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -94,6 +100,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(auctionHouseGUI, this);
         getServer().getPluginManager().registerEvents(new StatsListener(this), this);
         getServer().getPluginManager().registerEvents(new DuelListener(this), this);
+        getServer().getPluginManager().registerEvents(new RankListener(this), this);
 
         // 6. Commands registrieren
         MoneyCommand moneyCommand = new MoneyCommand(this);
@@ -122,6 +129,10 @@ public final class BigMC extends JavaPlugin {
         DuelCommand duelCommand = new DuelCommand(this);
         getCommand("duel").setExecutor(duelCommand);
         getCommand("duel").setTabCompleter(duelCommand);
+        RankCommand rankCommand = new RankCommand(this);
+        getCommand("rank").setExecutor(rankCommand);
+        getCommand("rank").setTabCompleter(rankCommand);
+        getCommand("ranks").setExecutor(new RanksCommand(this));
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -208,5 +219,9 @@ public final class BigMC extends JavaPlugin {
 
     public DuelKit getDuelKit() {
         return duelKit;
+    }
+
+    public RankManager getRankManager() {
+        return rankManager;
     }
 }

@@ -47,6 +47,60 @@ stats:
   # Anzahl der Eintraege in /top
   top-size: 10
 
+# ------------------------------------------------------------
+# Rangsystem (Leiter): Spieler steigen mit /rank buy auf.
+# Reihenfolge in dieser Datei = Reihenfolge der Leiter (oben = niedrigster).
+#   name                     -> Anzeigename (mit Farbcodes)
+#   prefix                   -> Chat-Prefix
+#   cost                     -> Preis fuer DIESEN Rang (erster Rang meist 0)
+#   required-playtime-hours  -> benoetigte Spielzeit (optional)
+#   required-kills           -> benoetigte Kills (optional)
+#   permissions              -> kumulativ (hoehere Raenge erben niedrigere)
+# ------------------------------------------------------------
+ranks:
+  # Aufstieg fuer alle im Chat ankuendigen?
+  broadcast-rankup: true
+  list:
+    spieler:
+      name: "&7Spieler"
+      prefix: "&7[Spieler] "
+      cost: 0
+      required-playtime-hours: 0
+      required-kills: 0
+      permissions: []
+    bronze:
+      name: "&6Bronze"
+      prefix: "&6[Bronze] "
+      cost: 5000
+      required-playtime-hours: 2
+      required-kills: 0
+      permissions:
+        - "bigmc.perk.bronze"
+    silber:
+      name: "&7&lSilber"
+      prefix: "&7&l[Silber] "
+      cost: 25000
+      required-playtime-hours: 10
+      required-kills: 25
+      permissions:
+        - "bigmc.perk.silber"
+    gold:
+      name: "&e&lGold"
+      prefix: "&e&l[Gold] "
+      cost: 100000
+      required-playtime-hours: 30
+      required-kills: 100
+      permissions:
+        - "bigmc.perk.gold"
+    diamant:
+      name: "&b&lDiamant"
+      prefix: "&b&l[Diamant] "
+      cost: 500000
+      required-playtime-hours: 75
+      required-kills: 300
+      permissions:
+        - "bigmc.perk.diamant"
+
 # Duell-Einstellungen
 duel:
   # Sekunden, die eine Herausforderung gueltig bleibt

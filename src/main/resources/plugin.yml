@@ -52,6 +52,16 @@ commands:
     usage: /duel <spieler> | /duel accept | /duel deny
     aliases: [duell, 1v1]
     permission: bigmc.duel
+  rank:
+    description: Zeigt deinen Rang und kauft den naechsten.
+    usage: /rank | /rank buy | /rank set <spieler> <rang>
+    aliases: [rang]
+    permission: bigmc.rank
+  ranks:
+    description: Listet alle verfuegbaren Raenge auf.
+    usage: /ranks
+    aliases: [raenge]
+    permission: bigmc.ranks
 
 permissions:
   bigmc.money:
@@ -92,4 +102,13 @@ permissions:
     default: true
   bigmc.duel.admin:
     description: Arena-Spawns fuer Duelle setzen.
+    default: op
+  bigmc.rank:
+    description: Eigenen Rang anzeigen und kaufen.
+    default: true
+  bigmc.ranks:
+    description: Alle Raenge auflisten.
+    default: true
+  bigmc.rank.admin:
+    description: Raenge anderer Spieler setzen.
     default: op
