@@ -9,10 +9,14 @@ database:
   # Dateiname der SQLite-Datenbank (liegt im Plugin-Ordner)
   file: "bigmc.db"
 
-# Wirtschafts-Grundeinstellungen (ab Phase 1 aktiv genutzt)
+# Wirtschafts-Einstellungen
 economy:
   # Startguthaben fuer neue Spieler
   start-balance: 100.0
   # Anzeigename und Symbol der Waehrung
   currency-name: "Coins"
   currency-symbol: "$"
+  # Kleinster Betrag, der per /pay ueberwiesen werden darf
+  pay-min-amount: 0.01
+  # Anzahl der Eintraege in /baltop
+  baltop-size: 10

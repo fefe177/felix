@@ -3,6 +3,11 @@ package eu.bieder.bigmc;
 import eu.bieder.bigmc.config.ConfigManager;
 import eu.bieder.bigmc.config.MessageManager;
 import eu.bieder.bigmc.database.Database;
+import eu.bieder.bigmc.economy.EconomyManager;
+import eu.bieder.bigmc.economy.PlayerJoinListener;
+import eu.bieder.bigmc.economy.command.BaltopCommand;
+import eu.bieder.bigmc.economy.command.MoneyCommand;
+import eu.bieder.bigmc.economy.command.PayCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 
 /**
@@ -21,6 +26,7 @@ public final class BigMC extends JavaPlugin {
     private ConfigManager configManager;
     private MessageManager messageManager;
     private Database database;
+    private EconomyManager economyManager;
 
     @Override
     public void onEnable() {
@@ -45,6 +51,21 @@ public final class BigMC extends JavaPlugin {
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
+
+        // 4. Feature-Manager initialisieren (Phase 1: Wirtschaft)
+        this.economyManager = new EconomyManager(this);
+
+        // 5. Listener registrieren
+        getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
+
+        // 6. Commands registrieren
+        MoneyCommand moneyCommand = new MoneyCommand(this);
+        getCommand("money").setExecutor(moneyCommand);
+        getCommand("money").setTabCompleter(moneyCommand);
+        PayCommand payCommand = new PayCommand(this);
+        getCommand("pay").setExecutor(payCommand);
+        getCommand("pay").setTabCompleter(payCommand);
+        getCommand("baltop").setExecutor(new BaltopCommand(this));
 
         getLogger().info("BigMC v" + getDescription().getVersion() + " wurde aktiviert.");
     }
@@ -74,5 +95,9 @@ public final class BigMC extends JavaPlugin {
 
     public Database getDatabase() {
         return database;
+    }
+
+    public EconomyManager getEconomyManager() {
+        return economyManager;
     }
 }

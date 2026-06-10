@@ -4,9 +4,36 @@ main: eu.bieder.bigmc.BigMC
 api-version: '1.21'
 author: Felix
 description: Survival-SMP Plugin im Stil von HugoSMP und DonutSMP.
-# folia-supported: false
 
-# In Phase 0 gibt es noch keine Commands. Sie werden ab Phase 1 hier ergaenzt.
-commands: {}
+commands:
+  money:
+    description: Zeigt den Kontostand an oder verwaltet Guthaben (Admin).
+    usage: /money [spieler] | /money give|take|set <spieler> <betrag>
+    aliases: [balance, bal, geld]
+    permission: bigmc.money
+  pay:
+    description: Ueberweist Geld an einen anderen Spieler.
+    usage: /pay <spieler> <betrag>
+    permission: bigmc.pay
+  baltop:
+    description: Zeigt die reichsten Spieler des Servers.
+    usage: /baltop
+    aliases: [balancetop, moneytop]
+    permission: bigmc.baltop
 
-permissions: {}
+permissions:
+  bigmc.money:
+    description: Eigenen Kontostand anzeigen.
+    default: true
+  bigmc.money.others:
+    description: Kontostand anderer Spieler anzeigen.
+    default: true
+  bigmc.money.admin:
+    description: Geld geben, abziehen und setzen.
+    default: op
+  bigmc.pay:
+    description: Geld an andere Spieler ueberweisen.
+    default: true
+  bigmc.baltop:
+    description: Rangliste der reichsten Spieler anzeigen.
+    default: true

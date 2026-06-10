@@ -17,3 +17,21 @@ general:
 plugin:
   enabled: "&aBigMC wurde gestartet."
   disabled: "&cBigMC wurde gestoppt."
+
+economy:
+  balance-own: "&7Dein Kontostand: &a%amount%"
+  balance-other: "&7Kontostand von &e%player%&7: &a%amount%"
+  money-usage: "&cVerwendung: /money [spieler] &7oder &c/money give|take|set <spieler> <betrag>"
+  not-enough-money: "&cDu hast nicht genug Geld."
+  pay-usage: "&cVerwendung: /pay <spieler> <betrag>"
+  pay-self: "&cDu kannst dir nicht selbst Geld ueberweisen."
+  pay-too-small: "&cDer Betrag muss mindestens &e%min% &csein."
+  pay-sent: "&7Du hast &a%amount% &7an &e%player% &7gesendet."
+  pay-received: "&7Du hast &a%amount% &7von &e%player% &7erhalten."
+  admin-given: "&7Du hast &e%player% &a%amount% &7gegeben."
+  admin-taken: "&7Du hast &e%player% &a%amount% &7abgezogen."
+  admin-take-failed: "&e%player% &chat nicht genug Geld dafuer."
+  admin-set: "&7Kontostand von &e%player% &7auf &a%amount% &7gesetzt."
+  baltop-header: "&8&m------&r &b&lReichste Spieler &8&m------"
+  baltop-entry: "&e#%place% &7%player%: &a%amount%"
+  baltop-empty: "&cEs gibt noch keine Konten."
