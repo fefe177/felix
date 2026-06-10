@@ -106,6 +106,19 @@ public class ShopManager {
      * Verkaufspreis fuer ein Material (leer, wenn unverkaeuflich).
      */
     public Optional<Double> getSellPrice(Material material) {
-        return Optional.ofNullable(sellPrices.get(material));
+        // 1. Explizit in der config gelisteter Preis hat Vorrang
+        Double explicit = sellPrices.get(material);
+        if (explicit != null) {
+            return Optional.of(explicit);
+        }
+        // 2. Fallback: jeder echte BLOCK bekommt einen Standardwert (config),
+        //    damit moeglichst jeder Block einen Verkaufswert hat. Werkzeuge,
+        //    Ruestung & Co. (keine Bloecke) sind bewusst ausgenommen.
+        double fallback = plugin.getConfigManager().getConfig()
+                .getDouble("shop.fallback-sell-price", 0.0);
+        if (fallback > 0 && material.isBlock() && material.isItem()) {
+            return Optional.of(fallback);
+        }
+        return Optional.empty();
     }
 }

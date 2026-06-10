@@ -253,6 +253,10 @@ duel:
 # Material-Namen: https://jd.papermc.io/paper/1.21/org/bukkit/Material.html
 # ------------------------------------------------------------
 shop:
+  # Fallback-Verkaufspreis: Jeder echte BLOCK, der unten nicht eigens gelistet
+  # ist, bekommt automatisch diesen Wert fuer /sell hand und /sell all.
+  # (0 = aus. Gilt nur fuer Bloecke, nicht fuer Werkzeuge/Ruestung/Essen usw.)
+  fallback-sell-price: 0.10
   categories:
     bloecke:
       name: "&6Blöcke"
