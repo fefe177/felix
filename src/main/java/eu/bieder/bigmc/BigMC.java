@@ -14,6 +14,10 @@ import eu.bieder.bigmc.order.command.OrderCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
+import eu.bieder.bigmc.stats.StatsListener;
+import eu.bieder.bigmc.stats.StatsManager;
+import eu.bieder.bigmc.stats.command.StatsCommand;
+import eu.bieder.bigmc.stats.command.TopCommand;
 import eu.bieder.bigmc.shop.ShopManager;
 import eu.bieder.bigmc.shop.command.SellCommand;
 import eu.bieder.bigmc.shop.command.ShopCommand;
@@ -41,6 +45,7 @@ public final class BigMC extends JavaPlugin {
     private AuctionManager auctionManager;
     private AuctionHouseGUI auctionHouseGUI;
     private OrderManager orderManager;
+    private StatsManager statsManager;
 
     @Override
     public void onEnable() {
@@ -73,11 +78,13 @@ public final class BigMC extends JavaPlugin {
         this.auctionManager = new AuctionManager(this);   // Phase 3: Auktionshaus
         this.auctionHouseGUI = new AuctionHouseGUI(this);
         this.orderManager = new OrderManager(this);       // Phase 4: Auftraege
+        this.statsManager = new StatsManager(this);       // Phase 5: Statistiken
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(shopGUI, this);
         getServer().getPluginManager().registerEvents(auctionHouseGUI, this);
+        getServer().getPluginManager().registerEvents(new StatsListener(this), this);
 
         // 6. Commands registrieren
         MoneyCommand moneyCommand = new MoneyCommand(this);
@@ -97,6 +104,12 @@ public final class BigMC extends JavaPlugin {
         OrderCommand orderCommand = new OrderCommand(this);
         getCommand("order").setExecutor(orderCommand);
         getCommand("order").setTabCompleter(orderCommand);
+        StatsCommand statsCommand = new StatsCommand(this);
+        getCommand("stats").setExecutor(statsCommand);
+        getCommand("stats").setTabCompleter(statsCommand);
+        TopCommand topCommand = new TopCommand(this);
+        getCommand("top").setExecutor(topCommand);
+        getCommand("top").setTabCompleter(topCommand);
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -107,11 +120,19 @@ public final class BigMC extends JavaPlugin {
             }
         }, expiryTicks, expiryTicks);
 
+        // Spielzeit jede Minute speichern (Schutz vor Datenverlust bei Crash)
+        getServer().getScheduler().runTaskTimer(this,
+                () -> statsManager.flushAllPlaytime(), 20L * 60, 20L * 60);
+
         getLogger().info("BigMC v" + getDescription().getVersion() + " wurde aktiviert.");
     }
 
     @Override
     public void onDisable() {
+        // Offene Spielzeit-Sessions speichern
+        if (this.statsManager != null) {
+            this.statsManager.flushAllPlaytime();
+        }
         // Datenbankverbindung sauber schliessen
         if (this.database != null) {
             this.database.disconnect();
@@ -159,5 +180,9 @@ public final class BigMC extends JavaPlugin {
 
     public OrderManager getOrderManager() {
         return orderManager;
+    }
+
+    public StatsManager getStatsManager() {
+        return statsManager;
     }
 }

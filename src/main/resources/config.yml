@@ -42,6 +42,11 @@ order:
   # Maximale Bestellmenge pro Auftrag
   max-amount: 10000
 
+# Statistik-Einstellungen
+stats:
+  # Anzahl der Eintraege in /top
+  top-size: 10
+
 # ------------------------------------------------------------
 # Adminshop: feste Kauf- und Verkaufspreise.
 #   buy  = Kaufpreis pro Stueck (0 = nicht kaufbar)

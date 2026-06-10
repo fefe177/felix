@@ -38,6 +38,15 @@ commands:
     usage: /order create|list|fulfill|collect|cancel
     aliases: [auftrag, orders]
     permission: bigmc.order
+  stats:
+    description: Zeigt die Statistiken eines Spielers.
+    usage: /stats [spieler]
+    aliases: [statistik]
+    permission: bigmc.stats
+  top:
+    description: Zeigt Ranglisten verschiedener Kategorien.
+    usage: /top <kills|tode|duelle|spielzeit|geld>
+    permission: bigmc.top
 
 permissions:
   bigmc.money:
@@ -66,4 +75,10 @@ permissions:
     default: true
   bigmc.order:
     description: Das Auftragssystem benutzen.
+    default: true
+  bigmc.stats:
+    description: Statistiken anzeigen.
+    default: true
+  bigmc.top:
+    description: Ranglisten anzeigen.
     default: true
