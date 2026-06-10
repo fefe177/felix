@@ -38,7 +38,7 @@ import eu.bieder.bigmc.stats.command.StatsCommand;
 import eu.bieder.bigmc.stats.command.TopCommand;
 import eu.bieder.bigmc.vote.VoteJoinListener;
 import eu.bieder.bigmc.vote.VoteRewardManager;
-import eu.bieder.bigmc.vote.VotifierListener;
+import eu.bieder.bigmc.vote.VotifierHook;
 import eu.bieder.bigmc.vote.command.VoteCommand;
 import eu.bieder.bigmc.shop.ShopManager;
 import eu.bieder.bigmc.shop.command.SellCommand;
@@ -133,11 +133,8 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(spawnerCollectGUI, this);
         getServer().getPluginManager().registerEvents(spawnerShopGUI, this);
 
-        // Votifier-Listener NUR registrieren, wenn ein Vote-Plugin vorhanden ist
-        // (sonst wuerde die Klasse fehlende Votifier-Klassen nicht laden koennen).
-        if (getServer().getPluginManager().getPlugin("Votifier") != null
-                || getServer().getPluginManager().getPlugin("NuVotifier") != null) {
-            getServer().getPluginManager().registerEvents(new VotifierListener(this), this);
+        // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
+        if (VotifierHook.register(this)) {
             getLogger().info("NuVotifier erkannt - Vote-Belohnungen sind aktiv.");
         } else {
             getLogger().info("Kein Votifier gefunden - Vote-Belohnungen laufen nur ueber /vote test.");

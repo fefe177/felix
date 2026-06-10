@@ -25,11 +25,6 @@
             <id>papermc</id>
             <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
-        <!-- JitPack: stellt die NuVotifier-API bereit (Phase 9) -->
-        <repository>
-            <id>jitpack</id>
-            <url>https://jitpack.io</url>
-        </repository>
     </repositories>
 
     <dependencies>
@@ -49,14 +44,10 @@
             <scope>compile</scope>
         </dependency>
 
-        <!-- NuVotifier API (Phase 9) - nur zur Compile-Zeit, vom Vote-Plugin bereitgestellt.
-             Soft-Depend: das Plugin laeuft auch ohne NuVotifier. -->
-        <dependency>
-            <groupId>com.github.NuVotifier.NuVotifier</groupId>
-            <artifactId>nuvotifier-api</artifactId>
-            <version>2.7.3</version>
-            <scope>provided</scope>
-        </dependency>
+        <!-- Hinweis: NuVotifier (Phase 9) wird NICHT als Abhaengigkeit benoetigt.
+             Die Anbindung erfolgt per Reflection (siehe VotifierHook), damit das
+             Plugin ohne externe Vote-Bibliothek kompiliert und trotzdem mit
+             echtem NuVotifier zusammenarbeitet. -->
     </dependencies>
 
     <build>
