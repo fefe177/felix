@@ -1,0 +1,19 @@
+# ============================================================
+#  BigMC - messages.yml
+#  Alle Texte des Plugins (deutsch). Farbcodes mit & (z.B. &a, &c, &6).
+#  %platzhalter% werden vom Code ersetzt.
+# ============================================================
+
+# Praefix vor jeder Nachricht
+prefix: "&8[&bBigMC&8] &7"
+
+general:
+  no-permission: "&cDazu hast du keine Berechtigung."
+  player-only: "&cDieser Befehl ist nur fuer Spieler."
+  player-not-found: "&cDieser Spieler wurde nicht gefunden."
+  reloaded: "&aBigMC wurde neu geladen."
+  invalid-number: "&cBitte gib eine gueltige Zahl an."
+
+plugin:
+  enabled: "&aBigMC wurde gestartet."
+  disabled: "&cBigMC wurde gestoppt."

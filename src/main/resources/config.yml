@@ -1,0 +1,18 @@
+# ============================================================
+#  BigMC - config.yml
+#  Alle Zahlen/Einstellungen des Plugins stehen hier zentral.
+#  (In spaeteren Phasen kommen weitere Abschnitte dazu.)
+# ============================================================
+
+# Datenbank-Einstellungen
+database:
+  # Dateiname der SQLite-Datenbank (liegt im Plugin-Ordner)
+  file: "bigmc.db"
+
+# Wirtschafts-Grundeinstellungen (ab Phase 1 aktiv genutzt)
+economy:
+  # Startguthaben fuer neue Spieler
+  start-balance: 100.0
+  # Anzeigename und Symbol der Waehrung
+  currency-name: "Coins"
+  currency-symbol: "$"
