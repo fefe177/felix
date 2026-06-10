@@ -1,0 +1,49 @@
+name: Build Windows installer
+
+# Builds the desktop GUI into a Windows installer (.exe) on a Windows runner -
+# no Wine needed there. Run it manually from the Actions tab ("Run workflow"),
+# or push a version tag (e.g. v0.1.0) to also publish a GitHub Release with the
+# installer attached for download.
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install GUI dependencies
+        working-directory: gui
+        run: npm install
+
+      - name: Build Windows installer
+        working-directory: gui
+        run: npm run dist:win
+
+      - name: Upload installer artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: LocalPilot-Windows
+          path: gui/release/*.exe
+          if-no-files-found: error
+
+      - name: Publish release (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: gui/release/*.exe
+          generate_release_notes: true

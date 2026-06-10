@@ -151,6 +151,39 @@ cd gui && LOCALPILOT_EXTERNAL_BACKEND=1 npm run dev
 See [`gui/README.md`](gui/README.md). On Windows, `scripts/dev_run.ps1` starts
 both for you.
 
+## Download a ready-built Windows app (GitHub Actions)
+
+You don't have to build locally - GitHub can build the Windows installer for you
+on a Windows runner (no Wine needed). The workflow is
+[`.github/workflows/build-windows.yml`](.github/workflows/build-windows.yml).
+
+Two ways to get the `.exe`:
+
+1. **Manual run (artifact):** in the GitHub repo, open **Actions** ->
+   **Build Windows installer** -> **Run workflow**. After ~3-5 minutes, open the
+   finished run and download the **`LocalPilot-Windows`** artifact (a zip
+   containing the NSIS installer `LocalPilot Setup <version>.exe` and a portable
+   `LocalPilot <version>.exe`).
+2. **Release (recommended for sharing):** create a version tag - e.g. on this
+   branch:
+   ```bash
+   git tag v0.1.0 && git push origin v0.1.0
+   ```
+   The workflow then builds and publishes a **GitHub Release** with the installer
+   attached, so anyone can download it from the repo's *Releases* page.
+
+Notes:
+
+- The **Run workflow** button only appears for workflows on the repository's
+  **default branch**, so merge this branch into your default branch (or push a
+  tag, which works from any branch) to use it.
+- GitHub **Actions** must be enabled for the repository.
+- The installer ships only the GUI; the Python backend is installed separately
+  (see [`gui/README.md`](gui/README.md) -> *Packaging a Windows installer*).
+
+A second workflow, [`ci.yml`](.github/workflows/ci.yml), lints, type-checks and
+tests the backend and GUI on every push/PR.
+
 ## Configuration
 
 Layered, lowest precedence first: `config/default.yaml` -> a `--config` YAML file
