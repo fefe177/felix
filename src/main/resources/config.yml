@@ -105,6 +105,15 @@ spawners:
       price: 50000.0
       display-entity: ENDERMAN
 
+# Drill-Spitzhacke: baut einen 3x3-Bereich ab (Ebene je nach Blickrichtung).
+drill:
+  # Material der Spitzhacke
+  material: DIAMOND_PICKAXE
+  # Kaufpreis per /drill
+  price: 50000.0
+  # Zusaetzlicher Verschleiss je mit-gebrochenem Block (0 = kein Extra-Verschleiss)
+  durability-per-block: 1
+
 # Event-Einstellungen: Belohnung fuer alle Teilnehmer beim /event stop.
 event:
   reward:

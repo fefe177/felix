@@ -158,6 +158,13 @@ duel:
   broadcast: "&e%winner% &ahat &e%loser% &aim Duell besiegt!"
   spawn-set: "&aArena-Spawn &e%number% &awurde auf deine Position gesetzt."
 
+drill:
+  bought: "&7Du hast eine &bDrill-Spitzhacke &7für &c%price% &7gekauft."
+  inventory-full: "&cDein Inventar ist voll."
+  give-usage: "&cVerwendung: /drill give <spieler>"
+  given: "&7Du hast &e%player% &7eine Drill-Spitzhacke gegeben."
+  received: "&aDu hast eine &bDrill-Spitzhacke &aerhalten!"
+
 spawner:
   shop-title: "&8» &6Spawner-Shop"
   shop-price: "&7Preis: &a%price%"

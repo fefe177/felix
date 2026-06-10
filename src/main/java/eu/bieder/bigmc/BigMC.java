@@ -10,6 +10,9 @@ import eu.bieder.bigmc.duel.DuelKit;
 import eu.bieder.bigmc.duel.DuelListener;
 import eu.bieder.bigmc.duel.DuelManager;
 import eu.bieder.bigmc.duel.command.DuelCommand;
+import eu.bieder.bigmc.drill.DrillListener;
+import eu.bieder.bigmc.drill.DrillManager;
+import eu.bieder.bigmc.drill.command.DrillCommand;
 import eu.bieder.bigmc.event.EventManager;
 import eu.bieder.bigmc.event.command.EventCommand;
 import eu.bieder.bigmc.economy.EconomyManager;
@@ -77,6 +80,7 @@ public final class BigMC extends JavaPlugin {
     private SpawnerManager spawnerManager;
     private SpawnerCollectGUI spawnerCollectGUI;
     private SpawnerShopGUI spawnerShopGUI;
+    private DrillManager drillManager;
 
     @Override
     public void onEnable() {
@@ -119,6 +123,7 @@ public final class BigMC extends JavaPlugin {
         this.spawnerManager = new SpawnerManager(this);       // Custom-Spawner
         this.spawnerCollectGUI = new SpawnerCollectGUI(this);
         this.spawnerShopGUI = new SpawnerShopGUI(this);
+        this.drillManager = new DrillManager(this);           // Drill-Spitzhacke
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -132,6 +137,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new SpawnerListener(this), this);
         getServer().getPluginManager().registerEvents(spawnerCollectGUI, this);
         getServer().getPluginManager().registerEvents(spawnerShopGUI, this);
+        getServer().getPluginManager().registerEvents(new DrillListener(this), this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -179,6 +185,9 @@ public final class BigMC extends JavaPlugin {
         getCommand("event").setExecutor(eventCommand);
         getCommand("event").setTabCompleter(eventCommand);
         getCommand("spawnershop").setExecutor(new SpawnerShopCommand(this));
+        DrillCommand drillCommand = new DrillCommand(this);
+        getCommand("drill").setExecutor(drillCommand);
+        getCommand("drill").setTabCompleter(drillCommand);
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -306,5 +315,9 @@ public final class BigMC extends JavaPlugin {
 
     public SpawnerShopGUI getSpawnerShopGUI() {
         return spawnerShopGUI;
+    }
+
+    public DrillManager getDrillManager() {
+        return drillManager;
     }
 }
