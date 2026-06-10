@@ -41,6 +41,16 @@ Alle Zahlen stehen in `config.yml`, alle Texte in `messages.yml` (deutsch, mit `
 
 ---
 
+## Fertige JAR herunterladen (ohne Maven)
+
+Bei jedem Push baut GitHub Actions das Plugin automatisch. Den fertigen Download gibt es so:
+
+1. Auf GitHub ins Repo → Reiter **Actions** → den neuesten grünen Lauf **„Build BigMC“** öffnen.
+2. Unten unter **Artifacts** das Paket **BigMC** herunterladen (ZIP).
+3. ZIP entpacken → enthält die `BigMC.jar`.
+
+Ein roter Lauf bedeutet, dass etwas nicht kompiliert – dann sind die Logs im Lauf einsehbar.
+
 ## Bauen (mvn package)
 
 Voraussetzungen: **JDK 21** und **Maven 3.8+** installiert.
