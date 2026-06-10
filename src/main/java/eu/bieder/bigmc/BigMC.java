@@ -13,6 +13,9 @@ import eu.bieder.bigmc.duel.command.DuelCommand;
 import eu.bieder.bigmc.economy.EconomyManager;
 import eu.bieder.bigmc.economy.PlayerJoinListener;
 import eu.bieder.bigmc.economy.command.BaltopCommand;
+import eu.bieder.bigmc.fly.FlyListener;
+import eu.bieder.bigmc.fly.FlyManager;
+import eu.bieder.bigmc.fly.command.FlyCommand;
 import eu.bieder.bigmc.order.OrderManager;
 import eu.bieder.bigmc.order.command.OrderCommand;
 import eu.bieder.bigmc.rank.RankListener;
@@ -57,6 +60,7 @@ public final class BigMC extends JavaPlugin {
     private DuelManager duelManager;
     private DuelKit duelKit;
     private RankManager rankManager;
+    private FlyManager flyManager;
 
     @Override
     public void onEnable() {
@@ -93,6 +97,7 @@ public final class BigMC extends JavaPlugin {
         this.duelKit = new DuelKit(this);                 // Phase 6: Duelle
         this.duelManager = new DuelManager(this);
         this.rankManager = new RankManager(this);         // Phase 7: Raenge
+        this.flyManager = new FlyManager(this);           // Phase 8: Fliegen
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -101,6 +106,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new StatsListener(this), this);
         getServer().getPluginManager().registerEvents(new DuelListener(this), this);
         getServer().getPluginManager().registerEvents(new RankListener(this), this);
+        getServer().getPluginManager().registerEvents(new FlyListener(this), this);
 
         // 6. Commands registrieren
         MoneyCommand moneyCommand = new MoneyCommand(this);
@@ -133,6 +139,7 @@ public final class BigMC extends JavaPlugin {
         getCommand("rank").setExecutor(rankCommand);
         getCommand("rank").setTabCompleter(rankCommand);
         getCommand("ranks").setExecutor(new RanksCommand(this));
+        getCommand("fly").setExecutor(new FlyCommand(this));
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -152,6 +159,10 @@ public final class BigMC extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Flug-Tasks beenden
+        if (this.flyManager != null) {
+            this.flyManager.shutdown();
+        }
         // Laufende Duelle beenden und Inventare wiederherstellen
         if (this.duelManager != null) {
             this.duelManager.endAllDuels();
@@ -223,5 +234,9 @@ public final class BigMC extends JavaPlugin {
 
     public RankManager getRankManager() {
         return rankManager;
+    }
+
+    public FlyManager getFlyManager() {
+        return flyManager;
     }
 }

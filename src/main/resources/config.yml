@@ -47,6 +47,17 @@ stats:
   # Anzahl der Eintraege in /top
   top-size: 10
 
+# Flug-Einstellungen (kostenpflichtiges, befristetes Fliegen)
+fly:
+  # Preis pro Kauf
+  price: 1000.0
+  # Flugdauer pro Kauf (in Sekunden)
+  duration-seconds: 300
+  # Wie viele Sekunden vor Ablauf gewarnt wird
+  warn-seconds: 10
+  # Sturzschutz nach Flug-Ende (in Server-Ticks, 20 Ticks = 1 Sekunde)
+  fall-protection-ticks: 100
+
 # ------------------------------------------------------------
 # Rangsystem (Leiter): Spieler steigen mit /rank buy auf.
 # Reihenfolge in dieser Datei = Reihenfolge der Leiter (oben = niedrigster).

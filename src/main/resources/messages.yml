@@ -158,6 +158,15 @@ duel:
   broadcast: "&e%winner% &ahat &e%loser% &aim Duell besiegt!"
   spawn-set: "&aArena-Spawn &e%number% &awurde auf deine Position gesetzt."
 
+fly:
+  enabled: "&aFliegen aktiviert für &e%time% &a(-%price%)."
+  extended: "&aFlugzeit verlängert (-%price%). Verbleibend: &e%total%"
+  disabled: "&7Fliegen wurde beendet."
+  not-active: "&cDu fliegst gerade nicht."
+  remaining: "&7Verbleibende Flugzeit: &e%time%"
+  expiring-soon: "&eDein Flug endet in &c%seconds% &eSekunden!"
+  expired: "&cDeine Flugzeit ist abgelaufen."
+
 ranks:
   chat-format: "%prefix%&f%player%&7: &f%message%"
   usage: "&cVerwendung: /rank &7| &c/rank buy"
