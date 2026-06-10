@@ -158,6 +158,23 @@ duel:
   broadcast: "&e%winner% &ahat &e%loser% &aim Duell besiegt!"
   spawn-set: "&aArena-Spawn &e%number% &awurde auf deine Position gesetzt."
 
+event:
+  usage: "&cVerwendung: /event start <name> | stop | join | leave | info"
+  start-usage: "&cVerwendung: /event start <name>"
+  already-running: "&cEs läuft bereits ein Event."
+  none-running: "&cGerade läuft kein Event."
+  started: "&a&lEVENT &7Das Event &e%name% &7hat begonnen!"
+  join-hint: "&7Tritt bei mit &a/event join"
+  joined: "&aDu bist dem Event &e%name% &abeigetreten."
+  already-joined: "&cDu bist bereits dabei."
+  left: "&7Du hast das Event verlassen."
+  not-joined: "&cDu nimmst an keinem Event teil."
+  info: "&7Aktuelles Event: &e%name% &7(&e%count% &7Teilnehmer)"
+  stopped: "&7Event beendet - &e%count% &7Spieler belohnt."
+  ended: "&a&lEVENT &7Das Event &e%name% &7ist vorbei! &e%count% &7Teilnehmer wurden belohnt."
+  cancelled: "&cDas Event &e%name% &cwurde abgebrochen."
+  reward-received: "&aDu hast deine Belohnung für das Event &e%name% &aerhalten!"
+
 vote:
   broadcast: "&e%player% &ahat für den Server gevotet - danke! &7(/vote)"
   reward-received: "&aDanke fürs Voten! Du hast &e%money% &aund Items erhalten."

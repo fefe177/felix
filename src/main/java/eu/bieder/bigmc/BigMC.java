@@ -10,6 +10,8 @@ import eu.bieder.bigmc.duel.DuelKit;
 import eu.bieder.bigmc.duel.DuelListener;
 import eu.bieder.bigmc.duel.DuelManager;
 import eu.bieder.bigmc.duel.command.DuelCommand;
+import eu.bieder.bigmc.event.EventManager;
+import eu.bieder.bigmc.event.command.EventCommand;
 import eu.bieder.bigmc.economy.EconomyManager;
 import eu.bieder.bigmc.economy.PlayerJoinListener;
 import eu.bieder.bigmc.economy.command.BaltopCommand;
@@ -66,6 +68,7 @@ public final class BigMC extends JavaPlugin {
     private RankManager rankManager;
     private FlyManager flyManager;
     private VoteRewardManager voteRewardManager;
+    private EventManager eventManager;
 
     @Override
     public void onEnable() {
@@ -104,6 +107,7 @@ public final class BigMC extends JavaPlugin {
         this.rankManager = new RankManager(this);         // Phase 7: Raenge
         this.flyManager = new FlyManager(this);           // Phase 8: Fliegen
         this.voteRewardManager = new VoteRewardManager(this); // Phase 9: Votes
+        this.eventManager = new EventManager(this);           // Phase 10: Events
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -160,6 +164,9 @@ public final class BigMC extends JavaPlugin {
         VoteCommand voteCommand = new VoteCommand(this);
         getCommand("vote").setExecutor(voteCommand);
         getCommand("vote").setTabCompleter(voteCommand);
+        EventCommand eventCommand = new EventCommand(this);
+        getCommand("event").setExecutor(eventCommand);
+        getCommand("event").setTabCompleter(eventCommand);
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -179,6 +186,10 @@ public final class BigMC extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Laufendes Event ohne Belohnung abbrechen
+        if (this.eventManager != null) {
+            this.eventManager.cancel();
+        }
         // Flug-Tasks beenden
         if (this.flyManager != null) {
             this.flyManager.shutdown();
@@ -262,5 +273,9 @@ public final class BigMC extends JavaPlugin {
 
     public VoteRewardManager getVoteRewardManager() {
         return voteRewardManager;
+    }
+
+    public EventManager getEventManager() {
+        return eventManager;
     }
 }

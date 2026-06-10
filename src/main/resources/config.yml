@@ -47,6 +47,14 @@ stats:
   # Anzahl der Eintraege in /top
   top-size: 10
 
+# Event-Einstellungen: Belohnung fuer alle Teilnehmer beim /event stop.
+event:
+  reward:
+    money: 2500.0
+    items:
+      DIAMOND: 3
+      GOLDEN_APPLE: 2
+
 # Vote-Belohnungen (ueber NuVotifier). %player% wird in Befehlen ersetzt.
 vote:
   # Sieg/Vote im Chat fuer alle ankuendigen?

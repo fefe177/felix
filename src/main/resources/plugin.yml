@@ -74,6 +74,11 @@ commands:
     usage: /vote | /vote claim | /vote test [name]
     aliases: [voten]
     permission: bigmc.vote
+  event:
+    description: Server-Events starten, beitreten und beenden.
+    usage: /event start <name> | stop | join | leave | info
+    aliases: [events]
+    permission: bigmc.event
 
 permissions:
   bigmc.money:
@@ -129,6 +134,12 @@ permissions:
     default: true
   bigmc.vote.admin:
     description: Votes zum Testen ausloesen.
+    default: op
+  bigmc.event:
+    description: Events beitreten und Infos sehen.
+    default: true
+  bigmc.event.admin:
+    description: Events starten und beenden.
     default: op
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
