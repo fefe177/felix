@@ -36,6 +36,8 @@
 | **Fliegen** | `/fly`, `/fly off`, `/fly time` | Befristeter Flug gegen Ingame-Geld |
 | **Votes** | `/vote`, `/vote claim`, `/vote test` | Belohnungen über NuVotifier |
 | **Events** | `/event start/stop/join/leave/info` | Einfaches Event-Grundgerüst |
+| **Spawner** | `/spawnershop` | Custom-Spawner: produzieren Items statt Mobs, Abhol-GUI per Rechtsklick, stapelbar bis 500 |
+| **Drill** | `/drill`, `/drill give` | Drill-Spitzhacke: 3×3-Abbau, Ebene je nach Blickrichtung |
 
 Alle Zahlen stehen in `config.yml`, alle Texte in `messages.yml` (deutsch, mit `&`-Farbcodes).
 
@@ -111,6 +113,8 @@ Nach Änderungen an `config.yml`/`messages.yml` den Server neu starten (oder `/r
 | `fly` | Preis, Dauer, Vorwarnzeit, Sturzschutz |
 | `vote` | Geld/Items/Befehle pro Vote, Vote-Links |
 | `event.reward` | Belohnung (Geld/Items) für Event-Teilnehmer |
+| `spawners` | Spawner-Typen (Produkt, Intervall, Preis, Speicher), max. Stapelgröße |
+| `drill` | Material, Preis, Verschleiß der Drill-Spitzhacke |
 
 > **Tipp:** Item-/Material-Namen folgen den Bukkit-Material-Konstanten, z. B. `DIAMOND`, `IRON_INGOT`, `GRASS_BLOCK`. Referenz: <https://jd.papermc.io/paper/1.21/org/bukkit/Material.html>
 
@@ -167,6 +171,10 @@ Standardmäßig sind alle Spieler-Befehle für jeden freigegeben (`default: true
 | `bigmc.vote.admin` | op | `/vote test` |
 | `bigmc.event` | true | Events beitreten |
 | `bigmc.event.admin` | op | Events starten/beenden |
+| `bigmc.spawnershop` | true | Spawner-Shop öffnen |
+| `bigmc.spawner.admin` | op | Fremde Custom-Spawner verwalten |
+| `bigmc.drill` | true | Drill kaufen und nutzen |
+| `bigmc.drill.admin` | op | Drill verschenken |
 
 Rang-Permissions (z. B. `bigmc.perk.gold`) werden **kumulativ** über das Rangsystem vergeben und sind in `config.yml` frei definierbar.
 
@@ -188,7 +196,9 @@ src/main/java/eu/bieder/bigmc/
 ├── rank/                       # Ränge (Phase 7)
 ├── fly/                        # Fliegen (Phase 8)
 ├── vote/                       # Vote-Belohnungen (Phase 9)
-└── event/                      # Events (Phase 10)
+├── event/                      # Events (Phase 10)
+├── spawner/                    # Custom-Spawner + Spawner-Shop
+└── drill/                      # Drill-Spitzhacke (3x3-Abbau)
 
 src/main/resources/
 ├── plugin.yml                  # Commands & Permissions
@@ -203,7 +213,7 @@ Pro Feature gibt es einen eigenen Manager; die `BigMC`-Hauptklasse erzeugt sie u
 ## Datenbank
 
 SQLite-Datei: `plugins/BigMC/bigmc.db`. Angelegte Tabellen u. a.:
-`economy`, `auctions`, `auction_pending`, `orders`, `order_deliveries`, `stats`, `player_ranks`, `votes`, `bigmc_meta`.
+`economy`, `auctions`, `auction_pending`, `orders`, `order_deliveries`, `stats`, `player_ranks`, `votes`, `spawners`, `bigmc_meta`.
 
 Backups: einfach die `bigmc.db` (bei laufendem Server zusätzlich `-wal`/`-shm`) sichern.
 
