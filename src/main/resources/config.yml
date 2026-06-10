@@ -47,6 +47,46 @@ stats:
   # Anzahl der Eintraege in /top
   top-size: 10
 
+# Duell-Einstellungen
+duel:
+  # Sekunden, die eine Herausforderung gueltig bleibt
+  challenge-timeout-seconds: 30
+  # Countdown vor Duell-Start (Spieler sind solange eingefroren)
+  countdown-seconds: 5
+  # Sieger im Chat fuer alle bekanntgeben?
+  broadcast-winner: true
+  # Arena-Spawnpunkte - bequem per "/duel setspawn 1" und "/duel setspawn 2" setzen.
+  # (Hier nur als Platzhalter; world leer = Arena nicht gesetzt.)
+  arena:
+    spawn1:
+      world: ""
+      x: 0.0
+      y: 100.0
+      z: 0.0
+      yaw: 0.0
+      pitch: 0.0
+    spawn2:
+      world: ""
+      x: 10.0
+      y: 100.0
+      z: 0.0
+      yaw: 0.0
+      pitch: 0.0
+  # Start-Kit fuer beide Spieler (gleich = fair). enabled: false -> ohne Kit.
+  kit:
+    enabled: true
+    armor:
+      helmet: IRON_HELMET
+      chestplate: IRON_CHESTPLATE
+      leggings: IRON_LEGGINGS
+      boots: IRON_BOOTS
+    items:
+      DIAMOND_SWORD: 1
+      BOW: 1
+      ARROW: 16
+      GOLDEN_APPLE: 4
+      COOKED_BEEF: 16
+
 # ------------------------------------------------------------
 # Adminshop: feste Kauf- und Verkaufspreise.
 #   buy  = Kaufpreis pro Stueck (0 = nicht kaufbar)

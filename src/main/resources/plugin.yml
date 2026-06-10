@@ -47,6 +47,11 @@ commands:
     description: Zeigt Ranglisten verschiedener Kategorien.
     usage: /top <kills|tode|duelle|spielzeit|geld>
     permission: bigmc.top
+  duel:
+    description: Fordere einen Spieler zum 1vs1 heraus.
+    usage: /duel <spieler> | /duel accept | /duel deny
+    aliases: [duell, 1v1]
+    permission: bigmc.duel
 
 permissions:
   bigmc.money:
@@ -82,3 +87,9 @@ permissions:
   bigmc.top:
     description: Ranglisten anzeigen.
     default: true
+  bigmc.duel:
+    description: Duelle starten und annehmen.
+    default: true
+  bigmc.duel.admin:
+    description: Arena-Spawns fuer Duelle setzen.
+    default: op

@@ -6,6 +6,10 @@ import eu.bieder.bigmc.auction.command.AhCommand;
 import eu.bieder.bigmc.config.ConfigManager;
 import eu.bieder.bigmc.config.MessageManager;
 import eu.bieder.bigmc.database.Database;
+import eu.bieder.bigmc.duel.DuelKit;
+import eu.bieder.bigmc.duel.DuelListener;
+import eu.bieder.bigmc.duel.DuelManager;
+import eu.bieder.bigmc.duel.command.DuelCommand;
 import eu.bieder.bigmc.economy.EconomyManager;
 import eu.bieder.bigmc.economy.PlayerJoinListener;
 import eu.bieder.bigmc.economy.command.BaltopCommand;
@@ -46,6 +50,8 @@ public final class BigMC extends JavaPlugin {
     private AuctionHouseGUI auctionHouseGUI;
     private OrderManager orderManager;
     private StatsManager statsManager;
+    private DuelManager duelManager;
+    private DuelKit duelKit;
 
     @Override
     public void onEnable() {
@@ -79,12 +85,15 @@ public final class BigMC extends JavaPlugin {
         this.auctionHouseGUI = new AuctionHouseGUI(this);
         this.orderManager = new OrderManager(this);       // Phase 4: Auftraege
         this.statsManager = new StatsManager(this);       // Phase 5: Statistiken
+        this.duelKit = new DuelKit(this);                 // Phase 6: Duelle
+        this.duelManager = new DuelManager(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(shopGUI, this);
         getServer().getPluginManager().registerEvents(auctionHouseGUI, this);
         getServer().getPluginManager().registerEvents(new StatsListener(this), this);
+        getServer().getPluginManager().registerEvents(new DuelListener(this), this);
 
         // 6. Commands registrieren
         MoneyCommand moneyCommand = new MoneyCommand(this);
@@ -110,6 +119,9 @@ public final class BigMC extends JavaPlugin {
         TopCommand topCommand = new TopCommand(this);
         getCommand("top").setExecutor(topCommand);
         getCommand("top").setTabCompleter(topCommand);
+        DuelCommand duelCommand = new DuelCommand(this);
+        getCommand("duel").setExecutor(duelCommand);
+        getCommand("duel").setTabCompleter(duelCommand);
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -129,6 +141,10 @@ public final class BigMC extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Laufende Duelle beenden und Inventare wiederherstellen
+        if (this.duelManager != null) {
+            this.duelManager.endAllDuels();
+        }
         // Offene Spielzeit-Sessions speichern
         if (this.statsManager != null) {
             this.statsManager.flushAllPlaytime();
@@ -184,5 +200,13 @@ public final class BigMC extends JavaPlugin {
 
     public StatsManager getStatsManager() {
         return statsManager;
+    }
+
+    public DuelManager getDuelManager() {
+        return duelManager;
+    }
+
+    public DuelKit getDuelKit() {
+        return duelKit;
     }
 }
