@@ -20,7 +20,10 @@ const path = require("node:path");
 const { app, BrowserWindow, dialog } = require("electron");
 
 const BACKEND_URL = process.env.LOCALPILOT_BACKEND_URL || "http://127.0.0.1:8765";
-const IS_DEV = process.env.ELECTRON_DEV === "1" || !app.isPackaged;
+// Dev mode is opt-in via ELECTRON_DEV=1 (set by `npm run dev`). Otherwise -
+// including `npm start` against a fresh `vite build` and the packaged app - we
+// load the built files from dist/.
+const IS_DEV = process.env.ELECTRON_DEV === "1";
 
 /** @type {import("node:child_process").ChildProcess | null} */
 let backendProcess = null;

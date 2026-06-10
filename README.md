@@ -151,6 +151,36 @@ cd gui && LOCALPILOT_EXTERNAL_BACKEND=1 npm run dev
 See [`gui/README.md`](gui/README.md). On Windows, `scripts/dev_run.ps1` starts
 both for you.
 
+## Install everything on your PC (Windows, from GitHub)
+
+This sets up the **full app** (backend + GUI) straight from the repository.
+
+1. Install the prerequisites (normal installers, click through each):
+   - **Git** - https://git-scm.com/download/win
+   - **Python 3.11+** - https://www.python.org/downloads/ (tick *"Add python.exe
+     to PATH"* during setup)
+   - **Node.js 18+ (LTS)** - https://nodejs.org/
+   - **Ollama** (the local model runtime) - https://ollama.com/
+2. Get the code and run the setup script in **PowerShell**:
+   ```powershell
+   git clone https://github.com/fefe177/felix.git
+   cd felix
+   git checkout claude/localpilot-phase-0-scaffold-hUjmF
+   .\scripts\install_windows.ps1
+   ```
+   The script creates a virtual environment, installs the backend, downloads the
+   Playwright browser, installs + builds the GUI, and offers to pull the
+   `qwen3:8b` model.
+3. Start the app:
+   ```powershell
+   .\scripts\start_windows.ps1
+   ```
+   The desktop window opens and starts the backend itself - type a goal and click
+   **Start**.
+
+> If PowerShell blocks the scripts, allow them for the session first:
+> `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned`.
+
 ## Download a ready-built Windows app (GitHub Actions)
 
 You don't have to build locally - GitHub can build the Windows installer for you
