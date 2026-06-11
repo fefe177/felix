@@ -113,6 +113,10 @@ commands:
     description: Setzt den Server-Spawn (Admin).
     usage: /setspawn
     permission: bigmc.spawn.admin
+  spawnbuild:
+    description: Baut automatisch eine Spawn-Area (Admin).
+    usage: /spawnbuild confirm
+    permission: bigmc.spawn.admin
   rtp:
     description: Zufaelliger Teleport in die Wildnis.
     usage: /rtp

@@ -44,6 +44,7 @@ import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
 import eu.bieder.bigmc.spawn.SpawnListener;
 import eu.bieder.bigmc.spawn.SpawnManager;
+import eu.bieder.bigmc.spawn.command.SpawnBuildCommand;
 import eu.bieder.bigmc.spawn.command.SpawnCommand;
 import eu.bieder.bigmc.spawner.SpawnerCollectGUI;
 import eu.bieder.bigmc.spawner.SpawnerListener;
@@ -236,6 +237,7 @@ public final class BigMC extends JavaPlugin {
         SpawnCommand spawnCommand = new SpawnCommand(this);
         getCommand("spawn").setExecutor(spawnCommand);
         getCommand("setspawn").setExecutor(spawnCommand);
+        getCommand("spawnbuild").setExecutor(new SpawnBuildCommand(this));
         getCommand("rtp").setExecutor(new RtpCommand(this));
         TpaCommand tpaCommand = new TpaCommand(this);
         getCommand("tpa").setExecutor(tpaCommand);
