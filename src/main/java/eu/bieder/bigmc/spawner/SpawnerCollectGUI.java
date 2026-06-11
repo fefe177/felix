@@ -82,11 +82,16 @@ public class SpawnerCollectGUI implements Listener {
                         .replace("%interval%", String.valueOf(type.intervalSeconds()))));
         inv.setItem(SLOT_INFO, info);
 
-        // Produkt mit gespeicherter Menge
+        // Produkt mit gespeicherter Menge + Speicher-Fortschrittsbalken
+        long cap = type.maxStoragePerStack() * (long) spawner.stackSize();
         ItemStack product = named(type.product(), MessageManager.color(
                 "&e" + spawner.stored() + "x " + SpawnerManager.prettyMaterial(type.product())),
-                List.of(msg.getRaw("spawner.gui-stored")
-                        .replace("%stored%", String.valueOf(spawner.stored()))));
+                List.of(
+                        msg.getRaw("spawner.gui-stored")
+                                .replace("%stored%", String.valueOf(spawner.stored())),
+                        msg.getRaw("spawner.gui-storage")
+                                .replace("%cap%", String.valueOf(cap)),
+                        GuiDesign.progressBar(spawner.stored(), cap)));
         inv.setItem(SLOT_PRODUCT, product);
 
         // Abhol-Button
@@ -127,8 +132,10 @@ public class SpawnerCollectGUI implements Listener {
         long collected = plugin.getSpawnerManager().collect(player, spawner);
         MessageManager msg = plugin.getMessageManager();
         if (collected <= 0) {
+            GuiDesign.soundError(player);
             msg.send(player, "spawner.collect-empty");
         } else {
+            GuiDesign.soundSuccess(player);
             msg.send(player, "spawner.collected",
                     "%amount%", String.valueOf(collected),
                     "%item%", SpawnerManager.prettyMaterial(

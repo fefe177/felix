@@ -141,6 +141,13 @@ public class AuctionHouseGUI implements Listener {
                 List.of()));
         inv.setItem(SLOT_MY, named(Material.CHEST, msg.getRaw("auction.gui-my-auctions"), List.of()));
 
+        // Spieler-Kopf mit Live-Kontostand
+        double balance = plugin.getEconomyManager().getBalance(player.getUniqueId());
+        inv.setItem(46, GuiDesign.balanceHead(player,
+                msg.getRaw("shop.gui-balance"),
+                List.of(msg.getRaw("shop.gui-balance-lore")
+                        .replace("%money%", plugin.getEconomyManager().formatMoney(balance)))));
+
         int pending = am.getPending(player.getUniqueId()).size();
         inv.setItem(SLOT_COLLECT, named(Material.ENDER_CHEST,
                 msg.getRaw("auction.gui-collect").replace("%count%", String.valueOf(pending)),
@@ -278,9 +285,9 @@ public class AuctionHouseGUI implements Listener {
         MessageManager msg = plugin.getMessageManager();
 
         switch (slot) {
-            case SLOT_PREV -> { openBrowse(player, browse.page - 1); return; }
-            case SLOT_NEXT -> { openBrowse(player, browse.page + 1); return; }
-            case SLOT_MY -> { openMyAuctions(player); return; }
+            case SLOT_PREV -> { GuiDesign.soundClick(player); openBrowse(player, browse.page - 1); return; }
+            case SLOT_NEXT -> { GuiDesign.soundClick(player); openBrowse(player, browse.page + 1); return; }
+            case SLOT_MY -> { GuiDesign.soundClick(player); openMyAuctions(player); return; }
             case SLOT_COLLECT -> {
                 player.closeInventory();
                 collect(player);
@@ -300,14 +307,17 @@ public class AuctionHouseGUI implements Listener {
             return;
         }
         if (fresh.sellerUuid().equals(player.getUniqueId())) {
+            GuiDesign.soundError(player);
             msg.send(player, "auction.cannot-buy-own");
             return;
         }
+        GuiDesign.soundClick(player);
         openConfirm(player, fresh);
     }
 
     private void handleConfirmClick(Player player, ConfirmHolder confirm, int slot) {
         if (slot == SLOT_CANCEL) {
+            GuiDesign.soundClick(player);
             openBrowse(player, 1);
             return;
         }
@@ -334,6 +344,7 @@ public class AuctionHouseGUI implements Listener {
         }
         // Item ins Abholfach legen (nicht direkt geben - Inventar koennte voll sein)
         plugin.getAuctionManager().addPending(player.getUniqueId(), listing.item());
+        GuiDesign.soundSuccess(player);
         msg.send(player, "auction.cancelled");
         openMyAuctions(player);
     }
@@ -372,6 +383,7 @@ public class AuctionHouseGUI implements Listener {
         // Schritt 2: bezahlen
         if (!plugin.getEconomyManager().withdraw(buyer.getUniqueId(), listing.price())) {
             am.restoreListing(listing);
+            GuiDesign.soundError(buyer);
             msg.send(buyer, "economy.not-enough-money");
             buyer.closeInventory();
             return;
@@ -393,6 +405,7 @@ public class AuctionHouseGUI implements Listener {
             msg.send(buyer, "auction.bought", "%item%", itemName,
                     "%price%", plugin.getEconomyManager().formatMoney(listing.price()));
         }
+        GuiDesign.soundSuccess(buyer);
 
         // Verkaeufer benachrichtigen, falls online
         Player seller = Bukkit.getPlayer(listing.sellerUuid());
@@ -416,6 +429,7 @@ public class AuctionHouseGUI implements Listener {
 
         List<AuctionManager.PendingItem> pending = am.getPending(player.getUniqueId());
         if (pending.isEmpty()) {
+            GuiDesign.soundError(player);
             msg.send(player, "auction.collect-empty");
             return;
         }
@@ -436,6 +450,7 @@ public class AuctionHouseGUI implements Listener {
         }
 
         if (collected > 0) {
+            GuiDesign.soundSuccess(player);
             msg.send(player, "auction.collected", "%count%", String.valueOf(collected));
         }
         if (full) {

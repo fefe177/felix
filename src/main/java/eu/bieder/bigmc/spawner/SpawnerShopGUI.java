@@ -104,6 +104,7 @@ public class SpawnerShopGUI implements Listener {
         double total = type.price() * amount;
 
         if (!plugin.getEconomyManager().withdraw(player.getUniqueId(), total)) {
+            GuiDesign.soundError(player);
             msg.send(player, "economy.not-enough-money");
             return;
         }
@@ -119,6 +120,7 @@ public class SpawnerShopGUI implements Listener {
         }
         int bought = amount - notAdded;
         if (bought > 0) {
+            GuiDesign.soundSuccess(player);
             msg.send(player, "spawner.bought",
                     "%amount%", String.valueOf(bought),
                     "%type%", MessageManager.color(type.displayName()),

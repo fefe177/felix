@@ -99,7 +99,21 @@ public class ShopGUI implements Listener {
                 holder.categorySlots.put(slot, cat);
             }
         }
+
+        // Spieler-Kopf mit Live-Kontostand unten in der Mitte
+        inv.setItem(inv.getSize() - 5, buildBalanceHead(player));
+
         player.openInventory(inv);
+    }
+
+    /** Spieler-Kopf mit aktuellem Kontostand. */
+    private ItemStack buildBalanceHead(Player player) {
+        MessageManager msg = plugin.getMessageManager();
+        double balance = plugin.getEconomyManager().getBalance(player.getUniqueId());
+        return GuiDesign.balanceHead(player,
+                msg.getRaw("shop.gui-balance"),
+                List.of(msg.getRaw("shop.gui-balance-lore")
+                        .replace("%money%", plugin.getEconomyManager().formatMoney(balance))));
     }
 
     /**
@@ -117,10 +131,11 @@ public class ShopGUI implements Listener {
 
         GuiDesign.fillBorder(inv);
 
-        // Kategorie-Icon als Ueberschrift oben mittig
+        // Kategorie-Icon als Ueberschrift oben mittig, Kontostand oben rechts
         inv.setItem(4, GuiDesign.named(category.icon(), category.displayName(),
                 List.of(msg.getRaw("shop.gui-category-count")
                         .replace("%count%", String.valueOf(category.items().size())))));
+        inv.setItem(8, buildBalanceHead(player));
 
         // Items in den Innenbereich (4 Reihen x 7 Spalten = 28 Plaetze)
         int index = 0;
@@ -187,6 +202,7 @@ public class ShopGUI implements Listener {
         if (holder.categoryId == null) {
             ShopManager.Category category = holder.categorySlots.get(slot);
             if (category != null) {
+                GuiDesign.soundClick(player);
                 openCategory(player, category);
             }
             return;
@@ -194,6 +210,7 @@ public class ShopGUI implements Listener {
 
         // --- Kategorie-Seite ---
         if (slot == SLOT_BACK) {
+            GuiDesign.soundClick(player);
             openMain(player);
             return;
         }
@@ -226,12 +243,14 @@ public class ShopGUI implements Listener {
     private void buy(Player player, ShopManager.ShopItem item, int amount) {
         MessageManager msg = plugin.getMessageManager();
         if (!item.canBuy()) {
+            GuiDesign.soundError(player);
             msg.send(player, "shop.cannot-buy");
             return;
         }
 
         double total = item.buyPrice() * amount;
         if (!plugin.getEconomyManager().withdraw(player.getUniqueId(), total)) {
+            GuiDesign.soundError(player);
             msg.send(player, "economy.not-enough-money");
             return;
         }
@@ -249,11 +268,14 @@ public class ShopGUI implements Listener {
             msg.send(player, "shop.inventory-full");
         }
         if (added > 0) {
+            GuiDesign.soundSuccess(player);
             msg.send(player, "shop.bought",
                     "%amount%", String.valueOf(added),
                     "%item%", prettyName(item.material()),
                     "%price%", plugin.getEconomyManager().formatMoney(item.buyPrice() * added));
         }
+        // Kontostand-Kopf aktualisieren
+        refreshBalanceHead(player);
     }
 
     /**
@@ -263,22 +285,36 @@ public class ShopGUI implements Listener {
     private void sell(Player player, ShopManager.ShopItem item, int amount) {
         MessageManager msg = plugin.getMessageManager();
         if (!item.canSell()) {
+            GuiDesign.soundError(player);
             msg.send(player, "shop.cannot-sell");
             return;
         }
 
         int removed = removeItems(player, item.material(), amount);
         if (removed <= 0) {
+            GuiDesign.soundError(player);
             msg.send(player, "shop.nothing-to-sell", "%item%", prettyName(item.material()));
             return;
         }
 
         double total = item.sellPrice() * removed;
         plugin.getEconomyManager().deposit(player.getUniqueId(), total);
+        GuiDesign.soundSuccess(player);
         msg.send(player, "shop.sold",
                 "%amount%", String.valueOf(removed),
                 "%item%", prettyName(item.material()),
                 "%price%", plugin.getEconomyManager().formatMoney(total));
+        refreshBalanceHead(player);
+    }
+
+    /** Aktualisiert den Kontostand-Kopf im gerade geoeffneten Shop-Fenster. */
+    private void refreshBalanceHead(Player player) {
+        if (!(player.getOpenInventory().getTopInventory().getHolder() instanceof ShopHolder holder)) {
+            return;
+        }
+        Inventory inv = holder.inventory;
+        int slot = holder.categoryId == null ? inv.getSize() - 5 : 8;
+        inv.setItem(slot, buildBalanceHead(player));
     }
 
     /**
