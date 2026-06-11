@@ -36,7 +36,9 @@
 | **Fliegen** | `/fly`, `/fly off`, `/fly time` | Befristeter Flug gegen Ingame-Geld |
 | **Votes** | `/vote`, `/vote claim`, `/vote test` | Belohnungen über NuVotifier |
 | **Events** | `/event start/stop/join/leave/info` | Einfaches Event-Grundgerüst |
-| **Spawner** | `/spawnershop` | Custom-Spawner: produzieren Items statt Mobs, Abhol-GUI per Rechtsklick, stapelbar bis 500 |
+| **Shards** | `/shards`, `/shards pay` | Zweite Währung: verdient durch PvP-Kills + AFK-Zone, ausgegeben für Spawner |
+| **AFK-Zone** | `/afk`, `/afk set` | Teleport in die AFK-Zone, dort gibt es regelmäßig Shards |
+| **Spawner** | `/spawnershop` | Custom-Spawner: produzieren Items statt Mobs, Abhol-GUI per Rechtsklick, stapelbar bis 500, kosten Shards |
 | **Drill** | `/drill`, `/drill give` | Drill-Spitzhacke: 3×3-Abbau, Ebene je nach Blickrichtung |
 
 Alle Zahlen stehen in `config.yml`, alle Texte in `messages.yml` (deutsch, mit `&`-Farbcodes).

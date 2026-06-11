@@ -148,6 +148,10 @@ public class SidebarManager {
             line = line.replace("%money%", plugin.getEconomyManager()
                     .formatMoney(plugin.getEconomyManager().getBalance(player.getUniqueId())));
         }
+        if (line.contains("%shards%")) {
+            line = line.replace("%shards%", plugin.getShardsManager()
+                    .formatShards(plugin.getShardsManager().getShards(player.getUniqueId())));
+        }
         if (line.contains("%rank%")) {
             RankManager.Rank rank = plugin.getRankManager().getPlayerRank(player.getUniqueId());
             line = line.replace("%rank%", rank != null

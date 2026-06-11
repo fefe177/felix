@@ -97,6 +97,14 @@ commands:
     usage: /board
     aliases: [sidebar, sb]
     permission: bigmc.board
+  shards:
+    description: Zeigt und verwaltet Shards (zweite Waehrung).
+    usage: /shards [spieler] | /shards pay <spieler> <anzahl>
+    permission: bigmc.shards
+  afk:
+    description: Teleportiert in die AFK-Zone (dort verdienst du Shards).
+    usage: /afk | /afk set
+    permission: bigmc.afk
 
 permissions:
   bigmc.use:
@@ -180,6 +188,18 @@ permissions:
   bigmc.board:
     description: Info-Sidebar ein-/ausblenden.
     default: true
+  bigmc.shards:
+    description: Shards anzeigen und ueberweisen.
+    default: true
+  bigmc.shards.admin:
+    description: Shards geben, abziehen und setzen.
+    default: op
+  bigmc.afk:
+    description: Die AFK-Zone benutzen.
+    default: true
+  bigmc.afk.admin:
+    description: Die AFK-Zone setzen.
+    default: op
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
     default: op

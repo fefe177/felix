@@ -63,6 +63,8 @@ spawners:
   production-check-seconds: 10
   # Maximale Anzahl Spawner, die man zusammenstapeln kann
   max-stack: 500
+  # shard-price > 0 -> Spawner kostet Shards (DonutSMP-Stil).
+  # shard-price: 0  -> Spawner kostet stattdessen "price" (Geld).
   types:
     knochen:
       display-name: "&fKnochen-Spawner"
@@ -71,6 +73,7 @@ spawners:
       interval-seconds: 60
       max-storage-per-stack: 2000
       price: 10000.0
+      shard-price: 50
       display-entity: SKELETON
     faden:
       display-name: "&7Faden-Spawner"
@@ -79,6 +82,7 @@ spawners:
       interval-seconds: 60
       max-storage-per-stack: 2000
       price: 10000.0
+      shard-price: 50
       display-entity: SPIDER
     schiesspulver:
       display-name: "&aSchießpulver-Spawner"
@@ -87,6 +91,7 @@ spawners:
       interval-seconds: 90
       max-storage-per-stack: 1500
       price: 20000.0
+      shard-price: 100
       display-entity: CREEPER
     fleisch:
       display-name: "&2Fleisch-Spawner"
@@ -95,6 +100,7 @@ spawners:
       interval-seconds: 45
       max-storage-per-stack: 2500
       price: 8000.0
+      shard-price: 40
       display-entity: ZOMBIE
     enderperle:
       display-name: "&5Enderperlen-Spawner"
@@ -103,7 +109,31 @@ spawners:
       interval-seconds: 180
       max-storage-per-stack: 1000
       price: 50000.0
+      shard-price: 250
       display-entity: ENDERMAN
+
+# Shards: zweite Waehrung (wie auf DonutSMP).
+# Verdienen: PvP-Kills + AFK-Zone. Ausgeben: Spawner (shard-price pro Typ).
+shards:
+  # Symbol hinter dem Betrag
+  symbol: "❖"
+  # Shards pro PvP-Kill (0 = aus)
+  per-kill: 5
+
+# AFK-Zone: /afk teleportiert hin, dort gibt es regelmaessig Shards.
+# Position bequem per "/afk set" setzen (Admin).
+afk:
+  # Abstand zwischen zwei Belohnungen (Sekunden)
+  reward-interval-seconds: 60
+  # Shards pro Belohnung
+  shards-per-interval: 1
+  zone:
+    world: ""
+    x: 0.0
+    y: 100.0
+    z: 0.0
+    yaw: 0.0
+    pitch: 0.0
 
 # Sidebar-Scoreboard (Design/Zeilen stehen in der messages.yml)
 scoreboard:

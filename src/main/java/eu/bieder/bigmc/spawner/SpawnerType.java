@@ -15,11 +15,17 @@ import org.bukkit.entity.EntityType;
  * @param amountPerCycle    wie viele Items pro Produktionszyklus (je Stack-Einheit)
  * @param intervalSeconds   Abstand zwischen zwei Zyklen in Sekunden
  * @param maxStoragePerStack maximaler Speicher pro Stack-Einheit (Gesamtcap = * stackSize)
- * @param price             Kaufpreis pro Spawner
+ * @param price             Kaufpreis in Geld (nur genutzt, wenn shardPrice = 0)
+ * @param shardPrice        Kaufpreis in Shards (> 0 = Spawner kostet Shards, wie auf DonutSMP)
  * @param displayEntity     optionale, rein optische Figur im Spawner (oder null)
  */
 public record SpawnerType(String id, String displayName, Material product,
                           int amountPerCycle, int intervalSeconds,
-                          long maxStoragePerStack, double price,
+                          long maxStoragePerStack, double price, long shardPrice,
                           EntityType displayEntity) {
+
+    /** true = dieser Spawner wird mit Shards bezahlt. */
+    public boolean costsShards() {
+        return shardPrice > 0;
+    }
 }

@@ -110,6 +110,7 @@ public class SpawnerManager {
                     sec.getInt("interval-seconds", 60),
                     sec.getLong("max-storage-per-stack", 2000),
                     sec.getDouble("price", 10000),
+                    sec.getLong("shard-price", 0),
                     display));
         }
         plugin.getLogger().info("Spawner-Typen geladen: " + types.size());

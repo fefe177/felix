@@ -75,8 +75,13 @@ public class SpawnerShopGUI implements Listener {
         if (meta != null) {
             List<String> lore = meta.hasLore() ? meta.getLore() : new java.util.ArrayList<>();
             lore.add("");
-            lore.add(msg.getRaw("spawner.shop-price")
-                    .replace("%price%", plugin.getEconomyManager().formatMoney(type.price())));
+            if (type.costsShards()) {
+                lore.add(msg.getRaw("spawner.shop-price-shards")
+                        .replace("%price%", plugin.getShardsManager().formatShards(type.shardPrice())));
+            } else {
+                lore.add(msg.getRaw("spawner.shop-price")
+                        .replace("%price%", plugin.getEconomyManager().formatMoney(type.price())));
+            }
             lore.add(msg.getRaw("spawner.shop-click"));
             meta.setLore(lore);
             item.setItemMeta(meta);
@@ -98,15 +103,28 @@ public class SpawnerShopGUI implements Listener {
         buy(player, type, amount);
     }
 
-    /** Kauft eine Anzahl Spawner: erst Geld abbuchen, dann Items geben. */
+    /**
+     * Kauft eine Anzahl Spawner: erst bezahlen (Shards oder Geld, je nach Typ),
+     * dann Items geben - bei vollem Inventar wird erstattet.
+     */
     private void buy(Player player, SpawnerType type, int amount) {
         MessageManager msg = plugin.getMessageManager();
-        double total = type.price() * amount;
 
-        if (!plugin.getEconomyManager().withdraw(player.getUniqueId(), total)) {
-            GuiDesign.soundError(player);
-            msg.send(player, "economy.not-enough-money");
-            return;
+        // Bezahlen: Shards (DonutSMP-Stil) oder klassisch mit Geld
+        if (type.costsShards()) {
+            long total = type.shardPrice() * amount;
+            if (!plugin.getShardsManager().takeShards(player.getUniqueId(), total)) {
+                GuiDesign.soundError(player);
+                msg.send(player, "shards.not-enough");
+                return;
+            }
+        } else {
+            double total = type.price() * amount;
+            if (!plugin.getEconomyManager().withdraw(player.getUniqueId(), total)) {
+                GuiDesign.soundError(player);
+                msg.send(player, "economy.not-enough-money");
+                return;
+            }
         }
 
         ItemStack item = plugin.getSpawnerManager().createSpawnerItem(type, amount);
@@ -114,17 +132,24 @@ public class SpawnerShopGUI implements Listener {
 
         int notAdded = leftover.values().stream().mapToInt(ItemStack::getAmount).sum();
         if (notAdded > 0) {
-            // Geld fuer nicht uebergebene Spawner erstatten
-            plugin.getEconomyManager().deposit(player.getUniqueId(), type.price() * notAdded);
+            // Bezahlung fuer nicht uebergebene Spawner erstatten
+            if (type.costsShards()) {
+                plugin.getShardsManager().addShards(player.getUniqueId(), type.shardPrice() * notAdded);
+            } else {
+                plugin.getEconomyManager().deposit(player.getUniqueId(), type.price() * notAdded);
+            }
             msg.send(player, "spawner.shop-inventory-full");
         }
         int bought = amount - notAdded;
         if (bought > 0) {
+            String priceText = type.costsShards()
+                    ? plugin.getShardsManager().formatShards(type.shardPrice() * bought)
+                    : plugin.getEconomyManager().formatMoney(type.price() * bought);
             GuiDesign.soundSuccess(player);
             msg.send(player, "spawner.bought",
                     "%amount%", String.valueOf(bought),
                     "%type%", MessageManager.color(type.displayName()),
-                    "%price%", plugin.getEconomyManager().formatMoney(type.price() * bought));
+                    "%price%", priceText);
         }
     }
 

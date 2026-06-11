@@ -2,6 +2,9 @@ package eu.bieder.bigmc;
 
 import eu.bieder.bigmc.auction.AuctionHouseGUI;
 import eu.bieder.bigmc.auction.AuctionManager;
+import eu.bieder.bigmc.afk.AfkListener;
+import eu.bieder.bigmc.afk.AfkManager;
+import eu.bieder.bigmc.afk.command.AfkCommand;
 import eu.bieder.bigmc.auction.command.AhCommand;
 import eu.bieder.bigmc.command.BigMcCommand;
 import eu.bieder.bigmc.config.ConfigManager;
@@ -31,6 +34,9 @@ import eu.bieder.bigmc.rank.command.RanksCommand;
 import eu.bieder.bigmc.scoreboard.SidebarListener;
 import eu.bieder.bigmc.scoreboard.SidebarManager;
 import eu.bieder.bigmc.scoreboard.command.BoardCommand;
+import eu.bieder.bigmc.shards.ShardListener;
+import eu.bieder.bigmc.shards.ShardsManager;
+import eu.bieder.bigmc.shards.command.ShardsCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
@@ -86,6 +92,8 @@ public final class BigMC extends JavaPlugin {
     private SpawnerShopGUI spawnerShopGUI;
     private DrillManager drillManager;
     private SidebarManager sidebarManager;
+    private ShardsManager shardsManager;
+    private AfkManager afkManager;
 
     @Override
     public void onEnable() {
@@ -129,6 +137,8 @@ public final class BigMC extends JavaPlugin {
         this.spawnerCollectGUI = new SpawnerCollectGUI(this);
         this.spawnerShopGUI = new SpawnerShopGUI(this);
         this.drillManager = new DrillManager(this);           // Drill-Spitzhacke
+        this.shardsManager = new ShardsManager(this);         // Shards (2. Waehrung)
+        this.afkManager = new AfkManager(this);               // AFK-Zone
         this.sidebarManager = new SidebarManager(this);       // Sidebar-Scoreboard
 
         // 5. Listener registrieren
@@ -145,6 +155,8 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(spawnerShopGUI, this);
         getServer().getPluginManager().registerEvents(new DrillListener(this), this);
         getServer().getPluginManager().registerEvents(new SidebarListener(this), this);
+        getServer().getPluginManager().registerEvents(new ShardListener(this), this);
+        getServer().getPluginManager().registerEvents(new AfkListener(this), this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -199,6 +211,12 @@ public final class BigMC extends JavaPlugin {
         getCommand("bigmc").setExecutor(bigMcCommand);
         getCommand("bigmc").setTabCompleter(bigMcCommand);
         getCommand("board").setExecutor(new BoardCommand(this));
+        ShardsCommand shardsCommand = new ShardsCommand(this);
+        getCommand("shards").setExecutor(shardsCommand);
+        getCommand("shards").setTabCompleter(shardsCommand);
+        AfkCommand afkCommand = new AfkCommand(this);
+        getCommand("afk").setExecutor(afkCommand);
+        getCommand("afk").setTabCompleter(afkCommand);
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -220,6 +238,9 @@ public final class BigMC extends JavaPlugin {
 
         // Sidebar-Scoreboard regelmaessig aktualisieren
         sidebarManager.start();
+
+        // AFK-Zone: regelmaessige Shards-Belohnung fuer AFK-Spieler
+        afkManager.start();
 
         getLogger().info("BigMC v" + getDescription().getVersion() + " wurde aktiviert.");
     }
@@ -337,5 +358,13 @@ public final class BigMC extends JavaPlugin {
 
     public SidebarManager getSidebarManager() {
         return sidebarManager;
+    }
+
+    public ShardsManager getShardsManager() {
+        return shardsManager;
+    }
+
+    public AfkManager getAfkManager() {
+        return afkManager;
     }
 }

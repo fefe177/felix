@@ -61,6 +61,9 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
                 .replace("%value%", StatsManager.formatPlaytime(s.playtimeSeconds())));
         sender.sendMessage(msg.getRaw("stats.money")
                 .replace("%value%", plugin.getEconomyManager().formatMoney(balance)));
+        sender.sendMessage(msg.getRaw("stats.shards")
+                .replace("%value%", plugin.getShardsManager()
+                        .formatShards(plugin.getShardsManager().getShards(s.uuid()))));
         return true;
     }
 

@@ -130,6 +130,7 @@ stats:
   duel-wins: "&7Duell-Siege: &e%value%"
   playtime: "&7Spielzeit: &e%value%"
   money: "&7Geld: &a%value%"
+  shards: "&7Shards: &d%value%"
   top-usage: "&cVerwendung: /top <%categories%>"
   top-header: "&8&m------&r &b&lTop: %category% &8&m------"
   top-entry: "&e#%place% &7%player%: &a%value%"
@@ -162,7 +163,7 @@ duel:
   spawn-set: "&aArena-Spawn &e%number% &awurde auf deine Position gesetzt."
 
 # Sidebar-Scoreboard. Platzhalter:
-#   %player% %money% %rank% %kills% %deaths% %duelwins% %playtime% %online% %maxonline%
+#   %player% %money% %shards% %rank% %kills% %deaths% %duelwins% %playtime% %online% %maxonline%
 # Maximal 15 Zeilen.
 scoreboard:
   title: "&b&lBig&f&lMC"
@@ -175,6 +176,7 @@ scoreboard:
     - " "
     - "&a&lGELD"
     - "&f➥ &a%money%"
+    - "&f➥ &d%shards%"
     - "  "
     - "&e&lSTATS"
     - "&f➥ Kills: &e%kills%"
@@ -190,9 +192,31 @@ drill:
   given: "&7Du hast &e%player% &7eine Drill-Spitzhacke gegeben."
   received: "&aDu hast eine &bDrill-Spitzhacke &aerhalten!"
 
+shards:
+  balance-own: "&7Deine Shards: &d%amount%"
+  balance-other: "&7Shards von &e%player%&7: &d%amount%"
+  usage: "&cVerwendung: /shards [spieler] &7| &c/shards pay <spieler> <anzahl>"
+  not-enough: "&cDu hast nicht genug Shards."
+  pay-self: "&cDu kannst dir nicht selbst Shards überweisen."
+  pay-sent: "&7Du hast &d%amount% &7an &e%player% &7gesendet."
+  pay-received: "&7Du hast &d%amount% &7von &e%player% &7erhalten."
+  kill-reward: "&d+%amount% &7für den Kill an &e%player%&7!"
+  admin-given: "&7Du hast &e%player% &d%amount% &7gegeben."
+  admin-taken: "&7Du hast &e%player% &d%amount% &7abgezogen."
+  admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
+  admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
+
+afk:
+  entered: "&7Du bist jetzt in der &dAFK-Zone&7. Du erhältst &d%amount% &7alle &e%interval%s&7. Zurück mit &e/afk"
+  left: "&7Du hast die AFK-Zone verlassen und bist zurück an deiner Position."
+  reward: "&d+%amount% &7(AFK-Zone)"
+  zone-not-set: "&cDie AFK-Zone ist noch nicht eingerichtet. Ein Admin muss /afk set nutzen."
+  zone-set: "&aAFK-Zone wurde auf deine Position gesetzt."
+
 spawner:
   shop-title: "&8» &6Spawner-Shop"
   shop-price: "&7Preis: &a%price%"
+  shop-price-shards: "&7Preis: &d%price%"
   shop-click: "&aLinksklick: 1 kaufen &8| &aRechtsklick: 8 kaufen"
   shop-inventory-full: "&cDein Inventar ist voll - nicht gekaufte Spawner wurden erstattet."
   bought: "&7Du hast &e%amount%x %type% &7für &c%price% &7gekauft."
