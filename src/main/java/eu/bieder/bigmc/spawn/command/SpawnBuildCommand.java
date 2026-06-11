@@ -42,7 +42,7 @@ public class SpawnBuildCommand implements CommandExecutor {
         msg.send(player, "spawn.build-started");
         new SpawnAreaBuilder(plugin).build(player.getLocation());
         msg.send(player, "spawn.build-done",
-                "%radius%", String.valueOf(SpawnAreaBuilder.RADIUS + 5));
+                "%radius%", String.valueOf(SpawnAreaBuilder.PROTECTION));
         return true;
     }
 }
