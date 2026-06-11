@@ -80,6 +80,76 @@ public final class SpawnThemes {
                             Material.PURPUR_STAIRS, Material.PURPUR_BLOCK, Material.WARPED_DOOR)
                     .lamp(Material.END_STONE_BRICK_WALL)
                     .stalls(Material.MAGENTA_WOOL, Material.PURPLE_WOOL, Material.PINK_WOOL, Material.WHITE_WOOL)
+                    .build(),
+
+            // 6) Pilz-Insel
+            SpawnTheme.builder("mushroom", "&d&lPilz-Insel", Material.RED_MUSHROOM_BLOCK)
+                    .desc("&7Myzel, riesige Pilze und", "&7leuchtende Pilzlichter.")
+                    .floor(Material.MYCELIUM, Material.MOSS_BLOCK, Material.PODZOL)
+                    .path(Material.MOSS_BLOCK, Material.PODZOL)
+                    .ring(Material.MUSHROOM_STEM).foundation(Material.DIRT)
+                    .wall(Material.MUSHROOM_STEM, Material.RED_MUSHROOM_BLOCK, Material.MUSHROOM_STEM, Material.SHROOMLIGHT)
+                    .center(Material.WATER, Material.SHROOMLIGHT)
+                    .house(Material.BROWN_MUSHROOM_BLOCK, Material.MUSHROOM_STEM, Material.SPRUCE_PLANKS,
+                            Material.SPRUCE_STAIRS, Material.RED_MUSHROOM_BLOCK, Material.SPRUCE_DOOR)
+                    .lamp(Material.MUSHROOM_STEM)
+                    .stalls(Material.RED_MUSHROOM_BLOCK, Material.BROWN_MUSHROOM_BLOCK, Material.GREEN_WOOL, Material.PINK_WOOL)
+                    .build(),
+
+            // 7) Deepslate-Tiefenstadt
+            SpawnTheme.builder("deepslate", "&8&lTiefenstadt", Material.DEEPSLATE_BRICKS)
+                    .desc("&7Dunkle Deepslate-Ziegel", "&7und Seelenlaternen.")
+                    .floor(Material.DEEPSLATE_BRICKS, Material.DEEPSLATE_TILES, Material.COBBLED_DEEPSLATE)
+                    .path(Material.POLISHED_DEEPSLATE, Material.DEEPSLATE_BRICKS)
+                    .ring(Material.CHISELED_DEEPSLATE).foundation(Material.COBBLED_DEEPSLATE)
+                    .wall(Material.DEEPSLATE_BRICKS, Material.DEEPSLATE_BRICK_WALL, Material.DEEPSLATE_BRICKS, Material.SOUL_LANTERN)
+                    .center(Material.WATER, Material.SOUL_LANTERN)
+                    .house(Material.DEEPSLATE_BRICKS, Material.POLISHED_DEEPSLATE, Material.DEEPSLATE_TILES,
+                            Material.DEEPSLATE_BRICK_STAIRS, Material.DEEPSLATE_BRICKS, Material.DARK_OAK_DOOR)
+                    .lamp(Material.DEEPSLATE_BRICK_WALL)
+                    .stalls(Material.CYAN_WOOL, Material.BLUE_WOOL, Material.BLACK_WOOL, Material.LIGHT_BLUE_WOOL)
+                    .build(),
+
+            // 8) Kirschblueten-Garten
+            SpawnTheme.builder("cherry", "&d&lKirschblüten-Garten", Material.CHERRY_SAPLING)
+                    .desc("&7Rosa Kirschholz, Moos", "&7und blühende Hecken.")
+                    .floor(Material.CHERRY_PLANKS, Material.MOSS_BLOCK, Material.STONE_BRICKS)
+                    .path(Material.CHERRY_PLANKS, Material.PINK_TERRACOTTA)
+                    .ring(Material.PINK_TERRACOTTA).foundation(Material.STONE)
+                    .wall(Material.CHERRY_LOG, Material.CHERRY_LEAVES, Material.CHERRY_LOG, Material.LANTERN)
+                    .center(Material.WATER, Material.SEA_LANTERN)
+                    .house(Material.CHERRY_PLANKS, Material.CHERRY_LOG, Material.CHERRY_PLANKS,
+                            Material.CHERRY_STAIRS, Material.CHERRY_PLANKS, Material.CHERRY_DOOR)
+                    .lamp(Material.CHERRY_FENCE)
+                    .stalls(Material.PINK_WOOL, Material.MAGENTA_WOOL, Material.WHITE_WOOL, Material.LIGHT_GRAY_WOOL)
+                    .build(),
+
+            // 9) Ozean-Tempel (Prismarin)
+            SpawnTheme.builder("ocean", "&3&lOzean-Tempel", Material.PRISMARINE)
+                    .desc("&7Prismarin, dunkle Ziegel", "&7und Seelaternen.")
+                    .floor(Material.PRISMARINE, Material.PRISMARINE_BRICKS, Material.DARK_PRISMARINE)
+                    .path(Material.PRISMARINE_BRICKS, Material.DARK_PRISMARINE)
+                    .ring(Material.DARK_PRISMARINE).foundation(Material.PRISMARINE)
+                    .wall(Material.PRISMARINE_BRICKS, Material.PRISMARINE_WALL, Material.DARK_PRISMARINE, Material.SEA_LANTERN)
+                    .center(Material.WATER, Material.SEA_LANTERN)
+                    .house(Material.PRISMARINE_BRICKS, Material.DARK_PRISMARINE, Material.PRISMARINE,
+                            Material.PRISMARINE_BRICK_STAIRS, Material.DARK_PRISMARINE, Material.WARPED_DOOR)
+                    .lamp(Material.PRISMARINE_WALL)
+                    .stalls(Material.CYAN_WOOL, Material.LIGHT_BLUE_WOOL, Material.BLUE_WOOL, Material.WHITE_WOOL)
+                    .build(),
+
+            // 10) Dschungel-Ruine
+            SpawnTheme.builder("jungle", "&2&lDschungel-Ruine", Material.JUNGLE_SAPLING)
+                    .desc("&7Bemooster Stein, Jungle-", "&7holz und Blätterdächer.")
+                    .floor(Material.MOSSY_COBBLESTONE, Material.COBBLESTONE, Material.MOSS_BLOCK)
+                    .path(Material.JUNGLE_PLANKS, Material.MOSSY_COBBLESTONE)
+                    .ring(Material.CHISELED_STONE_BRICKS).foundation(Material.COBBLESTONE)
+                    .wall(Material.MOSSY_COBBLESTONE, Material.MOSSY_COBBLESTONE_WALL, Material.JUNGLE_LOG, Material.LANTERN)
+                    .center(Material.WATER, Material.SEA_LANTERN)
+                    .house(Material.JUNGLE_PLANKS, Material.JUNGLE_LOG, Material.JUNGLE_PLANKS,
+                            Material.JUNGLE_STAIRS, Material.JUNGLE_LEAVES, Material.JUNGLE_DOOR)
+                    .lamp(Material.JUNGLE_FENCE)
+                    .stalls(Material.GREEN_WOOL, Material.LIME_WOOL, Material.YELLOW_WOOL, Material.BROWN_WOOL)
                     .build()
     );
 

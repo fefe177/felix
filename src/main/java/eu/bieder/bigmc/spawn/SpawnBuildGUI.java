@@ -41,20 +41,28 @@ public class SpawnBuildGUI implements Listener {
         MessageManager msg = plugin.getMessageManager();
         List<SpawnTheme> themes = SpawnThemes.all();
 
+        // Bis zu 7 Themes pro Reihe; Inventargroesse passt sich an die Anzahl an
+        int innerRows = Math.max(1, (themes.size() + 6) / 7);
+        int rows = Math.min(6, innerRows + 2);
+
         Holder holder = new Holder();
-        Inventory inv = Bukkit.createInventory(holder, 27, msg.getRaw("spawn.gui-title"));
+        Inventory inv = Bukkit.createInventory(holder, rows * 9, msg.getRaw("spawn.gui-title"));
         holder.inventory = inv;
         GuiDesign.fillBorder(inv);
 
-        int[] slots = GuiDesign.centeredSlots(1, themes.size());
-        for (int i = 0; i < themes.size(); i++) {
-            SpawnTheme theme = themes.get(i);
-            List<String> lore = new ArrayList<>(theme.description);
-            lore.add("");
-            lore.add(msg.getRaw("spawn.gui-click"));
-            lore.add(msg.getRaw("spawn.gui-warn"));
-            inv.setItem(slots[i], GuiDesign.named(theme.icon, theme.name, lore));
-            holder.slots.put(slots[i], theme);
+        int index = 0;
+        for (int row = 1; row <= innerRows && index < themes.size(); row++) {
+            int inThisRow = Math.min(7, themes.size() - index);
+            int[] slots = GuiDesign.centeredSlots(row, inThisRow);
+            for (int slot : slots) {
+                SpawnTheme theme = themes.get(index++);
+                List<String> lore = new ArrayList<>(theme.description);
+                lore.add("");
+                lore.add(msg.getRaw("spawn.gui-click"));
+                lore.add(msg.getRaw("spawn.gui-warn"));
+                inv.setItem(slot, GuiDesign.named(theme.icon, theme.name, lore));
+                holder.slots.put(slot, theme);
+            }
         }
         player.openInventory(inv);
     }

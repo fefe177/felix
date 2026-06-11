@@ -236,6 +236,11 @@ public class SpawnAreaBuilder {
     // ----- Block-Helfer (ohne Physik = schneller) -----
 
     private void set(int x, int y, int z, Material material) {
+        // Laub als "persistent" setzen, damit es nicht verrottet
+        if (material.name().endsWith("_LEAVES")) {
+            setData(x, y, z, material, "[persistent=true]");
+            return;
+        }
         world.getBlockAt(x, y, z).setType(material, false);
     }
 
