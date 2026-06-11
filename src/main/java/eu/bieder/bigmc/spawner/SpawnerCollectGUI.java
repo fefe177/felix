@@ -2,6 +2,7 @@ package eu.bieder.bigmc.spawner;
 
 import eu.bieder.bigmc.BigMC;
 import eu.bieder.bigmc.config.MessageManager;
+import eu.bieder.bigmc.util.GuiDesign;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -64,6 +65,11 @@ public class SpawnerCollectGUI implements Listener {
         Holder holder = new Holder(spawnerId);
         Inventory inv = Bukkit.createInventory(holder, 27, msg.getRaw("spawner.gui-title"));
         holder.inventory = inv;
+
+        // Hintergrund komplett im Kisten-Design fuellen
+        GuiDesign.fillAll(inv);
+        inv.setItem(SLOT_COLLECT + 1, GuiDesign.pane(org.bukkit.Material.LIME_STAINED_GLASS_PANE));
+        inv.setItem(SLOT_INFO - 1, GuiDesign.pane(GuiDesign.ACCENT));
 
         // Info-Item (Spawner mit Stack/Produktionsdaten)
         long perCycleTotal = (long) type.amountPerCycle() * spawner.stackSize();

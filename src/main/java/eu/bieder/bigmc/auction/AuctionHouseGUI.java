@@ -2,6 +2,7 @@ package eu.bieder.bigmc.auction;
 
 import eu.bieder.bigmc.BigMC;
 import eu.bieder.bigmc.config.MessageManager;
+import eu.bieder.bigmc.util.GuiDesign;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -121,7 +122,11 @@ public class AuctionHouseGUI implements Listener {
             inv.setItem(slot++, displayItem(listing, false));
         }
 
-        // Navigationsleiste
+        // Navigationsleiste: erst mit Rahmen-Scheiben fuellen, dann Buttons setzen
+        ItemStack navFiller = GuiDesign.pane(GuiDesign.FRAME);
+        for (int i = 45; i < 54; i++) {
+            inv.setItem(i, navFiller);
+        }
         if (page > 1) {
             inv.setItem(SLOT_PREV, named(Material.ARROW, msg.getRaw("auction.gui-prev"), List.of()));
         }
@@ -154,6 +159,11 @@ public class AuctionHouseGUI implements Listener {
         Inventory inv = Bukkit.createInventory(holder, 27, msg.getRaw("auction.gui-confirm-title"));
         holder.inventory = inv;
 
+        // Hintergrund komplett fuellen, dann die drei Aktions-Slots setzen
+        GuiDesign.fillAll(inv);
+        inv.setItem(SLOT_CONFIRM - 1, GuiDesign.pane(Material.LIME_STAINED_GLASS_PANE));
+        inv.setItem(SLOT_CANCEL + 1, GuiDesign.pane(Material.RED_STAINED_GLASS_PANE));
+
         inv.setItem(SLOT_CONFIRM, named(Material.LIME_WOOL,
                 msg.getRaw("auction.gui-confirm-buy")
                         .replace("%price%", plugin.getEconomyManager().formatMoney(listing.price())),
@@ -180,6 +190,11 @@ public class AuctionHouseGUI implements Listener {
         for (AuctionManager.Listing listing : own) {
             if (slot >= 18) break;
             inv.setItem(slot++, displayItem(listing, true));
+        }
+        // Untere Reihe als Rahmen, Zurueck-Button in der Mitte
+        ItemStack filler = GuiDesign.pane(GuiDesign.FRAME);
+        for (int i = 18; i < 27; i++) {
+            inv.setItem(i, filler);
         }
         inv.setItem(22, named(Material.BARRIER, msg.getRaw("shop.gui-back"), List.of()));
 

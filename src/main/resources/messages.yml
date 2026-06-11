@@ -40,6 +40,7 @@ shop:
   gui-main-title: "&8» &6Shop"
   gui-category-title: "&8» %category%"
   gui-category-lore: "&7Klicke zum Öffnen"
+  gui-category-count: "&7Items: &e%count%"
   gui-lore-buy: "&7Kaufen: &a%price% &7/Stück"
   gui-lore-sell: "&7Verkaufen: &e%price% &7/Stück"
   gui-lore-click-buy: "&aLinksklick: 1x kaufen &8| &aShift: 64x"

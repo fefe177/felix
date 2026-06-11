@@ -2,8 +2,8 @@ package eu.bieder.bigmc.spawner;
 
 import eu.bieder.bigmc.BigMC;
 import eu.bieder.bigmc.config.MessageManager;
+import eu.bieder.bigmc.util.GuiDesign;
 import org.bukkit.Bukkit;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -13,18 +13,21 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Der Spawner-Shop: zeigt alle kaufbaren Spawner-Typen mit Preis.
+ * Der Spawner-Shop im Kisten-Design: Rahmen, zentrierte Spawner-Typen.
  * Linksklick = 1 kaufen, Rechtsklick = 8 kaufen.
  */
 public class SpawnerShopGUI implements Listener {
 
-    /** Marker-Holder fuer den Spawner-Shop. */
+    /** Marker-Holder mit Slot -> Spawner-Typ Zuordnung. */
     public static class Holder implements InventoryHolder {
+        private final Map<Integer, SpawnerType> typeSlots = new HashMap<>();
         private Inventory inventory;
+
         @Override
         public Inventory getInventory() {
             return inventory;
@@ -41,15 +44,25 @@ public class SpawnerShopGUI implements Listener {
         MessageManager msg = plugin.getMessageManager();
         List<SpawnerType> types = plugin.getSpawnerManager().getTypes();
 
-        int rows = Math.min(6, Math.max(1, (types.size() + 8) / 9));
+        // Innenreihen: bis zu 7 Typen pro Reihe, plus Rahmen oben/unten
+        int innerRows = Math.max(1, (types.size() + 6) / 7);
+        int rows = Math.min(6, innerRows + 2);
+
         Holder holder = new Holder();
         Inventory inv = Bukkit.createInventory(holder, rows * 9, msg.getRaw("spawner.shop-title"));
         holder.inventory = inv;
 
-        int slot = 0;
-        for (SpawnerType type : types) {
-            if (slot >= inv.getSize()) break;
-            inv.setItem(slot++, displayItem(type));
+        GuiDesign.fillBorder(inv);
+
+        int index = 0;
+        for (int row = 1; row <= innerRows && index < types.size(); row++) {
+            int inThisRow = Math.min(7, types.size() - index);
+            int[] slots = GuiDesign.centeredSlots(row, inThisRow);
+            for (int slot : slots) {
+                SpawnerType type = types.get(index++);
+                inv.setItem(slot, displayItem(type));
+                holder.typeSlots.put(slot, type);
+            }
         }
         player.openInventory(inv);
     }
@@ -73,15 +86,13 @@ public class SpawnerShopGUI implements Listener {
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        if (!(event.getView().getTopInventory().getHolder() instanceof Holder)) return;
+        if (!(event.getView().getTopInventory().getHolder() instanceof Holder holder)) return;
         event.setCancelled(true);
         if (!(event.getWhoClicked() instanceof Player player)) return;
         if (event.getClickedInventory() != event.getView().getTopInventory()) return;
 
-        List<SpawnerType> types = plugin.getSpawnerManager().getTypes();
-        int index = event.getSlot();
-        if (index < 0 || index >= types.size()) return;
-        SpawnerType type = types.get(index);
+        SpawnerType type = holder.typeSlots.get(event.getSlot());
+        if (type == null) return;
 
         int amount = event.isRightClick() ? 8 : 1;
         buy(player, type, amount);

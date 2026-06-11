@@ -2,6 +2,7 @@ package eu.bieder.bigmc.shop;
 
 import eu.bieder.bigmc.BigMC;
 import eu.bieder.bigmc.config.MessageManager;
+import eu.bieder.bigmc.util.GuiDesign;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
@@ -20,7 +21,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Baut die Shop-GUIs (Hauptmenue + Kategorien) und verarbeitet alle Klicks.
+ * Baut die Shop-GUIs (Hauptmenue + Kategorien) im Kisten-Design:
+ * grauer Glas-Rahmen, blaue Akzent-Ecken, zentrierte Inhalte.
  *
  * Bedienung in einer Kategorie:
  * - Linksklick          -> 1x kaufen
@@ -28,26 +30,26 @@ import java.util.Map;
  * - Rechtsklick         -> 1x verkaufen
  * - Shift + Rechtsklick -> 64x verkaufen
  *
- * Die GUIs werden ueber einen eigenen InventoryHolder erkannt - das ist
- * sicherer als ein Titel-Vergleich und verhindert, dass Spieler Items
- * aus dem Shop herausnehmen koennen.
+ * Die GUIs werden ueber einen eigenen InventoryHolder erkannt; die Zuordnung
+ * Slot -> Inhalt liegt direkt im Holder (keine fehleranfaellige Index-Rechnung).
  */
 public class ShopGUI implements Listener {
 
+    /** Slot des Zurueck-Buttons auf Kategorie-Seiten. */
+    private static final int SLOT_BACK = 49;
+
     /**
-     * Marker-Holder: speichert, welche Shop-Seite ein Inventar darstellt.
-     * categoryId == null bedeutet Hauptmenue.
+     * Marker-Holder: merkt sich, welche Slots welche Kategorie bzw.
+     * welches Shop-Item anzeigen. categoryId == null bedeutet Hauptmenue.
      */
     public static class ShopHolder implements InventoryHolder {
         private final String categoryId;
+        private final Map<Integer, ShopManager.Category> categorySlots = new HashMap<>();
+        private final Map<Integer, ShopManager.ShopItem> itemSlots = new HashMap<>();
         private Inventory inventory;
 
         public ShopHolder(String categoryId) {
             this.categoryId = categoryId;
-        }
-
-        public String getCategoryId() {
-            return categoryId;
         }
 
         @Override
@@ -65,74 +67,101 @@ public class ShopGUI implements Listener {
     // ----- GUI-Aufbau -----
 
     /**
-     * Oeffnet das Hauptmenue mit allen Kategorien.
+     * Oeffnet das Hauptmenue: Kategorien mittig in den Innenreihen,
+     * aussen herum der Rahmen.
      */
     public void openMain(Player player) {
         MessageManager msg = plugin.getMessageManager();
         List<ShopManager.Category> categories = plugin.getShopManager().getCategories();
 
-        // Groesse: volle Reihen, mindestens 1 Reihe, maximal 6
-        int rows = Math.min(6, Math.max(1, (categories.size() + 8) / 9));
+        // Innenreihen: bis zu 7 Kategorien pro Reihe, plus Rahmen oben/unten
+        int innerRows = Math.max(1, (categories.size() + 6) / 7);
+        int rows = Math.min(6, innerRows + 2);
+
         ShopHolder holder = new ShopHolder(null);
         Inventory inv = Bukkit.createInventory(holder, rows * 9, msg.getRaw("shop.gui-main-title"));
         holder.inventory = inv;
 
-        int slot = 0;
-        for (ShopManager.Category cat : categories) {
-            if (slot >= inv.getSize()) break;
-            ItemStack icon = named(cat.icon(), MessageManager.color(cat.displayName()),
-                    List.of(msg.getRaw("shop.gui-category-lore")));
-            inv.setItem(slot++, icon);
+        GuiDesign.fillBorder(inv);
+
+        int index = 0;
+        for (int row = 1; row <= innerRows && index < categories.size(); row++) {
+            int inThisRow = Math.min(7, categories.size() - index);
+            int[] slots = GuiDesign.centeredSlots(row, inThisRow);
+            for (int slot : slots) {
+                ShopManager.Category cat = categories.get(index++);
+                inv.setItem(slot, GuiDesign.named(cat.icon(),
+                        cat.displayName(),
+                        List.of(
+                                msg.getRaw("shop.gui-category-count")
+                                        .replace("%count%", String.valueOf(cat.items().size())),
+                                msg.getRaw("shop.gui-category-lore"))));
+                holder.categorySlots.put(slot, cat);
+            }
         }
         player.openInventory(inv);
     }
 
     /**
-     * Oeffnet eine Kategorie-Seite mit allen Items und Preisen.
+     * Oeffnet eine Kategorie-Seite: Rahmen, Kategorie-Icon oben mittig,
+     * Items im Innenbereich, Zurueck-Button unten mittig.
      */
     public void openCategory(Player player, ShopManager.Category category) {
         MessageManager msg = plugin.getMessageManager();
 
-        // 5 Reihen Items + 1 Reihe Navigation
         ShopHolder holder = new ShopHolder(category.id());
         Inventory inv = Bukkit.createInventory(holder, 54,
                 msg.getRaw("shop.gui-category-title").replace("%category%",
                         MessageManager.color(category.displayName())));
         holder.inventory = inv;
 
-        int slot = 0;
-        for (ShopManager.ShopItem item : category.items()) {
-            if (slot >= 45) break; // letzte Reihe bleibt fuer Navigation frei
+        GuiDesign.fillBorder(inv);
 
-            List<String> lore = new ArrayList<>();
-            if (item.canBuy()) {
-                lore.add(msg.getRaw("shop.gui-lore-buy")
-                        .replace("%price%", plugin.getEconomyManager().formatMoney(item.buyPrice())));
-            }
-            if (item.canSell()) {
-                lore.add(msg.getRaw("shop.gui-lore-sell")
-                        .replace("%price%", plugin.getEconomyManager().formatMoney(item.sellPrice())));
-            }
-            lore.add("");
-            if (item.canBuy())  lore.add(msg.getRaw("shop.gui-lore-click-buy"));
-            if (item.canSell()) lore.add(msg.getRaw("shop.gui-lore-click-sell"));
+        // Kategorie-Icon als Ueberschrift oben mittig
+        inv.setItem(4, GuiDesign.named(category.icon(), category.displayName(),
+                List.of(msg.getRaw("shop.gui-category-count")
+                        .replace("%count%", String.valueOf(category.items().size())))));
 
-            inv.setItem(slot++, named(item.material(), null, lore));
+        // Items in den Innenbereich (4 Reihen x 7 Spalten = 28 Plaetze)
+        int index = 0;
+        outer:
+        for (int row = 1; row <= 4; row++) {
+            for (int col = 1; col <= 7; col++) {
+                if (index >= category.items().size()) break outer;
+                ShopManager.ShopItem item = category.items().get(index++);
+                int slot = row * 9 + col;
+                inv.setItem(slot, buildItemDisplay(item));
+                holder.itemSlots.put(slot, item);
+            }
         }
 
         // Zurueck-Button unten in der Mitte
-        inv.setItem(49, named(Material.BARRIER, msg.getRaw("shop.gui-back"), List.of()));
+        inv.setItem(SLOT_BACK, GuiDesign.named(Material.BARRIER,
+                msg.getRaw("shop.gui-back"), List.of()));
 
         player.openInventory(inv);
     }
 
-    /** Hilfsmethode: ItemStack mit Name + Lore bauen. */
-    private ItemStack named(Material material, String name, List<String> lore) {
-        ItemStack stack = new ItemStack(material);
+    /** Baut die Anzeige eines Shop-Items mit Preis- und Klick-Lore. */
+    private ItemStack buildItemDisplay(ShopManager.ShopItem item) {
+        MessageManager msg = plugin.getMessageManager();
+        List<String> lore = new ArrayList<>();
+        if (item.canBuy()) {
+            lore.add(msg.getRaw("shop.gui-lore-buy")
+                    .replace("%price%", plugin.getEconomyManager().formatMoney(item.buyPrice())));
+        }
+        if (item.canSell()) {
+            lore.add(msg.getRaw("shop.gui-lore-sell")
+                    .replace("%price%", plugin.getEconomyManager().formatMoney(item.sellPrice())));
+        }
+        lore.add("");
+        if (item.canBuy())  lore.add(msg.getRaw("shop.gui-lore-click-buy"));
+        if (item.canSell()) lore.add(msg.getRaw("shop.gui-lore-click-sell"));
+
+        ItemStack stack = new ItemStack(item.material());
         ItemMeta meta = stack.getItemMeta();
         if (meta != null) {
-            if (name != null) meta.setDisplayName(name);
-            if (!lore.isEmpty()) meta.setLore(lore);
+            meta.setLore(lore);
             stack.setItemMeta(meta);
         }
         return stack;
@@ -152,34 +181,25 @@ public class ShopGUI implements Listener {
         // Nur Klicks ins obere (Shop-)Inventar auswerten
         if (event.getClickedInventory() != event.getView().getTopInventory()) return;
 
-        ItemStack clicked = event.getCurrentItem();
-        if (clicked == null || clicked.getType() == Material.AIR) return;
+        int slot = event.getSlot();
 
         // --- Hauptmenue: Kategorie oeffnen ---
-        if (holder.getCategoryId() == null) {
-            int index = event.getSlot();
-            List<ShopManager.Category> categories = plugin.getShopManager().getCategories();
-            if (index >= 0 && index < categories.size()) {
-                openCategory(player, categories.get(index));
+        if (holder.categoryId == null) {
+            ShopManager.Category category = holder.categorySlots.get(slot);
+            if (category != null) {
+                openCategory(player, category);
             }
             return;
         }
 
         // --- Kategorie-Seite ---
-        // Zurueck-Button
-        if (event.getSlot() == 49 && clicked.getType() == Material.BARRIER) {
+        if (slot == SLOT_BACK) {
             openMain(player);
             return;
         }
 
-        ShopManager.Category category = plugin.getShopManager()
-                .getCategory(holder.getCategoryId()).orElse(null);
-        if (category == null) return;
-
-        // Das angeklickte Shop-Item anhand des Slots finden
-        int index = event.getSlot();
-        if (index < 0 || index >= 45 || index >= category.items().size()) return;
-        ShopManager.ShopItem item = category.items().get(index);
+        ShopManager.ShopItem item = holder.itemSlots.get(slot);
+        if (item == null) return;
 
         int amount = event.isShiftClick() ? 64 : 1;
         if (event.isLeftClick()) {
