@@ -8,8 +8,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 /**
- * /spawnbuild         -> Warnung anzeigen (Bau ueberschreibt Bloecke!)
- * /spawnbuild confirm -> Spawn-Area an der eigenen Position bauen (Admin)
+ * /spawnbuild -> oeffnet das Auswahl-GUI mit den 5 Spawn-Designs (Admin).
  */
 public class SpawnBuildCommand implements CommandExecutor {
 
@@ -31,18 +30,9 @@ public class SpawnBuildCommand implements CommandExecutor {
             msg.send(player, "general.no-permission");
             return true;
         }
-
-        // Erst bestaetigen lassen - der Bau ueberschreibt die Umgebung!
-        if (args.length != 1 || !args[0].equalsIgnoreCase("confirm")) {
-            msg.send(player, "spawn.build-warning",
-                    "%radius%", String.valueOf(SpawnAreaBuilder.RADIUS));
-            return true;
-        }
-
-        msg.send(player, "spawn.build-started");
-        new SpawnAreaBuilder(plugin).build(player.getLocation());
-        msg.send(player, "spawn.build-done",
-                "%radius%", String.valueOf(SpawnAreaBuilder.PROTECTION));
+        // Hinweis + GUI oeffnen
+        msg.send(player, "spawn.build-warning", "%radius%", String.valueOf(SpawnAreaBuilder.RADIUS));
+        plugin.getSpawnBuildGUI().open(player);
         return true;
     }
 }

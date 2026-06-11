@@ -212,9 +212,12 @@ spawn:
   not-set: "&cDer Spawn ist noch nicht gesetzt (/setspawn)."
   protected: "&cDieser Bereich ist durch den Spawn-Schutz geschützt."
   no-pvp: "&cIn der Spawn-Zone ist kein PvP erlaubt."
-  build-warning: "&e&lACHTUNG! &7Der Bau überschreibt alle Blöcke im Radius &c%radius% &7um dich. &7Stelle dich an einen freien Ort und bestätige mit &a/spawnbuild confirm"
+  build-warning: "&e&lACHTUNG! &7Der Bau überschreibt alle Blöcke im Radius &c%radius% &7um dich. Stelle dich an einen freien Ort!"
   build-started: "&7Baue Spawn-Area..."
-  build-done: "&aSpawn-Area gebaut! Spawn & Schutzzone (&e%radius% &aBlöcke) wurden gesetzt."
+  build-done: "&aSpawn-Design %theme% &agebaut! Spawn & Schutzzone (&e%radius% &aBlöcke) gesetzt."
+  gui-title: "&8» &6Spawn-Design wählen"
+  gui-click: "&aKlicke zum Bauen"
+  gui-warn: "&cÜberschreibt Blöcke - kein Undo!"
 
 rtp:
   searching: "&7Suche eine sichere Position..."

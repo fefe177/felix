@@ -8,31 +8,27 @@ import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 
 /**
- * Baut prozedural einen detaillierten MITTELALTERLICHEN MARKTPLATZ in die Welt.
+ * Baut prozedural eine detaillierte Spawn-Area in die Welt - das konkrete
+ * Aussehen kommt aus einem {@link SpawnTheme} (5 verschiedene Designs).
  *
- * Enthaelt:
- * - runde Kopfsteinpflaster-Plaza mit Wegen und Akzentringen
- * - Brunnen mit Wasser und Laterne im Zentrum
- * - 4 Fachwerkhaeuser (Eichenbalken + Putz, Walmdach, Tuer, Fenster, Inneneinrichtung)
- * - 4 ueberdachte Marktstaende (Theke, Fass, Heuballen, haengende Laterne)
- * - Lampenpfosten rund um den Brunnen
- * - Stadtmauer mit 4 Toren (N/O/S/W)
+ * Layout (fuer alle Themes gleich):
+ * - runde Plaza mit Wegen + Akzentringen
+ * - Mittelpunkt-Brunnen (Wasser/Lava/fester Block je Theme) mit Leuchtspitze
+ * - 4 Haeuser mit Fachwerk-Look + Walmdach, Tuer, Fenstern, Inneneinrichtung
+ * - 4 ueberdachte Marktstaende
+ * - Lampenpfosten + Stadtmauer mit 4 Toren
  *
  * Nach dem Bau werden Spawnpunkt + Schutzzone automatisch gesetzt.
- * ACHTUNG: ueberschreibt vorhandene Bloecke im Baubereich (kein Undo)!
+ * ACHTUNG: ueberschreibt vorhandene Bloecke (kein Undo)!
  */
 public class SpawnAreaBuilder {
 
-    /** Radius der Plaza/Stadtmauer (Bloecke vom Zentrum). */
     public static final int RADIUS = 24;
-
-    /** Schutzzonen-Radius, der gesetzt wird. */
     public static final int PROTECTION = RADIUS + 6;
-
-    /** Hoehe des freigeraeumten Luftraums ueber dem Boden. */
     private static final int CLEAR_HEIGHT = 16;
 
     private final BigMC plugin;
+    private SpawnTheme t;
     private World world;
     private int cx, cy, cz;
 
@@ -40,8 +36,9 @@ public class SpawnAreaBuilder {
         this.plugin = plugin;
     }
 
-    /** Baut den Marktplatz um die angegebene Position (Bodenhoehe = Fuesse). */
-    public void build(Location center) {
+    /** Baut die Spawn-Area mit dem gewaehlten Theme um die Position. */
+    public void build(Location center, SpawnTheme theme) {
+        this.t = theme;
         this.world = center.getWorld();
         this.cx = center.getBlockX();
         this.cy = center.getBlockY();
@@ -52,19 +49,16 @@ public class SpawnAreaBuilder {
         buildFountain();
         buildLampPosts();
 
-        // 4 Fachwerkhaeuser in den Diagonalen, Tuer zum Zentrum gerichtet
-        buildHouse(cx - 11, cz - 11, 3, Material.SPRUCE_STAIRS, Material.SPRUCE_PLANKS, "east");
-        buildHouse(cx + 11, cz - 11, 3, Material.DARK_OAK_STAIRS, Material.DARK_OAK_PLANKS, "west");
-        buildHouse(cx - 11, cz + 11, 3, Material.DARK_OAK_STAIRS, Material.DARK_OAK_PLANKS, "east");
-        buildHouse(cx + 11, cz + 11, 3, Material.SPRUCE_STAIRS, Material.SPRUCE_PLANKS, "west");
+        buildHouse(cx - 11, cz - 11, 3, "east");
+        buildHouse(cx + 11, cz - 11, 3, "west");
+        buildHouse(cx - 11, cz + 11, 3, "east");
+        buildHouse(cx + 11, cz + 11, 3, "west");
 
-        // 4 Marktstaende, jeweils vor einem Haus
-        buildStall(cx - 6, cz - 6, Material.RED_WOOL);
-        buildStall(cx + 6, cz - 6, Material.YELLOW_WOOL);
-        buildStall(cx - 6, cz + 6, Material.BLUE_WOOL);
-        buildStall(cx + 6, cz + 6, Material.GREEN_WOOL);
+        buildStall(cx - 6, cz - 6, t.stall1);
+        buildStall(cx + 6, cz - 6, t.stall2);
+        buildStall(cx - 6, cz + 6, t.stall3);
+        buildStall(cx + 6, cz + 6, t.stall4);
 
-        // Spawnpunkt + Schutzzone setzen
         Location spawn = new Location(world, cx + 0.5, cy, cz + 5.5, 180f, 0f);
         plugin.getSpawnManager().setSpawn(spawn);
         plugin.getConfigManager().getConfig().set("spawn.protection-radius", PROTECTION);
@@ -78,40 +72,25 @@ public class SpawnAreaBuilder {
             for (int dz = -RADIUS; dz <= RADIUS; dz++) {
                 double dist = Math.sqrt(dx * dx + (double) dz * dz);
                 if (dist > RADIUS) continue;
+                int x = cx + dx, z = cz + dz;
 
-                int x = cx + dx;
-                int z = cz + dz;
-
-                // Fundament (gegen schwebende Plaza)
-                for (int dy = 2; dy <= 4; dy++) {
-                    set(x, cy - dy, z, Material.COBBLESTONE);
-                }
-                // Bodenbelag
+                for (int dy = 2; dy <= 4; dy++) set(x, cy - dy, z, t.foundation);
                 set(x, cy - 1, z, floorMaterial(dx, dz, dist));
-                // Luftraum freiraeumen
-                for (int dy = 0; dy < CLEAR_HEIGHT; dy++) {
-                    set(x, cy + dy, z, Material.AIR);
-                }
+                for (int dy = 0; dy < CLEAR_HEIGHT; dy++) set(x, cy + dy, z, Material.AIR);
             }
         }
     }
 
-    /** Bodenmaterial je nach Position (Wege, Ringe, Kopfsteinmuster). */
     private Material floorMaterial(int dx, int dz, double dist) {
-        // Wege in alle 4 Richtungen (3 breit)
         if ((Math.abs(dx) <= 1 || Math.abs(dz) <= 1) && dist > 4) {
-            return ((dx + dz) % 2 == 0) ? Material.COBBLESTONE : Material.GRAVEL;
+            return ((dx + dz) % 2 == 0) ? t.pathA : t.pathB;
         }
-        // Akzentringe
         long ring = Math.round(dist);
-        if (ring == 5 || ring == RADIUS - 1) {
-            return Material.STONE_BRICKS;
-        }
-        // Kopfsteinpflaster-Muster (deterministisch "zufaellig")
+        if (ring == 5 || ring == RADIUS - 1) return t.ring;
         int h = Math.floorMod(dx * 73 + dz * 19, 5);
-        if (h == 0) return Material.MOSSY_COBBLESTONE;
-        if (h == 1) return Material.STONE_BRICKS;
-        return Material.COBBLESTONE;
+        if (h == 0) return t.floor2;
+        if (h == 1) return t.floor3;
+        return t.floor1;
     }
 
     // ----- Stadtmauer mit Toren -----
@@ -120,43 +99,39 @@ public class SpawnAreaBuilder {
         for (int dx = -RADIUS; dx <= RADIUS; dx++) {
             for (int dz = -RADIUS; dz <= RADIUS; dz++) {
                 if (Math.round(Math.sqrt(dx * dx + (double) dz * dz)) != RADIUS) continue;
-                // Tore (5 breit) in den 4 Himmelsrichtungen offen lassen
-                if (Math.abs(dx) <= 2 || Math.abs(dz) <= 2) continue;
+                if (Math.abs(dx) <= 2 || Math.abs(dz) <= 2) continue; // Tore offen lassen
+                int x = cx + dx, z = cz + dz;
 
-                int x = cx + dx;
-                int z = cz + dz;
-                set(x, cy, z, Material.STONE_BRICKS);
-                setData(x, cy + 1, z, Material.STONE_BRICK_WALL);
-                // alle paar Bloecke ein Pfeiler mit Laterne
+                set(x, cy, z, t.wallBase);
+                set(x, cy + 1, z, t.wallTop);
                 if (Math.floorMod(dx + dz, 6) == 0) {
-                    set(x, cy + 1, z, Material.STONE_BRICKS);
-                    set(x, cy + 2, z, Material.STONE_BRICKS);
-                    set(x, cy + 3, z, Material.LANTERN);
+                    set(x, cy + 1, z, t.wallPillar);
+                    set(x, cy + 2, z, t.wallPillar);
+                    set(x, cy + 3, z, t.light);
                 }
             }
         }
     }
 
-    // ----- Brunnen -----
+    // ----- Mittelpunkt (Brunnen) -----
 
     private void buildFountain() {
-        // 5x5 Becken aus Steinziegeln, innen Wasser
+        Material pool = (t.liquid != null) ? t.liquid : t.floor3;
         for (int dx = -2; dx <= 2; dx++) {
             for (int dz = -2; dz <= 2; dz++) {
                 boolean rim = Math.abs(dx) == 2 || Math.abs(dz) == 2;
                 if (rim) {
-                    set(cx + dx, cy, cz + dz, Material.STONE_BRICKS);
-                    setData(cx + dx, cy + 1, cz + dz, Material.STONE_BRICK_WALL);
+                    set(cx + dx, cy, cz + dz, t.wallBase);
+                    set(cx + dx, cy + 1, cz + dz, t.wallTop);
                 } else {
-                    set(cx + dx, cy, cz + dz, Material.WATER);
+                    set(cx + dx, cy, cz + dz, pool);
                 }
             }
         }
-        // Mittelsaeule mit Wasserquelle oben + Laterne als Kroenung
-        set(cx, cy, cz, Material.CHISELED_STONE_BRICKS);
-        set(cx, cy + 1, cz, Material.STONE_BRICK_WALL);
-        set(cx, cy + 2, cz, Material.WATER);
-        set(cx, cy + 3, cz, Material.SEA_LANTERN);
+        set(cx, cy, cz, t.wallPillar);
+        set(cx, cy + 1, cz, t.wallTop);
+        set(cx, cy + 2, cz, pool);
+        set(cx, cy + 3, cz, t.centerTop);
     }
 
     // ----- Lampenpfosten -----
@@ -164,129 +139,76 @@ public class SpawnAreaBuilder {
     private void buildLampPosts() {
         int[][] pos = {{4, 4}, {4, -4}, {-4, 4}, {-4, -4}};
         for (int[] p : pos) {
-            int x = cx + p[0];
-            int z = cz + p[1];
-            set(x, cy - 1, z, Material.STONE_BRICKS);
-            for (int dy = 0; dy <= 2; dy++) {
-                setData(x, cy + dy, z, Material.COBBLESTONE_WALL);
-            }
-            set(x, cy + 3, z, Material.LANTERN);
+            int x = cx + p[0], z = cz + p[1];
+            set(x, cy - 1, z, t.ring);
+            for (int dy = 0; dy <= 2; dy++) set(x, cy + dy, z, t.lampPost);
+            set(x, cy + 3, z, t.light);
         }
     }
 
-    // ----- Fachwerkhaus -----
+    // ----- Haus -----
 
-    /**
-     * Baut ein Fachwerkhaus mit Walmdach.
-     * @param ccx,ccz   Mittelpunkt des Hauses
-     * @param half      halbe Grundflaeche (3 -> 7x7)
-     * @param roofStair Treppen-Material des Dachs
-     * @param roofFill  Fuell-Material des Dachfirsts
-     * @param doorFacing Richtung, in die die Tuer zeigt
-     */
-    private void buildHouse(int ccx, int ccz, int half, Material roofStair,
-                            Material roofFill, String doorFacing) {
-        int x0 = ccx - half, x1 = ccx + half;
-        int z0 = ccz - half, z1 = ccz + half;
-        int wallH = 4;
+    private void buildHouse(int ccx, int ccz, int half, String doorFacing) {
+        int x0 = ccx - half, x1 = ccx + half, z0 = ccz - half, z1 = ccz + half, wallH = 4;
 
-        // Boden + Innenraum freiraeumen
         for (int x = x0; x <= x1; x++) {
             for (int z = z0; z <= z1; z++) {
-                set(x, cy - 1, z, Material.SPRUCE_PLANKS);
-                for (int dy = 0; dy < wallH + half + 2; dy++) {
-                    set(x, cy + dy, z, Material.AIR);
-                }
+                set(x, cy - 1, z, t.houseFloor);
+                for (int dy = 0; dy < wallH + half + 2; dy++) set(x, cy + dy, z, Material.AIR);
             }
         }
-
-        // Waende
         for (int y = 0; y < wallH; y++) {
             for (int x = x0; x <= x1; x++) {
                 for (int z = z0; z <= z1; z++) {
                     boolean edge = (x == x0 || x == x1 || z == z0 || z == z1);
                     if (!edge) continue;
                     boolean corner = (x == x0 || x == x1) && (z == z0 || z == z1);
-                    if (corner) {
-                        set(x, cy + y, z, Material.DARK_OAK_LOG); // Eckbalken
-                    } else if (y == wallH - 1) {
-                        set(x, cy + y, z, Material.DARK_OAK_LOG); // oberer Querbalken
-                    } else {
-                        set(x, cy + y, z, Material.WHITE_TERRACOTTA); // Putzfuellung
-                    }
+                    if (corner || y == wallH - 1) set(x, cy + y, z, t.houseBeam);
+                    else set(x, cy + y, z, t.houseFill);
                 }
             }
         }
-
-        // Fenster (Glasscheiben) mittig in jeder Wand auf Hoehe 1-2
         for (int y = 1; y <= 2; y++) {
-            setData(ccx, cy + y, z0, Material.GLASS_PANE);
-            setData(ccx, cy + y, z1, Material.GLASS_PANE);
-            setData(x0, cy + y, ccz, Material.GLASS_PANE);
-            setData(x1, cy + y, ccz, Material.GLASS_PANE);
+            set(ccx, cy + y, z0, Material.GLASS_PANE);
+            set(ccx, cy + y, z1, Material.GLASS_PANE);
+            set(x0, cy + y, ccz, Material.GLASS_PANE);
+            set(x1, cy + y, ccz, Material.GLASS_PANE);
         }
-
-        // Tuer (zum Zentrum gerichtet)
         placeDoor(ccx, ccz, x0, x1, z0, z1, doorFacing);
+        buildHipRoof(x0, x1, z0, z1, cy + wallH);
 
-        // Walmdach
-        buildHipRoof(x0, x1, z0, z1, cy + wallH, roofStair, roofFill);
-
-        // Inneneinrichtung: Laterne, Fass, Werkbank
         set(x0 + 1, cy, z0 + 1, Material.BARREL);
         set(x1 - 1, cy, z0 + 1, Material.CRAFTING_TABLE);
-        set(x0 + 1, cy + wallH - 1, ccz, Material.LANTERN); // an der Wand
-        set(ccx, cy + 2, ccz, Material.AIR);
+        set(x0 + 1, cy + wallH - 1, ccz, t.light);
     }
 
-    /** Setzt eine zweiteilige Tuer in die Wand, passend zur Blickrichtung. */
     private void placeDoor(int ccx, int ccz, int x0, int x1, int z0, int z1, String facing) {
         int dx = ccx, dz = ccz;
         switch (facing) {
-            case "east" -> dx = x1;   // Tuer in der Ostwand
-            case "west" -> dx = x0;   // Westwand
-            case "north" -> dz = z0;  // Nordwand
-            case "south" -> dz = z1;  // Suedwand
+            case "east" -> dx = x1;
+            case "west" -> dx = x0;
+            case "north" -> dz = z0;
+            case "south" -> dz = z1;
         }
-        Material door = Material.SPRUCE_DOOR;
-        setData(dx, cy, dz, door, "[facing=" + facing + ",half=lower,hinge=left]");
-        setData(dx, cy + 1, dz, door, "[facing=" + facing + ",half=upper,hinge=left]");
+        setData(dx, cy, dz, t.door, "[facing=" + facing + ",half=lower,hinge=left]");
+        setData(dx, cy + 1, dz, t.door, "[facing=" + facing + ",half=upper,hinge=left]");
     }
 
-    /**
-     * Baut ein Walmdach aus Treppen (mit 1 Block Dachueberstand).
-     */
-    private void buildHipRoof(int x0, int x1, int z0, int z1, int baseY,
-                              Material stair, Material fill) {
-        int rx0 = x0 - 1, rx1 = x1 + 1;
-        int rz0 = z0 - 1, rz1 = z1 + 1;
-        int level = 0;
-
+    private void buildHipRoof(int x0, int x1, int z0, int z1, int baseY) {
+        int rx0 = x0 - 1, rx1 = x1 + 1, rz0 = z0 - 1, rz1 = z1 + 1, level = 0;
         while (rx0 <= rx1 && rz0 <= rz1) {
             int y = baseY + level;
             for (int x = rx0; x <= rx1; x++) {
                 for (int z = rz0; z <= rz1; z++) {
                     boolean edge = (x == rx0 || x == rx1 || z == rz0 || z == rz1);
                     if (!edge) continue;
-
-                    // First erreicht? -> mit Vollblock auffuellen
-                    if (rx0 == rx1 || rz0 == rz1) {
-                        set(x, y, z, fill);
-                        continue;
-                    }
-                    boolean cornerX = (x == rx0 || x == rx1);
-                    boolean cornerZ = (z == rz0 || z == rz1);
-                    if (cornerX && cornerZ) {
-                        set(x, y, z, fill); // Dachecke
-                    } else if (x == rx0) {
-                        setData(x, y, z, stair, "[facing=west,half=bottom]");
-                    } else if (x == rx1) {
-                        setData(x, y, z, stair, "[facing=east,half=bottom]");
-                    } else if (z == rz0) {
-                        setData(x, y, z, stair, "[facing=north,half=bottom]");
-                    } else {
-                        setData(x, y, z, stair, "[facing=south,half=bottom]");
-                    }
+                    if (rx0 == rx1 || rz0 == rz1) { set(x, y, z, t.roofFill); continue; }
+                    boolean cornerX = (x == rx0 || x == rx1), cornerZ = (z == rz0 || z == rz1);
+                    if (cornerX && cornerZ) set(x, y, z, t.roofFill);
+                    else if (x == rx0) setData(x, y, z, t.roofStair, "[facing=west,half=bottom]");
+                    else if (x == rx1) setData(x, y, z, t.roofStair, "[facing=east,half=bottom]");
+                    else if (z == rz0) setData(x, y, z, t.roofStair, "[facing=north,half=bottom]");
+                    else setData(x, y, z, t.roofStair, "[facing=south,half=bottom]");
                 }
             }
             rx0++; rx1--; rz0++; rz1--; level++;
@@ -295,27 +217,18 @@ public class SpawnAreaBuilder {
 
     // ----- Marktstand -----
 
-    private void buildStall(int ccx, int ccz, Material wool) {
-        // 4 Eckpfosten (Zaun) 2 hoch
+    private void buildStall(int ccx, int ccz, Material canopy) {
         int[][] corners = {{-1, -1}, {-1, 1}, {1, -1}, {1, 1}};
         for (int[] c : corners) {
-            int x = ccx + c[0];
-            int z = ccz + c[1];
-            for (int dy = 0; dy <= 1; dy++) {
-                setData(x, cy + dy, z, Material.OAK_FENCE);
-            }
+            int x = ccx + c[0], z = ccz + c[1];
+            for (int dy = 0; dy <= 1; dy++) set(x, cy + dy, z, Material.OAK_FENCE);
         }
-        // Markise (3x3 Wolle) auf Hoehe 2
         for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                set(ccx + dx, cy + 2, ccz + dz, wool);
-            }
+            for (int dz = -1; dz <= 1; dz++) set(ccx + dx, cy + 2, ccz + dz, canopy);
         }
-        // Theke (Fass + Slabs) auf einer Seite
         set(ccx - 1, cy, ccz, Material.BARREL);
         set(ccx + 1, cy, ccz, Material.BARREL);
-        setData(ccx, cy, ccz - 1, Material.SMOOTH_STONE_SLAB);
-        // Deko: Heuballen + haengende Laterne
+        set(ccx, cy, ccz - 1, Material.SMOOTH_STONE_SLAB);
         set(ccx + 1, cy, ccz + 1, Material.HAY_BLOCK);
         setData(ccx, cy + 1, ccz, Material.LANTERN, "[hanging=true]");
     }
@@ -326,19 +239,12 @@ public class SpawnAreaBuilder {
         world.getBlockAt(x, y, z).setType(material, false);
     }
 
-    /** Setzt einen Block mit Standard-BlockData (z.B. Wall verbindet sich automatisch). */
-    private void setData(int x, int y, int z, Material material) {
-        world.getBlockAt(x, y, z).setType(material, false);
-    }
-
-    /** Setzt einen Block mit konkreten BlockData-Zustaenden (Treppen, Tueren ...). */
     private void setData(int x, int y, int z, Material material, String states) {
         Block block = world.getBlockAt(x, y, z);
         try {
             BlockData data = material.createBlockData(states);
             block.setBlockData(data, false);
         } catch (IllegalArgumentException e) {
-            // Falls ein Zustand fuer das Material nicht passt: einfach normal setzen
             block.setType(material, false);
         }
     }

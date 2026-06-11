@@ -42,6 +42,7 @@ import eu.bieder.bigmc.shards.command.ShardsCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
+import eu.bieder.bigmc.spawn.SpawnBuildGUI;
 import eu.bieder.bigmc.spawn.SpawnListener;
 import eu.bieder.bigmc.spawn.SpawnManager;
 import eu.bieder.bigmc.spawn.command.SpawnBuildCommand;
@@ -104,6 +105,7 @@ public final class BigMC extends JavaPlugin {
     private ShardsManager shardsManager;
     private AfkManager afkManager;
     private SpawnManager spawnManager;
+    private SpawnBuildGUI spawnBuildGUI;
     private RtpManager rtpManager;
     private TpaManager tpaManager;
 
@@ -152,6 +154,7 @@ public final class BigMC extends JavaPlugin {
         this.shardsManager = new ShardsManager(this);         // Shards (2. Waehrung)
         this.afkManager = new AfkManager(this);               // AFK-Zone
         this.spawnManager = new SpawnManager(this);           // Spawn + Schutzzone
+        this.spawnBuildGUI = new SpawnBuildGUI(this);         // Spawn-Design-Auswahl
         this.rtpManager = new RtpManager(this);               // Random-Teleport
         this.tpaManager = new TpaManager(this);               // TPA-Anfragen
         this.sidebarManager = new SidebarManager(this);       // Sidebar-Scoreboard
@@ -173,6 +176,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ShardListener(this), this);
         getServer().getPluginManager().registerEvents(new AfkListener(this), this);
         getServer().getPluginManager().registerEvents(new SpawnListener(this), this);
+        getServer().getPluginManager().registerEvents(spawnBuildGUI, this);
         getServer().getPluginManager().registerEvents(new TpaListener(this), this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
@@ -397,6 +401,10 @@ public final class BigMC extends JavaPlugin {
 
     public SpawnManager getSpawnManager() {
         return spawnManager;
+    }
+
+    public SpawnBuildGUI getSpawnBuildGUI() {
+        return spawnBuildGUI;
     }
 
     public RtpManager getRtpManager() {
