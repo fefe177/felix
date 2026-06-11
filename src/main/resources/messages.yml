@@ -158,6 +158,28 @@ duel:
   broadcast: "&e%winner% &ahat &e%loser% &aim Duell besiegt!"
   spawn-set: "&aArena-Spawn &e%number% &awurde auf deine Position gesetzt."
 
+# Sidebar-Scoreboard. Platzhalter:
+#   %player% %money% %rank% %kills% %deaths% %duelwins% %playtime% %online% %maxonline%
+# Maximal 15 Zeilen.
+scoreboard:
+  title: "&b&lBig&f&lMC"
+  enabled: "&aSidebar eingeblendet."
+  disabled: "&7Sidebar ausgeblendet."
+  lines:
+    - "&8&m--------------------"
+    - "&fSpieler: &e%player%"
+    - "&fRang: %rank%"
+    - " "
+    - "&a&lGELD"
+    - "&f➥ &a%money%"
+    - "  "
+    - "&e&lSTATS"
+    - "&f➥ Kills: &e%kills%"
+    - "&f➥ Spielzeit: &e%playtime%"
+    - "   "
+    - "&fOnline: &e%online%&7/&e%maxonline%"
+    - "&8&m---------------------"
+
 drill:
   bought: "&7Du hast eine &bDrill-Spitzhacke &7für &c%price% &7gekauft."
   inventory-full: "&cDein Inventar ist voll."

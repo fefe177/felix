@@ -105,6 +105,13 @@ spawners:
       price: 50000.0
       display-entity: ENDERMAN
 
+# Sidebar-Scoreboard (Design/Zeilen stehen in der messages.yml)
+scoreboard:
+  # Sidebar fuer neue Spieler automatisch anzeigen?
+  enabled-by-default: true
+  # Aktualisierung in Sekunden
+  update-seconds: 2
+
 # Drill-Spitzhacke: baut einen 3x3-Bereich ab (Ebene je nach Blickrichtung).
 drill:
   # Material der Spitzhacke

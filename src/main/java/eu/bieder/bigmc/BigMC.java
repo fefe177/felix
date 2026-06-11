@@ -28,6 +28,9 @@ import eu.bieder.bigmc.rank.RankListener;
 import eu.bieder.bigmc.rank.RankManager;
 import eu.bieder.bigmc.rank.command.RankCommand;
 import eu.bieder.bigmc.rank.command.RanksCommand;
+import eu.bieder.bigmc.scoreboard.SidebarListener;
+import eu.bieder.bigmc.scoreboard.SidebarManager;
+import eu.bieder.bigmc.scoreboard.command.BoardCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
@@ -82,6 +85,7 @@ public final class BigMC extends JavaPlugin {
     private SpawnerCollectGUI spawnerCollectGUI;
     private SpawnerShopGUI spawnerShopGUI;
     private DrillManager drillManager;
+    private SidebarManager sidebarManager;
 
     @Override
     public void onEnable() {
@@ -125,6 +129,7 @@ public final class BigMC extends JavaPlugin {
         this.spawnerCollectGUI = new SpawnerCollectGUI(this);
         this.spawnerShopGUI = new SpawnerShopGUI(this);
         this.drillManager = new DrillManager(this);           // Drill-Spitzhacke
+        this.sidebarManager = new SidebarManager(this);       // Sidebar-Scoreboard
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -139,6 +144,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(spawnerCollectGUI, this);
         getServer().getPluginManager().registerEvents(spawnerShopGUI, this);
         getServer().getPluginManager().registerEvents(new DrillListener(this), this);
+        getServer().getPluginManager().registerEvents(new SidebarListener(this), this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -192,6 +198,7 @@ public final class BigMC extends JavaPlugin {
         BigMcCommand bigMcCommand = new BigMcCommand(this);
         getCommand("bigmc").setExecutor(bigMcCommand);
         getCommand("bigmc").setTabCompleter(bigMcCommand);
+        getCommand("board").setExecutor(new BoardCommand(this));
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -210,6 +217,9 @@ public final class BigMC extends JavaPlugin {
         long spawnerTicks = 20L * getConfig().getLong("spawners.production-check-seconds", 10);
         getServer().getScheduler().runTaskTimer(this,
                 () -> spawnerManager.produceAll(), spawnerTicks, spawnerTicks);
+
+        // Sidebar-Scoreboard regelmaessig aktualisieren
+        sidebarManager.start();
 
         getLogger().info("BigMC v" + getDescription().getVersion() + " wurde aktiviert.");
     }
@@ -323,5 +333,9 @@ public final class BigMC extends JavaPlugin {
 
     public DrillManager getDrillManager() {
         return drillManager;
+    }
+
+    public SidebarManager getSidebarManager() {
+        return sidebarManager;
     }
 }

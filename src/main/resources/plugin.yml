@@ -92,6 +92,11 @@ commands:
     description: Kauft eine Drill-Spitzhacke (3x3-Abbau).
     usage: /drill | /drill give <spieler>
     permission: bigmc.drill
+  board:
+    description: Blendet die Info-Sidebar ein oder aus.
+    usage: /board
+    aliases: [sidebar, sb]
+    permission: bigmc.board
 
 permissions:
   bigmc.use:
@@ -172,6 +177,9 @@ permissions:
   bigmc.drill.admin:
     description: Drill-Spitzhacke verschenken.
     default: op
+  bigmc.board:
+    description: Info-Sidebar ein-/ausblenden.
+    default: true
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
     default: op

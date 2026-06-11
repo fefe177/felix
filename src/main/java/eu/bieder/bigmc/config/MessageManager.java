@@ -48,6 +48,15 @@ public class MessageManager {
     }
 
     /**
+     * Holt eine Text-Liste (z.B. Scoreboard-Zeilen) und ersetzt Farbcodes.
+     */
+    public java.util.List<String> getRawList(String path) {
+        return messages.getStringList(path).stream()
+                .map(MessageManager::color)
+                .toList();
+    }
+
+    /**
      * Wie getRaw, aber mit vorangestelltem Praefix.
      */
     public String get(String path) {
