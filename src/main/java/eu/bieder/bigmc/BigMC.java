@@ -3,6 +3,7 @@ package eu.bieder.bigmc;
 import eu.bieder.bigmc.auction.AuctionHouseGUI;
 import eu.bieder.bigmc.auction.AuctionManager;
 import eu.bieder.bigmc.auction.command.AhCommand;
+import eu.bieder.bigmc.command.BigMcCommand;
 import eu.bieder.bigmc.config.ConfigManager;
 import eu.bieder.bigmc.config.MessageManager;
 import eu.bieder.bigmc.database.Database;
@@ -188,6 +189,9 @@ public final class BigMC extends JavaPlugin {
         DrillCommand drillCommand = new DrillCommand(this);
         getCommand("drill").setExecutor(drillCommand);
         getCommand("drill").setTabCompleter(drillCommand);
+        BigMcCommand bigMcCommand = new BigMcCommand(this);
+        getCommand("bigmc").setExecutor(bigMcCommand);
+        getCommand("bigmc").setTabCompleter(bigMcCommand);
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);

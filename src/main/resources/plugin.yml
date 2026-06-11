@@ -8,6 +8,10 @@ description: Survival-SMP Plugin im Stil von HugoSMP und DonutSMP.
 softdepend: [Votifier, NuVotifier]
 
 commands:
+  bigmc:
+    description: BigMC-Hauptbefehl (Info & Reload).
+    usage: /bigmc | /bigmc reload
+    permission: bigmc.use
   money:
     description: Zeigt den Kontostand an oder verwaltet Guthaben (Admin).
     usage: /money [spieler] | /money give|take|set <spieler> <betrag>
@@ -90,6 +94,12 @@ commands:
     permission: bigmc.drill
 
 permissions:
+  bigmc.use:
+    description: BigMC-Info anzeigen.
+    default: true
+  bigmc.admin:
+    description: BigMC neu laden.
+    default: op
   bigmc.money:
     description: Eigenen Kontostand anzeigen.
     default: true
