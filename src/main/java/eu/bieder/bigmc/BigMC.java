@@ -31,6 +31,8 @@ import eu.bieder.bigmc.rank.RankListener;
 import eu.bieder.bigmc.rank.RankManager;
 import eu.bieder.bigmc.rank.command.RankCommand;
 import eu.bieder.bigmc.rank.command.RanksCommand;
+import eu.bieder.bigmc.rtp.RtpManager;
+import eu.bieder.bigmc.rtp.command.RtpCommand;
 import eu.bieder.bigmc.scoreboard.SidebarListener;
 import eu.bieder.bigmc.scoreboard.SidebarManager;
 import eu.bieder.bigmc.scoreboard.command.BoardCommand;
@@ -40,6 +42,9 @@ import eu.bieder.bigmc.shards.command.ShardsCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
+import eu.bieder.bigmc.spawn.SpawnListener;
+import eu.bieder.bigmc.spawn.SpawnManager;
+import eu.bieder.bigmc.spawn.command.SpawnCommand;
 import eu.bieder.bigmc.spawner.SpawnerCollectGUI;
 import eu.bieder.bigmc.spawner.SpawnerListener;
 import eu.bieder.bigmc.spawner.SpawnerManager;
@@ -49,6 +54,9 @@ import eu.bieder.bigmc.stats.StatsListener;
 import eu.bieder.bigmc.stats.StatsManager;
 import eu.bieder.bigmc.stats.command.StatsCommand;
 import eu.bieder.bigmc.stats.command.TopCommand;
+import eu.bieder.bigmc.tpa.TpaListener;
+import eu.bieder.bigmc.tpa.TpaManager;
+import eu.bieder.bigmc.tpa.command.TpaCommand;
 import eu.bieder.bigmc.vote.VoteJoinListener;
 import eu.bieder.bigmc.vote.VoteRewardManager;
 import eu.bieder.bigmc.vote.VotifierHook;
@@ -94,6 +102,9 @@ public final class BigMC extends JavaPlugin {
     private SidebarManager sidebarManager;
     private ShardsManager shardsManager;
     private AfkManager afkManager;
+    private SpawnManager spawnManager;
+    private RtpManager rtpManager;
+    private TpaManager tpaManager;
 
     @Override
     public void onEnable() {
@@ -139,6 +150,9 @@ public final class BigMC extends JavaPlugin {
         this.drillManager = new DrillManager(this);           // Drill-Spitzhacke
         this.shardsManager = new ShardsManager(this);         // Shards (2. Waehrung)
         this.afkManager = new AfkManager(this);               // AFK-Zone
+        this.spawnManager = new SpawnManager(this);           // Spawn + Schutzzone
+        this.rtpManager = new RtpManager(this);               // Random-Teleport
+        this.tpaManager = new TpaManager(this);               // TPA-Anfragen
         this.sidebarManager = new SidebarManager(this);       // Sidebar-Scoreboard
 
         // 5. Listener registrieren
@@ -157,6 +171,8 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new SidebarListener(this), this);
         getServer().getPluginManager().registerEvents(new ShardListener(this), this);
         getServer().getPluginManager().registerEvents(new AfkListener(this), this);
+        getServer().getPluginManager().registerEvents(new SpawnListener(this), this);
+        getServer().getPluginManager().registerEvents(new TpaListener(this), this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -217,6 +233,15 @@ public final class BigMC extends JavaPlugin {
         AfkCommand afkCommand = new AfkCommand(this);
         getCommand("afk").setExecutor(afkCommand);
         getCommand("afk").setTabCompleter(afkCommand);
+        SpawnCommand spawnCommand = new SpawnCommand(this);
+        getCommand("spawn").setExecutor(spawnCommand);
+        getCommand("setspawn").setExecutor(spawnCommand);
+        getCommand("rtp").setExecutor(new RtpCommand(this));
+        TpaCommand tpaCommand = new TpaCommand(this);
+        getCommand("tpa").setExecutor(tpaCommand);
+        getCommand("tpa").setTabCompleter(tpaCommand);
+        getCommand("tpaccept").setExecutor(tpaCommand);
+        getCommand("tpadeny").setExecutor(tpaCommand);
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -366,5 +391,17 @@ public final class BigMC extends JavaPlugin {
 
     public AfkManager getAfkManager() {
         return afkManager;
+    }
+
+    public SpawnManager getSpawnManager() {
+        return spawnManager;
+    }
+
+    public RtpManager getRtpManager() {
+        return rtpManager;
+    }
+
+    public TpaManager getTpaManager() {
+        return tpaManager;
     }
 }

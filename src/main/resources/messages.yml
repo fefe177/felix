@@ -206,6 +206,32 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+spawn:
+  teleported: "&7Du wurdest zum &aSpawn &7teleportiert."
+  set: "&aSpawn wurde auf deine Position gesetzt."
+  not-set: "&cDer Spawn ist noch nicht gesetzt (/setspawn)."
+  protected: "&cDieser Bereich ist durch den Spawn-Schutz geschützt."
+  no-pvp: "&cIn der Spawn-Zone ist kein PvP erlaubt."
+
+rtp:
+  searching: "&7Suche eine sichere Position..."
+  teleported: "&aDu wurdest in die Wildnis teleportiert! &7(&e%x%&7, &e%z%&7)"
+  no-location: "&cEs wurde keine sichere Position gefunden - versuche es erneut."
+  cooldown: "&cDu kannst /rtp erst in &e%seconds%s &cwieder nutzen."
+
+tpa:
+  usage: "&cVerwendung: /tpa <spieler>"
+  cannot-self: "&cDu kannst dir keine Anfrage an dich selbst senden."
+  sent: "&7Teleport-Anfrage an &e%player% &7gesendet."
+  received: "&e%player% &7möchte sich zu dir teleportieren: &a/tpaccept &7oder &c/tpadeny"
+  none: "&cDu hast keine offene Teleport-Anfrage."
+  requester-offline: "&cDer Anfragende ist nicht mehr online."
+  accepted: "&aAnfrage angenommen - &e%player% &awird teleportiert."
+  accepted-notify: "&e%player% &ahat deine Anfrage angenommen!"
+  denied: "&7Du hast die Anfrage abgelehnt."
+  denied-notify: "&e%player% &chat deine Teleport-Anfrage abgelehnt."
+  expired: "&cDeine Teleport-Anfrage ist abgelaufen."
+
 afk:
   entered: "&7Du bist jetzt in der &dAFK-Zone&7. Du erhältst &d%amount% &7alle &e%interval%s&7. Zurück mit &e/afk"
   left: "&7Du hast die AFK-Zone verlassen und bist zurück an deiner Position."

@@ -135,6 +135,41 @@ afk:
     yaw: 0.0
     pitch: 0.0
 
+# Server-Spawn + Schutzzone. Spawn bequem per /setspawn setzen.
+spawn:
+  # Radius der Schutzzone um den Spawn (Bloecke, 0 = Schutz aus).
+  # In der Zone: kein Blockabbau/Platzieren (ausser bigmc.spawn.bypass), kein PvP.
+  protection-radius: 32
+  location:
+    world: ""
+    x: 0.0
+    y: 100.0
+    z: 0.0
+    yaw: 0.0
+    pitch: 0.0
+
+# Random-Teleport (/rtp): zufaellige sichere Position in dieser Area.
+rtp:
+  # Zielwelt (Name aus dem Server-Ordner, meist "world")
+  world: "world"
+  # Zentrum der RTP-Area
+  center-x: 0
+  center-z: 0
+  # Spieler landen zwischen min- und max-radius vom Zentrum entfernt
+  min-radius: 500
+  max-radius: 5000
+  # Cooldown zwischen zwei RTPs (Sekunden)
+  cooldown-seconds: 60
+  # Kosten pro RTP (0 = kostenlos)
+  cost: 0.0
+  # Wie viele Zufallspositionen maximal geprueft werden
+  max-attempts: 25
+
+# Teleport-Anfragen (/tpa)
+tpa:
+  # Sekunden, bis eine Anfrage verfaellt
+  timeout-seconds: 60
+
 # Sidebar-Scoreboard (Design/Zeilen stehen in der messages.yml)
 scoreboard:
   # Sidebar fuer neue Spieler automatisch anzeigen?

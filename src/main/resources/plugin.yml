@@ -105,6 +105,33 @@ commands:
     description: Teleportiert in die AFK-Zone (dort verdienst du Shards).
     usage: /afk | /afk set
     permission: bigmc.afk
+  spawn:
+    description: Teleportiert zum Server-Spawn.
+    usage: /spawn
+    permission: bigmc.spawn
+  setspawn:
+    description: Setzt den Server-Spawn (Admin).
+    usage: /setspawn
+    permission: bigmc.spawn.admin
+  rtp:
+    description: Zufaelliger Teleport in die Wildnis.
+    usage: /rtp
+    aliases: [wild, randomtp]
+    permission: bigmc.rtp
+  tpa:
+    description: Sendet eine Teleport-Anfrage an einen Spieler.
+    usage: /tpa <spieler>
+    permission: bigmc.tpa
+  tpaccept:
+    description: Nimmt die offene Teleport-Anfrage an.
+    usage: /tpaccept
+    aliases: [tpyes]
+    permission: bigmc.tpa
+  tpadeny:
+    description: Lehnt die offene Teleport-Anfrage ab.
+    usage: /tpadeny
+    aliases: [tpno]
+    permission: bigmc.tpa
 
 permissions:
   bigmc.use:
@@ -200,6 +227,24 @@ permissions:
   bigmc.afk.admin:
     description: Die AFK-Zone setzen.
     default: op
+  bigmc.spawn:
+    description: Zum Spawn teleportieren.
+    default: true
+  bigmc.spawn.admin:
+    description: Den Spawn setzen.
+    default: op
+  bigmc.spawn.bypass:
+    description: In der Spawn-Schutzzone bauen/abbauen.
+    default: op
+  bigmc.rtp:
+    description: Random-Teleport nutzen.
+    default: true
+  bigmc.rtp.bypass:
+    description: RTP ohne Cooldown nutzen.
+    default: op
+  bigmc.tpa:
+    description: Teleport-Anfragen senden und beantworten.
+    default: true
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
     default: op
