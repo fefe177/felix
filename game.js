@@ -1,6 +1,7 @@
 /* =====================================================================
    BLOX TOWER DEFENSE 3D
    Ein Tower-Defense-Spiel im Roblox-Stil mit echter 3D-Ansicht (Three.js)
+   – Menüsystem mit Modus- & Kartenauswahl, 5 Karten, Shop, Rekorde –
    ===================================================================== */
 
 "use strict";
@@ -17,8 +18,7 @@ const START_CASH = 500;
 const START_LIVES = 100;
 
 /* ---------------- Turm-Definitionen ----------------
-   Jeder Turm hat 5 Level (Level 0 = Kaufzustand).
-   dmg = Schaden, range = Reichweite, rate = Schüsse pro Sekunde */
+   Jeder Turm hat 5 Level (Level 0 = Kaufzustand). */
 
 const TOWER_TYPES = {
   gunner: {
@@ -163,38 +163,73 @@ const ENEMY_TYPES = {
   boss:    { name: "BOSS",     hp: 3500, speed: 26,  reward: 400, dmg: 25, scale: 1.8,  color: "#dc2626", headColor: "#ef4444" },
 };
 
-/* ---------------- Schwierigkeitsgrade ---------------- */
+/* ---------------- Die 5 Karten ----------------
+   Jede Karte hat eigenen Weg, Farben, Deko-Thema und Schwierigkeit. */
 
-const DIFFICULTIES = {
-  easy:   { name: "Leicht", lives: 150, cash: 650, hpMult: 0.85 },
-  normal: { name: "Normal", lives: 100, cash: 500, hpMult: 1.0 },
-  hard:   { name: "Schwer", lives: 75,  cash: 450, hpMult: 1.3 },
+const MAPS = {
+  grasslands: {
+    name: "Grasslands", icon: "🌲", stars: 1, diffName: "Einfach", hpMult: 1.0,
+    desc: "Grüne Wiesen, Holzbrücken, kleine Häuser",
+    grass: [0x69b54c, 0x5fa844], path: [0xd4b483, 0xcaa973],
+    sky: 0x87ceeb, water: 0x2f7fd1, earth: 0x8a6437,
+    deco: "grass", clouds: true,
+    waypoints: [[-1, 2], [3, 2], [3, 6], [8, 6], [8, 2], [13, 2], [13, 9], [5, 9], [5, 11], [17, 11], [17, 5], [20, 5]],
+  },
+  desert: {
+    name: "Desert Valley", icon: "🏜", stars: 2, diffName: "Mittel", hpMult: 1.15,
+    desc: "Sand, Kakteen und alte Ruinen",
+    grass: [0xe3c47f, 0xd8b76d], path: [0xb5916b, 0xa8845f],
+    sky: 0xf0c98c, water: 0x3a98c9, earth: 0xa07840,
+    deco: "desert", clouds: true,
+    waypoints: [[-1, 6], [4, 6], [4, 2], [9, 2], [9, 10], [14, 10], [14, 4], [20, 4]],
+  },
+  frozen: {
+    name: "Frozen Base", icon: "❄", stars: 3, diffName: "Mittel", hpMult: 1.3,
+    desc: "Schnee, Eiswege, gefrorene Gebäude",
+    grass: [0xeef4f8, 0xdfe9f0], path: [0xa8d8ec, 0x97cce4],
+    sky: 0xbcd8e8, water: 0x6fb1d8, earth: 0x9aa7b5,
+    deco: "snow", clouds: true,
+    waypoints: [[-1, 10], [3, 10], [3, 3], [7, 3], [7, 8], [12, 8], [12, 3], [16, 3], [16, 10], [20, 10]],
+  },
+  volcano: {
+    name: "Volcano Island", icon: "🌋", stars: 4, diffName: "Schwer", hpMult: 1.5,
+    desc: "Lava, Vulkane und schwarze Felsen",
+    grass: [0x4a4a52, 0x404048], path: [0x705a4a, 0x665142],
+    sky: 0x5a3845, water: 0xe25822, waterGlow: 0x892a0a, earth: 0x332f33,
+    deco: "volcano", clouds: false,
+    waypoints: [[-1, 2], [6, 2], [6, 11], [11, 11], [11, 5], [15, 5], [15, 9], [20, 9]],
+  },
+  space: {
+    name: "Space Station", icon: "🌌", stars: 5, diffName: "Extrem", hpMult: 1.75,
+    desc: "Weltraum, Neonblöcke, schwebende Plattformen",
+    grass: [0x2b3052, 0x242a48], path: [0x3a9aa8, 0x32909e],
+    sky: 0x070b1a, water: 0x0a0e22, earth: 0x141831,
+    deco: "space", clouds: false,
+    waypoints: [[-1, 6], [2, 6], [2, 2], [6, 2], [6, 10], [10, 10], [10, 2], [14, 2], [14, 10], [18, 10], [18, 6], [20, 6]],
+  },
 };
+const MAP_ORDER = ["grasslands", "desert", "frozen", "volcano", "space"];
 
-/* ---------------- Karte / Pfad ---------------- */
-
-// Wegpunkte in Kachel-Koordinaten (Spalte, Zeile). Gegner laufen von links nach rechts.
-const PATH_TILES_WP = [
-  [-1, 2], [3, 2], [3, 6], [8, 6], [8, 2], [13, 2], [13, 9], [5, 9], [5, 11],
-  [17, 11], [17, 5], [20, 5],
-];
-
-// Wegpunkte in Welt-Koordinaten (Kachelmitte, x/z-Ebene)
-const PATH = PATH_TILES_WP.map(([c, r]) => ({ x: (c + 0.5) * TILE, z: (r + 0.5) * TILE }));
-
-// Menge aller Pfad-Kacheln (für Platzierungs-Sperre & Boden-Färbung)
-const pathTiles = new Set();
-for (let i = 0; i < PATH_TILES_WP.length - 1; i++) {
-  let [c1, r1] = PATH_TILES_WP[i];
-  let [c2, r2] = PATH_TILES_WP[i + 1];
-  const dc = Math.sign(c2 - c1), dr = Math.sign(r2 - r1);
-  let c = c1, r = r1;
-  while (true) {
-    if (c >= 0 && c < COLS && r >= 0 && r < ROWS) pathTiles.add(c + "," + r);
-    if (c === c2 && r === r2) break;
-    c += dc; r += dr;
+// Pfad-Kacheln aus Wegpunkten berechnen
+function computePathTiles(waypoints) {
+  const tiles = new Set();
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    let [c1, r1] = waypoints[i];
+    let [c2, r2] = waypoints[i + 1];
+    const dc = Math.sign(c2 - c1), dr = Math.sign(r2 - r1);
+    let c = c1, r = r1;
+    while (true) {
+      if (c >= 0 && c < COLS && r >= 0 && r < ROWS) tiles.add(c + "," + r);
+      if (c === c2 && r === r2) break;
+      c += dc; r += dr;
+    }
   }
+  return tiles;
 }
+
+// Aktive Karte (wird von buildMap gesetzt)
+let PATH = [];
+let pathTiles = new Set();
 
 function seededRandom(seed) {
   return function () {
@@ -207,36 +242,86 @@ function seededRandom(seed) {
 
 const state = {
   mode: "menu",          // "menu" | "lobby" | "game"
-  teleport: null,        // { portal, t } – Countdown im Portal
+  map: localStorage.getItem("btd_map") || "grasslands",
   running: false,
   paused: false,
   cash: START_CASH,
   lives: START_LIVES,
   wave: 1,
   kills: 0,
-  difficulty: localStorage.getItem("btd_difficulty") || "normal",
   phase: "idle",         // "idle" | "wave"
   speed: 1,
-  soundOn: true,
-  musicOn: true,
   autoStart: false,
   autoTimer: 0,
   towers: [],
   enemies: [],
   dying: [],             // sterbende Gegner (Umfall-Animation)
   projectiles: [],
-  particles: [],         // aktive Partikel aus dem Pool
-  tracers: [],           // aktive Schusslinien aus dem Pool
-  rings: [],             // Explosionsringe
+  particles: [],
+  tracers: [],
+  rings: [],
   bolts: [],             // Tesla-Blitze
   spawnQueue: [],
   waveTime: 0,
   placing: null,
   selected: null,
-  hoverTile: null,       // {c, r} unter der Maus
+  hoverTile: null,
   time: 0,
   shake: 0,
+  settings: { sound: true, music: true, shadows: true, dmgNumbers: true },
 };
+
+/* ---------------- Speicherstände (localStorage) ---------------- */
+
+function loadJSON(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  catch (e) { return fallback; }
+}
+
+// Rekorde pro Karte: { mapKey: besteWelle }
+function loadRecords() { return loadJSON("btd_records", {}); }
+function saveRecord(mapKey, wave) {
+  const rec = loadRecords();
+  if (!rec[mapKey] || wave > rec[mapKey]) {
+    rec[mapKey] = wave;
+    localStorage.setItem("btd_records", JSON.stringify(rec));
+    return true;
+  }
+  return false;
+}
+function recordText(mapKey) {
+  const rec = loadRecords()[mapKey];
+  if (!rec) return "Noch kein Rekord";
+  if (rec > MAX_WAVE) return "✅ Geschafft!";
+  return `Rekord: Welle ${rec}`;
+}
+
+// Münzen (Meta-Währung für Skins)
+function getCoins() { return loadJSON("btd_coins", 0); }
+function addCoins(n) { localStorage.setItem("btd_coins", JSON.stringify(Math.max(0, getCoins() + n))); }
+
+// Skins für die Lobby-Figur
+const SKINS = [
+  { id: "classic", name: "Classic",       body: "#3b82f6", hat: "#dc2626", price: 0 },
+  { id: "ritter",  name: "Roter Ritter",  body: "#dc2626", hat: "#7f1d1d", price: 50 },
+  { id: "ninja",   name: "Grüner Ninja",  body: "#16a34a", hat: "#064e3b", price: 50 },
+  { id: "magier",  name: "Magier",        body: "#8b5cf6", hat: "#4c1d95", price: 120 },
+  { id: "gold",    name: "Goldener Held", body: "#f59e0b", hat: "#fbbf24", price: 200 },
+  { id: "schatten", name: "Schatten",     body: "#1f2937", hat: "#111827", price: 300 },
+];
+function getOwnedSkins() { return loadJSON("btd_skins", ["classic"]); }
+function getEquippedSkin() {
+  const id = localStorage.getItem("btd_skin") || "classic";
+  return SKINS.find(s => s.id === id) || SKINS[0];
+}
+
+// Einstellungen
+function loadSettings() {
+  Object.assign(state.settings, loadJSON("btd_settings", {}));
+}
+function saveSettings() {
+  localStorage.setItem("btd_settings", JSON.stringify(state.settings));
+}
 
 /* ---------------- Sound (WebAudio, ohne Dateien) ---------------- */
 
@@ -247,7 +332,7 @@ function ensureAudio() {
   }
 }
 function sfx(type) {
-  if (!state.soundOn || !audioCtx) return;
+  if (!state.settings.sound || !audioCtx) return;
   const t = audioCtx.currentTime;
   const gain = audioCtx.createGain();
   gain.connect(audioCtx.destination);
@@ -279,6 +364,7 @@ function sfx(type) {
     case "zap":     tone(1400, 0.10, 0.07, "sawtooth", 250); break;
     case "flame":   tone(110, 0.12, 0.035, "sawtooth", 55); break;
     case "heal":    tone(660, 0.12, 0.05, "sine", 990); break;
+    case "click":   tone(700, 0.06, 0.05, "triangle", 500); break;
     case "win":     tone(523, 0.5, 0.12, "triangle", 1046); break;
     case "lose":    tone(300, 0.8, 0.14, "sawtooth", 50); break;
   }
@@ -286,7 +372,6 @@ function sfx(type) {
 
 /* ---------------- Hintergrundmusik (WebAudio-Sequencer) ---------------- */
 
-// Fröhliche Pentatonik-Melodie, 32 Schritte (0 = Pause)
 const MELODY = [
   523, 0, 659, 0, 784, 0, 659, 0, 523, 0, 659, 0, 880, 784, 659, 0,
   587, 0, 659, 0, 784, 0, 880, 0, 1047, 0, 880, 0, 784, 659, 587, 0,
@@ -296,7 +381,7 @@ let musicStep = 0;
 
 function musicTick() {
   const active = state.running || state.mode === "lobby";
-  if (!state.musicOn || !audioCtx || !active || state.paused) return;
+  if (!state.settings.music || !audioCtx || !active || state.paused) return;
   const t = audioCtx.currentTime;
 
   const note = MELODY[musicStep % MELODY.length];
@@ -342,7 +427,7 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87ceeb);
 scene.fog = new THREE.Fog(0x87ceeb, 1600, 3200);
 
-const camera = new THREE.PerspectiveCamera(55, 3 / 2, 1, 5000);
+const camera = new THREE.PerspectiveCamera(55, 3 / 2, 1, 6000);
 const CAM_HOME = { pos: new THREE.Vector3(W / 2, 470, D + 300), target: new THREE.Vector3(W / 2, 0, D / 2 - 20) };
 camera.position.copy(CAM_HOME.pos);
 
@@ -352,7 +437,7 @@ controls.enableDamping = true;
 controls.dampingFactor = 0.08;
 controls.minDistance = 180;
 controls.maxDistance = 1500;
-controls.maxPolarAngle = 1.35;   // nicht unter den Horizont schauen
+controls.maxPolarAngle = 1.35;
 controls.screenSpacePanning = false;
 controls.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
 controls.update();
@@ -374,6 +459,20 @@ scene.add(sun, sun.target);
 // Welt-Gruppe (für Kamera-Wackeln bei Treffern)
 const world = new THREE.Group();
 scene.add(world);
+
+// Karten-Inhalt (wird pro Karte neu gebaut)
+const mapGroup = new THREE.Group();
+world.add(mapGroup);
+
+// Wasser rund um Insel und Lobby (Farbe je nach Karte – auf Volcano: Lava!)
+const water = new THREE.Mesh(
+  new THREE.PlaneGeometry(12000, 12000),
+  new THREE.MeshLambertMaterial({ color: 0x2f7fd1, transparent: true, opacity: 0.92 })
+);
+water.rotation.x = -Math.PI / 2;
+water.position.set(W / 2, -44, D / 2);
+water.receiveShadow = true;
+scene.add(water);
 
 // Größe an Container anpassen
 function resize() {
@@ -418,7 +517,6 @@ function disposeObject(obj) {
   });
 }
 
-// Kürzester Weg zwischen zwei Winkeln
 function approachAngle(current, target, k) {
   let diff = target - current;
   while (diff > Math.PI) diff -= Math.PI * 2;
@@ -426,116 +524,16 @@ function approachAngle(current, target, k) {
   return current + diff * Math.min(1, k);
 }
 
-/* ---------------- Boden, Weg & Deko bauen ---------------- */
+/* =====================================================================
+   KARTEN-AUFBAU – baut die Spiel-Insel je nach Thema neu
+   ===================================================================== */
 
-{
-  const tileGeo = new THREE.BoxGeometry(TILE, 12, TILE);
-  const tileMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-  const ground = new THREE.InstancedMesh(tileGeo, tileMat, COLS * ROWS);
-  ground.receiveShadow = true;
-  const mat4 = new THREE.Matrix4();
-  const col = new THREE.Color();
-  let i = 0;
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      const isPath = pathTiles.has(c + "," + r);
-      const y = isPath ? -9 : -6; // Weg liegt etwas tiefer
-      mat4.setPosition((c + 0.5) * TILE, y, (r + 0.5) * TILE);
-      ground.setMatrixAt(i, mat4);
-      if (isPath) col.set((c + r) % 2 === 0 ? 0xd4b483 : 0xcaa973);
-      else col.set((c + r) % 2 === 0 ? 0x69b54c : 0x5fa844);
-      ground.setColorAt(i, col);
-      i++;
-    }
-  }
-  ground.instanceColor.needsUpdate = true;
-  world.add(ground);
+let startArrow = null;
+let decoByTile = new Map();
 
-  // Erd-Sockel unter dem Feld
-  const base = box(W + 24, 40, D + 24, lambert(0x8a6437), W / 2, -32, D / 2);
-  base.castShadow = false;
-  world.add(base);
-}
-
-// Wasser rund um Insel und Lobby
-const water = new THREE.Mesh(
-  new THREE.PlaneGeometry(12000, 12000),
-  new THREE.MeshLambertMaterial({ color: 0x2f7fd1, transparent: true, opacity: 0.92 })
-);
-water.rotation.x = -Math.PI / 2;
-water.position.set(W / 2, -44, D / 2);
-water.receiveShadow = true;
-scene.add(water); // an der Szene, damit es auch unter der Lobby liegt
-
-// Deko: Bäume, Steine, Blumen (deterministisch verteilt, je Kachel ein-/ausblendbar)
-const decoByTile = new Map();
-{
-  const rnd = seededRandom(1337);
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (pathTiles.has(c + "," + r)) continue;
-      const v = rnd();
-      const off = rnd();
-      const x = (c + 0.3 + off * 0.4) * TILE;
-      const z = (r + 0.3 + off * 0.4) * TILE;
-      let g = null;
-      if (v < 0.07) {
-        g = new THREE.Group();
-        g.add(box(7, 18, 7, lambert(0x7a5230), 0, 9, 0));
-        g.add(box(26, 18, 26, lambert(0x3e8e41), 0, 26, 0));
-        g.add(box(18, 13, 18, lambert(0x4caf50), 0, 41, 0));
-      } else if (v < 0.11) {
-        g = new THREE.Group();
-        const rock = box(16, 11, 13, lambert(0x9aa0a6), 0, 5, 0);
-        rock.rotation.y = off * 2;
-        g.add(rock);
-        g.add(box(8, 6, 7, lambert(0xb8bdc4), 5, 11, 2));
-      } else if (v < 0.18) {
-        g = new THREE.Group();
-        g.add(box(1.6, 7, 1.6, lambert(0x3e8e41), 0, 3.5, 0));
-        g.add(box(5, 4, 5, lambert(off < 0.5 ? 0xf87171 : 0xfde047), 0, 8.5, 0));
-      }
-      if (g) {
-        g.position.set(x, 0, z);
-        world.add(g);
-        decoByTile.set(c + "," + r, g);
-      }
-    }
-  }
-}
-
-// Burg (Basis) am Wegende
-{
-  const castle = new THREE.Group();
-  const stone = lambert(0xa8a29e);
-  const stoneDark = lambert(0x78716c);
-  castle.add(box(110, 14, 110, lambert(0x69b54c), 0, -7, 0)); // Grasplatte
-  castle.add(box(80, 55, 80, stone, 0, 27, 0));
-  for (const [dx, dz] of [[-38, -38], [38, -38], [-38, 38], [38, 38]]) {
-    castle.add(box(24, 85, 24, stoneDark, dx, 42, dz));
-    castle.add(box(30, 10, 30, stone, dx, 90, dz));
-  }
-  const roof = new THREE.Mesh(new THREE.ConeGeometry(34, 40, 4), lambert(0xdc2626));
-  roof.position.y = 75; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
-  castle.add(roof);
-  // Tor zur Wegseite
-  castle.add(box(26, 32, 6, lambert(0x5b3a1e), -40, 16, 0));
-  castle.position.set(W + 62, 0, (5 + 0.5) * TILE);
-  world.add(castle);
-}
-
-// Start-Pfeil am Weganfang (hüpft auf und ab)
-const startArrow = new THREE.Group();
-{
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(14, 30, 4), new THREE.MeshLambertMaterial({ color: 0x22c55e, emissive: 0x14532d }));
-  cone.rotation.z = -Math.PI / 2;
-  cone.rotation.y = Math.PI / 4;
-  startArrow.add(cone);
-  startArrow.position.set(PATH[0].x - 20, 45, PATH[0].z);
-  world.add(startArrow);
-}
-
-// Klötzchen-Wolken
+// Wolken (global, werden auf dunklen Karten ausgeblendet)
+const cloudGroup = new THREE.Group();
+world.add(cloudGroup);
 const clouds = [];
 {
   const rnd = seededRandom(777);
@@ -548,20 +546,335 @@ const clouds = [];
     g.children.forEach(c => { c.castShadow = false; });
     g.position.set(rnd() * W, 330 + rnd() * 120, rnd() * D);
     g.userData.speed = 6 + rnd() * 8;
-    world.add(g);
+    cloudGroup.add(g);
     clouds.push(g);
   }
 }
 
+// Themen-Deko: liefert je nach Karte eine kleine Deko-Gruppe (oder null)
+function makeThemeDeco(theme, v, off) {
+  let g = null;
+  if (theme === "grass") {
+    if (v < 0.07) {
+      g = new THREE.Group();
+      g.add(box(7, 18, 7, lambert(0x7a5230), 0, 9, 0));
+      g.add(box(26, 18, 26, lambert(0x3e8e41), 0, 26, 0));
+      g.add(box(18, 13, 18, lambert(0x4caf50), 0, 41, 0));
+    } else if (v < 0.11) {
+      g = new THREE.Group();
+      const rock = box(16, 11, 13, lambert(0x9aa0a6), 0, 5, 0);
+      rock.rotation.y = off * 2;
+      g.add(rock);
+      g.add(box(8, 6, 7, lambert(0xb8bdc4), 5, 11, 2));
+    } else if (v < 0.18) {
+      g = new THREE.Group();
+      g.add(box(1.6, 7, 1.6, lambert(0x3e8e41), 0, 3.5, 0));
+      g.add(box(5, 4, 5, lambert(off < 0.5 ? 0xf87171 : 0xfde047), 0, 8.5, 0));
+    }
+  } else if (theme === "desert") {
+    if (v < 0.07) {
+      // Kaktus
+      g = new THREE.Group();
+      g.add(box(9, 32, 9, lambert(0x3f9b4f), 0, 16, 0));
+      g.add(box(7, 14, 7, lambert(0x44a655), -10, 22, 0));
+      g.add(box(7, 11, 7, lambert(0x44a655), 10, 18, 0));
+    } else if (v < 0.11) {
+      // Ruinen-Säule (oben abgebrochen)
+      g = new THREE.Group();
+      g.add(box(13, 10, 13, lambert(0xcdb088), 0, 5, 0));
+      const pillar = box(10, 22 + off * 14, 10, lambert(0xd9bd92), 0, 16 + off * 7, 0);
+      pillar.rotation.y = off;
+      g.add(pillar);
+    } else if (v < 0.18) {
+      g = new THREE.Group();
+      const rock = box(12, 8, 10, lambert(0xc4a06a), 0, 4, 0);
+      rock.rotation.y = off * 2;
+      g.add(rock);
+    }
+  } else if (theme === "snow") {
+    if (v < 0.07) {
+      // Verschneiter Baum
+      g = new THREE.Group();
+      g.add(box(7, 16, 7, lambert(0x6b4a30), 0, 8, 0));
+      g.add(box(26, 16, 26, lambert(0x2f6e4f), 0, 24, 0));
+      g.add(box(28, 5, 28, lambert(0xf0f6fa), 0, 34, 0));
+      g.add(box(17, 11, 17, lambert(0x37805c), 0, 42, 0));
+      g.add(box(19, 4, 19, lambert(0xffffff), 0, 49, 0));
+    } else if (v < 0.10) {
+      // Schneemann
+      g = new THREE.Group();
+      g.add(box(16, 14, 16, lambert(0xffffff), 0, 7, 0));
+      g.add(box(12, 11, 12, lambert(0xf4f8fb), 0, 19, 0));
+      const nose = box(2.5, 2.5, 7, lambert(0xf97316), 0, 21, 8);
+      g.add(nose);
+    } else if (v < 0.17) {
+      // Eiskristall
+      g = new THREE.Group();
+      const ice = new THREE.Mesh(
+        new THREE.IcosahedronGeometry(7 + off * 4, 0),
+        new THREE.MeshLambertMaterial({ color: 0xbfeaff, emissive: 0x2a6e96, emissiveIntensity: 0.35 })
+      );
+      ice.position.y = 7;
+      ice.rotation.set(off, off * 2, 0);
+      ice.castShadow = true;
+      g.add(ice);
+    }
+  } else if (theme === "volcano") {
+    if (v < 0.08) {
+      // Schwarzer Felsen
+      g = new THREE.Group();
+      const rock = box(18, 16, 15, lambert(0x26262c), 0, 8, 0);
+      rock.rotation.y = off * 2;
+      g.add(rock);
+      g.add(box(9, 8, 8, lambert(0x33333a), 6, 18, 2));
+    } else if (v < 0.13) {
+      // Lava-Pfütze
+      g = new THREE.Group();
+      const pool = new THREE.Mesh(
+        new THREE.CircleGeometry(9 + off * 5, 10),
+        new THREE.MeshLambertMaterial({ color: 0xff7a33, emissive: 0xd64018, emissiveIntensity: 0.8 })
+      );
+      pool.rotation.x = -Math.PI / 2;
+      pool.position.y = 0.6;
+      g.add(pool);
+    } else if (v < 0.18) {
+      // Glut-Stein
+      g = new THREE.Group();
+      const rock = box(9, 7, 8, lambert(0x33333a), 0, 3.5, 0);
+      g.add(rock);
+      g.add(box(3, 3, 3, new THREE.MeshLambertMaterial({ color: 0xff9a4d, emissive: 0xd64018, emissiveIntensity: 0.9 }), 3, 7, 1));
+    }
+  } else if (theme === "space") {
+    if (v < 0.07) {
+      // Neon-Pylon
+      g = new THREE.Group();
+      g.add(box(10, 26, 10, lambert(0x1b2040), 0, 13, 0));
+      g.add(box(12, 4, 12, new THREE.MeshLambertMaterial({ color: 0x67e8f9, emissive: 0x22d3ee, emissiveIntensity: 0.9 }), 0, 28, 0));
+    } else if (v < 0.11) {
+      // Schwebende Plattform
+      g = new THREE.Group();
+      const plat = box(20, 5, 20, lambert(0x2a3158), 0, 22 + off * 10, 0);
+      g.add(plat);
+      g.add(box(22, 1.5, 22, new THREE.MeshLambertMaterial({ color: 0xa78bfa, emissive: 0x7c3aed, emissiveIntensity: 0.7 }), 0, 25.5 + off * 10, 0));
+    } else if (v < 0.18) {
+      // Leucht-Stud
+      g = new THREE.Group();
+      g.add(box(5, 5, 5, new THREE.MeshLambertMaterial({ color: 0x67e8f9, emissive: 0x0ea5e9, emissiveIntensity: 0.8 }), 0, 2.5, 0));
+    }
+  }
+  return g;
+}
+
+// Große, fest platzierte Extras pro Karte
+function buildMapExtras(mapKey, registerDeco) {
+  const extras = [];
+  if (mapKey === "grasslands") {
+    // Kleine Häuser
+    for (const [c, r] of [[1, 11], [18, 1]]) {
+      const h = new THREE.Group();
+      h.add(box(32, 24, 28, lambert(0xd9c089), 0, 12, 0));
+      const roof = new THREE.Mesh(new THREE.ConeGeometry(26, 18, 4), lambert(0xb33939));
+      roof.position.y = 32; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
+      h.add(roof);
+      h.add(box(9, 13, 3, lambert(0x5b3a1e), 0, 6.5, 14.5));
+      h.add(box(7, 7, 2, lambert(0x9cc8e8), 10, 15, 14));
+      h.position.set((c + 0.5) * TILE, 0, (r + 0.5) * TILE);
+      registerDeco(c, r, h);
+      extras.push(h);
+    }
+    // Teich mit Holzbrücke
+    const pondG = new THREE.Group();
+    const pond = new THREE.Mesh(new THREE.CircleGeometry(34, 18), lambert(0x4aa3df));
+    pond.rotation.x = -Math.PI / 2;
+    pond.position.y = 0.7;
+    pondG.add(pond);
+    for (let i = 0; i < 5; i++) {
+      pondG.add(box(10, 2.5, 13, lambert(0x9a6b3f), -22 + i * 11, 3.5, 0));
+    }
+    pondG.add(box(54, 2.5, 2.5, lambert(0x7a5230), 0, 8, 7.5));
+    pondG.add(box(54, 2.5, 2.5, lambert(0x7a5230), 0, 8, -7.5));
+    pondG.position.set(10.5 * TILE, 0, 12.4 * TILE);
+    registerDeco(10, 12, pondG);
+    extras.push(pondG);
+  } else if (mapKey === "desert") {
+    // Große Ruine (Torbogen)
+    const ruin = new THREE.Group();
+    ruin.add(box(12, 44, 12, lambert(0xd9bd92), -20, 22, 0));
+    ruin.add(box(12, 34, 12, lambert(0xcdb088), 20, 17, 0));
+    ruin.add(box(34, 9, 13, lambert(0xd9bd92), -6, 46, 0));
+    ruin.add(box(14, 6, 14, lambert(0xc4a06a), 22, 3, 14));
+    ruin.position.set(1.5 * TILE, 0, 1.5 * TILE);
+    ruin.rotation.y = 0.5;
+    registerDeco(1, 1, ruin);
+    extras.push(ruin);
+  } else if (mapKey === "frozen") {
+    // Gefrorenes Gebäude (Eis-Bunker)
+    const bunker = new THREE.Group();
+    bunker.add(box(40, 26, 34, new THREE.MeshLambertMaterial({ color: 0xcfe9f5, transparent: true, opacity: 0.92 }), 0, 13, 0));
+    bunker.add(box(44, 6, 38, lambert(0xffffff), 0, 29, 0));
+    bunker.add(box(10, 14, 3, lambert(0x7eb8d8), 0, 7, 17.5));
+    bunker.position.set(1.5 * TILE, 0, 1.5 * TILE);
+    registerDeco(1, 1, bunker);
+    extras.push(bunker);
+  } else if (mapKey === "volcano") {
+    // Großer Vulkan
+    const volcano = new THREE.Group();
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(55, 80, 8), lambert(0x2b2b31));
+    cone.position.y = 36;
+    cone.castShadow = true;
+    volcano.add(cone);
+    const lavaTop = new THREE.Mesh(
+      new THREE.CylinderGeometry(16, 16, 6, 8),
+      new THREE.MeshLambertMaterial({ color: 0xff7a33, emissive: 0xd64018, emissiveIntensity: 1 })
+    );
+    lavaTop.position.y = 74;
+    volcano.add(lavaTop);
+    volcano.position.set(18.2 * TILE, 0, 1.4 * TILE);
+    registerDeco(18, 1, volcano);
+    extras.push(volcano);
+  } else if (mapKey === "space") {
+    // Funkturm mit blinkender Spitze
+    const antenna = new THREE.Group();
+    antenna.add(box(14, 8, 14, lambert(0x2a3158), 0, 4, 0));
+    antenna.add(box(4, 70, 4, lambert(0x39406e), 0, 43, 0));
+    const tip = new THREE.Mesh(
+      new THREE.SphereGeometry(5, 8, 8),
+      new THREE.MeshLambertMaterial({ color: 0xff5b7f, emissive: 0xe11d48, emissiveIntensity: 1 })
+    );
+    tip.position.y = 82;
+    antenna.add(tip);
+    antenna.userData.blink = tip;
+    antenna.position.set(0.5 * TILE, 0, 12.4 * TILE);
+    registerDeco(0, 12, antenna);
+    extras.push(antenna);
+
+    // Sternenfeld
+    const stars = new THREE.Group();
+    const rndS = seededRandom(4242);
+    const starMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    for (let i = 0; i < 120; i++) {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(2.5, 2.5, 2.5), starMat);
+      const a = rndS() * Math.PI * 2;
+      const dist = 700 + rndS() * 1500;
+      s.position.set(W / 2 + Math.cos(a) * dist, -300 + rndS() * 900, D / 2 + Math.sin(a) * dist);
+      s.castShadow = false;
+      stars.add(s);
+    }
+    extras.push(stars);
+  }
+  return extras;
+}
+
+function buildMap(mapKey) {
+  const map = MAPS[mapKey];
+
+  // Alte Karte abbauen
+  while (mapGroup.children.length) {
+    const c = mapGroup.children.pop();
+    mapGroup.remove(c);
+    disposeObject(c);
+  }
+  decoByTile = new Map();
+
+  // Pfad setzen
+  PATH = map.waypoints.map(([c, r]) => ({ x: (c + 0.5) * TILE, z: (r + 0.5) * TILE }));
+  pathTiles = computePathTiles(map.waypoints);
+
+  // Himmel, Nebel, Wasser/Lava
+  scene.background.set(map.sky);
+  scene.fog.color.set(map.sky);
+  water.material.color.set(map.water);
+  water.material.emissive = new THREE.Color(map.waterGlow || 0x000000);
+  cloudGroup.visible = map.clouds;
+
+  // Boden-Kacheln
+  const tileGeo = new THREE.BoxGeometry(TILE, 12, TILE);
+  const tileMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const ground = new THREE.InstancedMesh(tileGeo, tileMat, COLS * ROWS);
+  ground.receiveShadow = true;
+  const mat4 = new THREE.Matrix4();
+  const col = new THREE.Color();
+  let i = 0;
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const isPath = pathTiles.has(c + "," + r);
+      const y = isPath ? -9 : -6;
+      mat4.setPosition((c + 0.5) * TILE, y, (r + 0.5) * TILE);
+      ground.setMatrixAt(i, mat4);
+      col.set((c + r) % 2 === 0 ? (isPath ? map.path[0] : map.grass[0]) : (isPath ? map.path[1] : map.grass[1]));
+      ground.setColorAt(i, col);
+      i++;
+    }
+  }
+  ground.instanceColor.needsUpdate = true;
+  mapGroup.add(ground);
+
+  // Erd-Sockel
+  const base = box(W + 24, 40, D + 24, lambert(map.earth), W / 2, -32, D / 2);
+  base.castShadow = false;
+  mapGroup.add(base);
+
+  // Zufalls-Deko nach Thema
+  const rnd = seededRandom(1337);
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const v = rnd();
+      const off = rnd();
+      if (pathTiles.has(c + "," + r)) continue;
+      if (decoByTile.has(c + "," + r)) continue;
+      const g = makeThemeDeco(map.deco, v, off);
+      if (g) {
+        g.position.set((c + 0.3 + off * 0.4) * TILE, 0, (r + 0.3 + off * 0.4) * TILE);
+        mapGroup.add(g);
+        decoByTile.set(c + "," + r, g);
+      }
+    }
+  }
+
+  // Feste Extras (Häuser, Ruinen, Vulkan, …)
+  const registerDeco = (c, r, g) => { decoByTile.set(c + "," + r, g); };
+  for (const e of buildMapExtras(mapKey, registerDeco)) mapGroup.add(e);
+
+  // Burg (Basis) am Wegende
+  {
+    const castle = new THREE.Group();
+    const stone = lambert(0xa8a29e);
+    const stoneDark = lambert(0x78716c);
+    castle.add(box(110, 14, 110, lambert(map.grass[0]), 0, -7, 0));
+    castle.add(box(80, 55, 80, stone, 0, 27, 0));
+    for (const [dx, dz] of [[-38, -38], [38, -38], [-38, 38], [38, 38]]) {
+      castle.add(box(24, 85, 24, stoneDark, dx, 42, dz));
+      castle.add(box(30, 10, 30, stone, dx, 90, dz));
+    }
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(34, 40, 4), lambert(0xdc2626));
+    roof.position.y = 75; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
+    castle.add(roof);
+    castle.add(box(26, 32, 6, lambert(0x5b3a1e), -40, 16, 0));
+    const endRow = map.waypoints[map.waypoints.length - 1][1];
+    castle.position.set(W + 62, 0, (endRow + 0.5) * TILE);
+    mapGroup.add(castle);
+  }
+
+  // Start-Pfeil am Weganfang
+  startArrow = new THREE.Group();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(14, 30, 4), new THREE.MeshLambertMaterial({ color: 0x22c55e, emissive: 0x14532d }));
+  cone.rotation.z = -Math.PI / 2;
+  cone.rotation.y = Math.PI / 4;
+  startArrow.add(cone);
+  startArrow.position.set(PATH[0].x - 20, 45, PATH[0].z);
+  mapGroup.add(startArrow);
+}
+
 /* =====================================================================
-   LOBBY – Plaza mit Schwierigkeits-Portalen
+   LOBBY – Plaza mit SPIELEN-Portal
    ===================================================================== */
 
 const LOBBY = {
   origin: new THREE.Vector3(-2400, 0, 312),
-  portals: [],     // { diff, color, group, glow, trigger: Vector3 }
+  playPortal: null,    // { trigger: Vector3, glow }
   spawn: null,
   bounds: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 },
+  board: null,
 };
 
 const lobbyGroup = new THREE.Group();
@@ -651,59 +964,54 @@ function makeTextPanel(lines, bgColor, w, h) {
   lobbyGroup.add(box(10, 110, 10, lambert(0x4b5563), L.x - 70, 55, L.z - 235));
   lobbyGroup.add(box(10, 110, 10, lambert(0x4b5563), L.x + 70, 55, L.z - 235));
 
-  // Die 3 Schwierigkeits-Portale
-  const portalDefs = [
-    { diff: "easy",   label: "LEICHT", sub: "150 Leben", color: 0x22c55e, x: -180 },
-    { diff: "normal", label: "NORMAL", sub: "100 Leben", color: 0x3b82f6, x: 0 },
-    { diff: "hard",   label: "SCHWER", sub: "75 Leben · starke Gegner", color: 0xef4444, x: 180 },
-  ];
-  for (const pd of portalDefs) {
+  // Das goldene SPIELEN-Portal (öffnet die Modus-Auswahl)
+  {
     const g = new THREE.Group();
-    const px = L.x + pd.x, pz = L.z - 150;
-    const frameMat = lambert(new THREE.Color(pd.color).multiplyScalar(0.55));
+    const px = L.x, pz = L.z - 150;
+    const frameMat = lambert(0xb8941f);
 
-    // Sockel + Säulen + Querbalken
-    g.add(box(90, 8, 50, lambert(0x9ca3af), 0, 4, 0));
-    g.add(box(14, 78, 14, frameMat, -32, 47, 0));
-    g.add(box(14, 78, 14, frameMat, 32, 47, 0));
-    g.add(box(86, 14, 16, frameMat, 0, 92, 0));
+    g.add(box(110, 8, 55, lambert(0x9ca3af), 0, 4, 0));
+    g.add(box(16, 88, 16, frameMat, -40, 52, 0));
+    g.add(box(16, 88, 16, frameMat, 40, 52, 0));
+    g.add(box(108, 16, 18, frameMat, 0, 104, 0));
 
-    // Leuchtende Portal-Fläche
     const glow = new THREE.Mesh(
-      new THREE.PlaneGeometry(50, 70),
-      new THREE.MeshBasicMaterial({ color: pd.color, transparent: true, opacity: 0.65, side: THREE.DoubleSide })
+      new THREE.PlaneGeometry(62, 80),
+      new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.6, side: THREE.DoubleSide })
     );
-    glow.position.set(0, 50, 0);
+    glow.position.set(0, 54, 0);
     g.add(glow);
 
-    // Schild über dem Portal
-    const sign = makeTextPanel([pd.label, pd.sub], "#" + new THREE.Color(pd.color).multiplyScalar(0.6).getHexString(), 95, 42);
-    sign.position.set(0, 125, 0);
+    const sign = makeTextPanel(["🎮 SPIELEN", "Modus wählen"], "#8a6d1f", 110, 48);
+    sign.position.set(0, 140, 0);
     g.add(sign);
 
     g.position.set(px, 0, pz);
     lobbyGroup.add(g);
-    LOBBY.portals.push({
-      diff: pd.diff,
-      color: pd.color,
-      group: g,
-      glow,
-      trigger: new THREE.Vector3(px, 0, pz + 12),
-    });
+    LOBBY.playPortal = { trigger: new THREE.Vector3(px, 0, pz + 14), glow };
   }
 
-  // Highscore-Tafel
+  // Rekord-Tafel
   const board = makeTextPanel(["🏆 REKORD", "–"], "#7a5230", 120, 58);
   board.position.set(L.x + 250, 70, L.z + 40);
   board.rotation.y = -Math.PI / 2.4;
   lobbyGroup.add(board);
-  const post = box(8, 60, 8, lambert(0x5b3a1e), L.x + 250, 25, L.z + 40);
-  lobbyGroup.add(post);
+  lobbyGroup.add(box(8, 60, 8, lambert(0x5b3a1e), L.x + 250, 25, L.z + 40));
   LOBBY.board = board;
 }
 
+function bestRecordText() {
+  const rec = loadRecords();
+  let bestWave = 0, bestMap = null;
+  for (const key of MAP_ORDER) {
+    if (rec[key] && rec[key] > bestWave) { bestWave = rec[key]; bestMap = key; }
+  }
+  if (!bestMap) return null;
+  if (bestWave > MAX_WAVE) return `Alle ${MAX_WAVE} Wellen (${MAPS[bestMap].name})`;
+  return `Welle ${bestWave} (${MAPS[bestMap].name})`;
+}
+
 function refreshLobbyBoard() {
-  const hs = loadHighscore();
   const cv = LOBBY.board.userData.canvas;
   const g = cv.getContext("2d");
   g.fillStyle = "#7a5230";
@@ -716,16 +1024,12 @@ function refreshLobbyBoard() {
   g.font = "bold 76px Arial";
   g.fillText("🏆 REKORD", 256, 100);
   g.fillStyle = "#ffffff";
-  g.font = "bold 56px Arial";
-  const diffName = hs && DIFFICULTIES[hs.diff] ? DIFFICULTIES[hs.diff].name : "";
-  g.fillText(
-    !hs ? "Noch keiner!" : hs.wave > MAX_WAVE ? `Alle ${MAX_WAVE} Wellen!` : `Welle ${hs.wave} (${diffName})`,
-    256, 190
-  );
+  g.font = "bold 48px Arial";
+  g.fillText(bestRecordText() || "Noch keiner!", 256, 190);
   LOBBY.board.userData.texture.needsUpdate = true;
 }
 
-// Spieler-Figur für die Lobby (wird beim ersten Lobby-Besuch gebaut)
+// Spieler-Figur für die Lobby (mit Skin aus dem Shop)
 const player = {
   group: null,
   x: 0, z: 0,
@@ -733,15 +1037,22 @@ const player = {
   walkPhase: 0,
   moving: false,
 };
-function ensurePlayerFigure() {
-  if (player.group) return;
-  player.group = makeMinifig("#3b82f6", "#fbbf24", { hat: "#dc2626" });
+function rebuildPlayerFigure() {
+  if (player.group) {
+    lobbyGroup.remove(player.group);
+    disposeObject(player.group);
+  }
+  const skin = getEquippedSkin();
+  player.group = makeMinifig(skin.body, "#fbbf24", { hat: skin.hat });
+  player.group.position.set(player.x, 0, player.z);
   lobbyGroup.add(player.group);
+}
+function ensurePlayerFigure() {
+  if (!player.group) rebuildPlayerFigure();
 }
 
 /* ---------------- Roblox-Minifigur (3D) ---------------- */
 
-// Gesicht als Canvas-Textur (gecacht pro Farbe + Stimmung)
 const faceCache = new Map();
 function faceTexture(headHex, angry) {
   const key = headHex + (angry ? "a" : "s");
@@ -758,12 +1069,12 @@ function faceTexture(headHex, angry) {
   g.lineWidth = 3.5;
   g.beginPath();
   if (angry) {
-    g.arc(32, 52, 9, Math.PI * 1.15, Math.PI * 1.85); // böser Mund
+    g.arc(32, 52, 9, Math.PI * 1.15, Math.PI * 1.85);
     g.stroke();
-    g.beginPath(); g.moveTo(14, 16); g.lineTo(27, 21); g.stroke(); // Augenbrauen
+    g.beginPath(); g.moveTo(14, 16); g.lineTo(27, 21); g.stroke();
     g.beginPath(); g.moveTo(50, 16); g.lineTo(37, 21); g.stroke();
   } else {
-    g.arc(32, 38, 10, Math.PI * 0.15, Math.PI * 0.85); // Lächeln
+    g.arc(32, 38, 10, Math.PI * 0.15, Math.PI * 0.85);
     g.stroke();
   }
   const tex = new THREE.CanvasTexture(cv);
@@ -772,14 +1083,12 @@ function faceTexture(headHex, angry) {
   return tex;
 }
 
-/* Baut eine Klötzchen-Figur. Rückgabe: Gruppe mit drehbaren Gliedmaßen.
-   Die Figur schaut in +Z-Richtung, Ursprung am Boden. */
+/* Baut eine Klötzchen-Figur. Schaut in +Z-Richtung, Ursprung am Boden. */
 function makeMinifig(bodyHex, headHex, opts = {}) {
   const g = new THREE.Group();
   const body = new THREE.Color(bodyHex);
   const bodyDark = shadeColor(bodyHex, -0.12);
 
-  // Beine (Drehpunkt an der Hüfte)
   function limb(wd, ht, dp, color) {
     const geo = new THREE.BoxGeometry(wd, ht, dp);
     geo.translate(0, -ht / 2, 0);
@@ -790,31 +1099,26 @@ function makeMinifig(bodyHex, headHex, opts = {}) {
   const legL = limb(7, 14, 7, bodyDark); legL.position.set(-4.5, 14, 0);
   const legR = limb(7, 14, 7, bodyDark); legR.position.set(4.5, 14, 0);
 
-  // Torso
   const torso = box(16, 16, 9, lambert(body), 0, 22, 0);
 
-  // Arme (Drehpunkt an der Schulter)
   const armMat = lambert(shadeColor(bodyHex, -0.06));
   const armL = limb(5.5, 15, 6, armMat.color); armL.position.set(-11, 29, 0);
   const armR = limb(5.5, 15, 6, armMat.color); armR.position.set(11, 29, 0);
 
-  // Kopf mit Gesicht auf der Vorderseite (+Z)
   const headMats = [];
-  const plain = lambert(new THREE.Color(opts.headColor || "#fbbf24"));
+  const plain = lambert(new THREE.Color(opts.headColor || headHex || "#fbbf24"));
   for (let i = 0; i < 6; i++) headMats.push(plain);
-  headMats[4] = new THREE.MeshLambertMaterial({ map: faceTexture(opts.headColor || "#fbbf24", !!opts.angry) });
+  headMats[4] = new THREE.MeshLambertMaterial({ map: faceTexture(opts.headColor || headHex || "#fbbf24", !!opts.angry) });
   const head = new THREE.Mesh(new THREE.BoxGeometry(12, 12, 12), headMats);
   head.position.y = 36;
   head.castShadow = true;
 
   g.add(legL, legR, torso, armL, armR, head);
 
-  // Hut/Helm
   if (opts.hat) {
     g.add(box(14, 3, 14, lambert(new THREE.Color(opts.hat)), 0, 43, 0));
     g.add(box(9, 5, 9, lambert(new THREE.Color(opts.hat)), 0, 46.5, 0));
   }
-  // Krone (Boss)
   if (opts.crown) {
     const gold = lambert(0xfacc15);
     g.add(box(13, 3, 13, gold, 0, 43.5, 0));
@@ -862,7 +1166,7 @@ const particlePool = [];
   for (let i = 0; i < PARTICLE_POOL; i++) {
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true }));
     m.visible = false;
-    scene.add(m); // an der Szene, damit Partikel auch in der Lobby sichtbar sind
+    scene.add(m);
     particlePool.push(m);
   }
 }
@@ -937,7 +1241,6 @@ function spawnRing(x, z, radius, colorHex) {
 /* ---------------- Tesla-Blitze (gezackte Linien) ---------------- */
 
 function spawnLightning(points) {
-  // Jeden Abschnitt in Zacken unterteilen
   const jagged = [];
   for (let i = 0; i < points.length - 1; i++) {
     const a = points[i], b = points[i + 1];
@@ -961,7 +1264,6 @@ function spawnLightning(points) {
 
 /* ---------------- Marker: Platzierung & Auswahl ---------------- */
 
-// Kachel-Markierung
 const tileMarker = new THREE.Mesh(
   new THREE.PlaneGeometry(TILE - 2, TILE - 2),
   new THREE.MeshBasicMaterial({ color: 0x7ee787, transparent: true, opacity: 0.45, side: THREE.DoubleSide })
@@ -971,7 +1273,6 @@ tileMarker.position.y = 1;
 tileMarker.visible = false;
 world.add(tileMarker);
 
-// Reichweiten-Ring (Einheitsgröße, wird auf Reichweite skaliert)
 function makeRangeRing(colorHex) {
   const g = new THREE.Group();
   const disc = new THREE.Mesh(
@@ -998,7 +1299,6 @@ function setRingColor(ring, colorHex) {
   ring.userData.edge.material.color.set(colorHex);
 }
 
-// Geister-Figuren für die Platzierungs-Vorschau (pro Turmtyp gecacht)
 const ghostCache = new Map();
 function getGhost(typeKey) {
   if (ghostCache.has(typeKey)) return ghostCache.get(typeKey);
@@ -1031,18 +1331,16 @@ function getGhost(typeKey) {
 
 function makeTowerMesh(typeKey, level) {
   const def = TOWER_TYPES[typeKey];
-  const group = new THREE.Group();           // Position auf der Kachel
-  const staticG = new THREE.Group();         // dreht sich nicht mit
-  const rotG = new THREE.Group();            // dreht sich zum Ziel
+  const group = new THREE.Group();
+  const staticG = new THREE.Group();
+  const rotG = new THREE.Group();
   group.add(staticG, rotG);
 
-  // Sockel-Plattform
   const plate = new THREE.Mesh(new THREE.CylinderGeometry(19, 21, 6, 20), lambert(0x9ca3af));
   plate.position.y = 3;
   plate.receiveShadow = true;
   staticG.add(plate);
 
-  // Level-Sterne als goldene Noppen auf dem Sockelrand
   const studs = new THREE.Group();
   staticG.add(studs);
   group.userData.studs = studs;
@@ -1065,7 +1363,6 @@ function makeTowerMesh(typeKey, level) {
     figure.position.y = 6;
     rotG.add(figure);
 
-    // Waffe (zeigt in +Z, also Blickrichtung der Figur)
     const gun = new THREE.Group();
     const gunMat = lambert(0x374151);
     if (typeKey === "sniper") {
@@ -1095,7 +1392,6 @@ function makeTowerMesh(typeKey, level) {
       pilot.position.z = 16;
       gun.add(pilot);
       group.userData.pilotFlame = pilot;
-      // Tank auf dem Rücken
       const tank = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 14, 10), lambert(0xdc2626));
       tank.position.set(-6, 26, -8);
       tank.castShadow = true;
@@ -1106,7 +1402,6 @@ function makeTowerMesh(typeKey, level) {
       orb.position.z = 20;
       gun.add(orb);
       group.userData.teslaOrb = orb;
-      // Antenne auf dem Kopf
       const rod = box(1.5, 12, 1.5, lambert(0x4c1d95), 0, 50, 0);
       const tip = new THREE.Mesh(new THREE.SphereGeometry(2.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xc4b5fd }));
       tip.position.set(0, 57, 0);
@@ -1117,7 +1412,6 @@ function makeTowerMesh(typeKey, level) {
     gun.position.set(6, 28, 6);
     rotG.add(gun);
 
-    // Mündungspunkt + Mündungsfeuer
     muzzle = new THREE.Object3D();
     muzzle.position.set(6, 28, 28);
     rotG.add(muzzle);
@@ -1162,7 +1456,6 @@ function spawnEnemy(typeKey) {
   const fig = makeMinifig(def.color, def.headColor, { angry: typeKey !== "healer", crown: typeKey === "boss" });
   fig.scale.setScalar(def.scale);
 
-  // Heiler bekommt ein rotes Kreuz auf die Brust
   if (def.heals) {
     const red = lambert(0xdc2626);
     fig.add(box(3, 9, 1.5, red, 0, 22, 5));
@@ -1171,7 +1464,7 @@ function spawnEnemy(typeKey) {
 
   const bar = makeHealthBar(30 * def.scale);
   bar.position.y = 52 * def.scale;
-  bar.visible = false; // erst bei Schaden anzeigen
+  bar.visible = false;
   setHealthBar(bar, 1);
 
   const g = new THREE.Group();
@@ -1231,7 +1524,6 @@ function moveEnemy(e, dt) {
     }
   }
   if (e.seg >= PATH.length - 1) {
-    // Gegner ist durchgekommen!
     e.dead = true;
     state.lives -= e.def.dmg;
     state.shake = Math.min(0.35, 0.12 + e.def.dmg * 0.01);
@@ -1250,7 +1542,6 @@ function killEnemy(e) {
   sfx("die");
   burst(e.x, 22 * e.def.scale, e.z, e.def.color, 12, 90, true);
 
-  // Umfall-Animation: Mesh wandert in die Sterbe-Liste
   const idx = billboards.indexOf(e.bar);
   if (idx >= 0) billboards.splice(idx, 1);
   e.bar.visible = false;
@@ -1276,8 +1567,8 @@ function damageEnemy(e, dmg) {
   }
 }
 
-// Gesammelte Schadenszahl über dem Gegner anzeigen (gedrosselt)
 function flushDamageText(e) {
+  if (!state.settings.dmgNumbers) { e.dmgAccum = 0; return; }
   const n = Math.round(e.dmgAccum);
   if (n < 1) return;
   e.dmgAccum = 0;
@@ -1297,7 +1588,7 @@ function flushDamageText(e) {
 const _projV = new THREE.Vector3();
 function addText(wx, wy, wz, text, color) {
   _projV.set(wx, wy, wz).project(camera);
-  if (_projV.z > 1) return; // hinter der Kamera
+  if (_projV.z > 1) return;
   const x = (_projV.x * 0.5 + 0.5) * container.clientWidth;
   const y = (-_projV.y * 0.5 + 0.5) * container.clientHeight;
   const el = document.createElement("div");
@@ -1356,7 +1647,6 @@ function placeTower(typeKey, c, r) {
   };
   state.towers.push(tower);
 
-  // Deko auf der Kachel ausblenden
   const deco = decoByTile.get(c + "," + r);
   if (deco) deco.visible = false;
 
@@ -1408,12 +1698,10 @@ function updateTower(tower, dt) {
 
   const target = pickTarget(tower);
   if (!target) {
-    // Ohne Ziel langsam umherschauen
     tower.yaw += dt * 0.4;
     return;
   }
 
-  // Sanft zum Ziel drehen (nur um die Hochachse)
   const desired = Math.atan2(target.x - tower.x, target.z - tower.z);
   tower.yaw = approachAngle(tower.yaw, desired, dt * 12);
 
@@ -1422,7 +1710,6 @@ function updateTower(tower, dt) {
   tower.cooldown = 1 / st.rate;
   tower.flash = 0.06;
 
-  // Mündungsposition in Weltkoordinaten
   tower.group.userData.rotG.rotation.y = tower.yaw;
   tower.group.updateMatrixWorld(true);
   tower.group.userData.muzzle.getWorldPosition(_muzzlePos);
@@ -1441,7 +1728,6 @@ function updateTower(tower, dt) {
       sfx(tower.type === "sniper" ? "sniper" : tower.type === "minigun" ? "minigun" : "shoot");
     }
   } else if (def.kind === "flame") {
-    // Trifft bis zu st.targets Gegner in Reichweite und zündet sie an
     const inRange = state.enemies
       .filter(e => !e.dead && Math.hypot(e.x - tower.x, e.z - tower.z) <= st.range)
       .sort((a, b) => Math.hypot(a.x - tower.x, a.z - tower.z) - Math.hypot(b.x - tower.x, b.z - tower.z))
@@ -1452,7 +1738,6 @@ function updateTower(tower, dt) {
         e.burnUntil = state.time + st.burnDur;
         e.burnDps = st.burn;
       }
-      // Flammenstrahl als Partikel Richtung Ziel
       const dx = e.x - _muzzlePos.x, dz = e.z - _muzzlePos.z;
       const dist = Math.hypot(dx, dz) || 1;
       for (let i = 0; i < 3; i++) {
@@ -1471,7 +1756,6 @@ function updateTower(tower, dt) {
     }
     sfx("flame");
   } else if (def.kind === "tesla") {
-    // Kettenblitz: springt vom Ziel zu weiteren Gegnern in der Nähe
     const chain = [target];
     const hitSet = new Set([target]);
     while (chain.length < st.chains) {
@@ -1581,10 +1865,9 @@ function buildWave(n) {
 }
 
 function hpScale(wave) {
-  return (1 + (wave - 1) * 0.09) * DIFFICULTIES[state.difficulty].hpMult;
+  return (1 + (wave - 1) * 0.09) * MAPS[state.map].hpMult;
 }
 
-// Zusammensetzung einer Welle als Text, z.B. "12× Zombie, 4× Flitzer"
 function waveCompositionText(n) {
   const counts = {};
   for (const grp of buildWave(n)) {
@@ -1636,6 +1919,7 @@ function finishWave() {
   state.cash += bonus;
   centerText(`Welle ${state.wave} geschafft! +${bonus}💰`, "#ffd24a");
   sfx("cash");
+  addCoins(3); // Münzen für den Skin-Shop
 
   for (const t of state.towers) {
     if (t.type === "farm") {
@@ -1656,50 +1940,26 @@ function finishWave() {
   refreshShop();
 }
 
-/* ---------------- Highscore (localStorage) ---------------- */
-
-function loadHighscore() {
-  try { return JSON.parse(localStorage.getItem("btd_highscore")) || null; }
-  catch (e) { return null; }
-}
-
-function saveHighscore(wave) {
-  const old = loadHighscore();
-  if (!old || wave > old.wave) {
-    localStorage.setItem("btd_highscore", JSON.stringify({ wave, diff: state.difficulty }));
-    return true;
-  }
-  return false;
-}
-
-function refreshHighscoreLine() {
-  const hs = loadHighscore();
-  const el = document.getElementById("highscore-line");
-  const diffName = hs && DIFFICULTIES[hs.diff] ? DIFFICULTIES[hs.diff].name : "";
-  el.textContent = !hs
-    ? "Noch kein Rekord – zeig, was du kannst!"
-    : hs.wave > MAX_WAVE
-      ? `🏆 Rekord: Alle ${MAX_WAVE} Wellen geschafft! (${diffName})`
-      : `🏆 Rekord: Welle ${hs.wave} (${diffName})`;
-}
-
 function gameOver() {
   state.running = false;
   sfx("lose");
+  const coins = state.wave * 2;
+  addCoins(coins);
+  const isNew = saveRecord(state.map, state.wave);
   document.getElementById("go-wave").textContent = state.wave;
-  const isNew = saveHighscore(state.wave);
-  document.getElementById("go-highscore").textContent = isNew
-    ? `🏆 NEUER REKORD: Welle ${state.wave}!`
-    : `💀 ${state.kills} Gegner besiegt`;
-  refreshHighscoreLine();
+  document.getElementById("go-highscore").textContent =
+    (isNew ? `🏆 NEUER REKORD auf ${MAPS[state.map].name}! ` : `💀 ${state.kills} Gegner besiegt. `) + `🪙 +${coins} Münzen`;
   document.getElementById("gameover-overlay").classList.remove("hidden");
 }
 
 function win() {
   state.running = false;
   sfx("win");
-  saveHighscore(MAX_WAVE + 1);
-  refreshHighscoreLine();
+  const coins = 150 + state.wave * 2;
+  addCoins(coins);
+  saveRecord(state.map, MAX_WAVE + 1);
+  document.getElementById("win-info").textContent =
+    `${MAPS[state.map].name} gemeistert! 💀 ${state.kills} Kills · 🪙 +${coins} Münzen`;
   document.getElementById("win-overlay").classList.remove("hidden");
 }
 
@@ -1730,9 +1990,8 @@ function clearEntities() {
 
 function resetGame() {
   clearEntities();
-  const diff = DIFFICULTIES[state.difficulty];
-  state.cash = diff.cash;
-  state.lives = diff.lives;
+  state.cash = START_CASH;
+  state.lives = START_LIVES;
   state.wave = 1;
   state.kills = 0;
   state.paused = false;
@@ -1845,7 +2104,7 @@ function update(dt) {
       }
     }
 
-    // Gesammelte Schadenszahlen anzeigen (max. alle 0.35s pro Gegner)
+    // Gesammelte Schadenszahlen anzeigen
     e.dmgTimer -= dt;
     if (e.dmgTimer <= 0 && e.dmgAccum >= 1) {
       e.dmgTimer = 0.35;
@@ -1855,7 +2114,7 @@ function update(dt) {
   for (const e of state.enemies) { if (e.dead && !e.killed) removeEnemyMesh(e); }
   state.enemies = state.enemies.filter(e => !e.dead);
 
-  // Sterbe-Animation: umfallen, verblassen, dann entfernen
+  // Sterbe-Animation
   for (const d of state.dying) {
     d.t += dt;
     d.figure.rotation.x = -Math.min(1, d.t / 0.3) * 1.5;
@@ -1917,7 +2176,6 @@ function syncVisuals(dtReal) {
     f.armL.rotation.x = -swing * 0.8;
     f.armR.rotation.x = swing * 0.8;
 
-    // Eis-Färbung bei Verlangsamung
     const slowed = state.time < e.slowUntil;
     if (slowed !== e.tinted) {
       e.tinted = slowed;
@@ -1927,14 +2185,12 @@ function syncVisuals(dtReal) {
       f.legR.material.color.copy(f.legL.material.color);
     }
 
-    // Weißes Aufblitzen bei Treffern
     const flashing = e.flash > 0;
     if (flashing !== e.flashTinted) {
       e.flashTinted = flashing;
       f.torso.material.emissive.setHex(flashing ? 0x999999 : 0x000000);
     }
 
-    // Feuer-Partikel bei brennenden Gegnern
     if (state.time < e.burnUntil && Math.random() < dtReal * 10) {
       spawnParticle(
         e.x + (Math.random() - 0.5) * 12, 20 + Math.random() * 20, e.z + (Math.random() - 0.5) * 12,
@@ -1963,17 +2219,21 @@ function syncVisuals(dtReal) {
   for (const b of billboards) b.quaternion.copy(_camQuat);
 
   // Start-Pfeil hüpfen lassen
-  startArrow.position.y = 45 + Math.sin(state.time * 3) * 6;
-  startArrow.rotation.y = state.time * 0.8;
-
-  // Wasser leicht schaukeln lassen (läuft auch in der Lobby weiter)
   syncVisuals._t = (syncVisuals._t || 0) + dtReal;
+  if (startArrow) {
+    startArrow.position.y = 45 + Math.sin(syncVisuals._t * 3) * 6;
+    startArrow.rotation.y = syncVisuals._t * 0.8;
+  }
+
+  // Wasser leicht schaukeln lassen
   water.position.y = -44 + Math.sin(syncVisuals._t * 0.8) * 1.5;
 
   // Wolken treiben lassen
-  for (const c of clouds) {
-    c.position.x += c.userData.speed * dtReal;
-    if (c.position.x > W + 300) c.position.x = -300;
+  if (cloudGroup.visible) {
+    for (const c of clouds) {
+      c.position.x += c.userData.speed * dtReal;
+      if (c.position.x > W + 300) c.position.x = -300;
+    }
   }
 
   // Kamera-Wackeln über die Welt-Gruppe
@@ -1991,10 +2251,8 @@ function syncVisuals(dtReal) {
 /* ---------------- Platzierungs-Vorschau & Auswahl-Markierung ---------------- */
 
 function syncMarkers() {
-  // Alle Geister verstecken
   for (const g of ghostCache.values()) g.visible = false;
 
-  // Platzierungs-Vorschau
   if (state.placing && state.hoverTile) {
     const { c, r } = state.hoverTile;
     const ok = canPlaceAt(c, r);
@@ -2023,7 +2281,6 @@ function syncMarkers() {
     placeRing.visible = false;
   }
 
-  // Auswahl-Ring
   const sel = state.selected;
   if (sel && TOWER_TYPES[sel.type].kind !== "farm") {
     selectRing.visible = true;
@@ -2036,7 +2293,7 @@ function syncMarkers() {
 }
 
 /* =====================================================================
-   UI / DOM
+   UI / DOM – HUD & Turm-Shop
    ===================================================================== */
 
 function updateHUD() {
@@ -2050,16 +2307,17 @@ function updateHUD() {
   btn.disabled = state.phase !== "idle" || !state.running;
   btn.textContent = state.phase === "wave" ? "🌊 Welle läuft…" : "▶ Welle starten";
 
-  // Wellen-Vorschau (nur bei Änderung neu schreiben)
   let previewText;
   if (state.mode === "lobby") {
-    previewText = "🏃 <b>WASD</b> oder <b>Pfeiltasten</b> = laufen – stell dich in ein Portal, um teleportiert zu werden!";
+    previewText = "🏃 <b>WASD</b> oder <b>Pfeiltasten</b> = laufen – geh durchs goldene Portal, um zu spielen!";
+  } else if (state.mode === "menu") {
+    previewText = "🎮 Drücke SPIELEN und wähle eine Karte!";
   } else if (!state.running) {
-    previewText = "Drücke ZUR LOBBY, um loszulegen!";
+    previewText = "";
   } else if (state.paused) {
     previewText = "<b>⏸ PAUSE</b> – Weiter mit ⏸ oder Taste P";
   } else if (state.phase === "idle") {
-    previewText = `<b>Nächste Welle ${state.wave}:</b> ${waveCompositionText(state.wave)}`;
+    previewText = `<b>${MAPS[state.map].name} – Nächste Welle ${state.wave}:</b> ${waveCompositionText(state.wave)}`;
   } else {
     const left = state.spawnQueue.length + state.enemies.length;
     previewText = `<b>Welle ${state.wave}:</b> noch ${left} Gegner`;
@@ -2185,6 +2443,353 @@ function refreshTowerPanel() {
 }
 
 /* =====================================================================
+   MENÜSYSTEM – Fenster, Kartenauswahl, Shop, Einstellungen, Rekorde
+   ===================================================================== */
+
+const modalStack = [];
+
+function openWindow(id) {
+  document.getElementById(id).classList.remove("hidden");
+  if (!modalStack.includes(id)) modalStack.push(id);
+  sfx("click");
+}
+
+function closeWindow(id) {
+  document.getElementById(id).classList.add("hidden");
+  const idx = modalStack.indexOf(id);
+  if (idx >= 0) modalStack.splice(idx, 1);
+}
+
+function closeAllWindows() {
+  while (modalStack.length) closeWindow(modalStack[modalStack.length - 1]);
+}
+
+// Mini-Vorschaubild einer Karte (zeichnet Boden + Weg auf ein Canvas)
+function drawMapPreview(canvas, mapKey) {
+  const map = MAPS[mapKey];
+  const g = canvas.getContext("2d");
+  const cw = canvas.width / COLS, ch = canvas.height / ROWS;
+  const tiles = computePathTiles(map.waypoints);
+  const toCSS = (hex) => "#" + new THREE.Color(hex).getHexString();
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const isPath = tiles.has(c + "," + r);
+      const pair = isPath ? map.path : map.grass;
+      g.fillStyle = toCSS(pair[(c + r) % 2]);
+      g.fillRect(c * cw, r * ch, cw + 1, ch + 1);
+    }
+  }
+  // Start & Ziel markieren
+  const [sc, sr] = map.waypoints[0];
+  const [ec, er] = map.waypoints[map.waypoints.length - 1];
+  g.font = `${Math.floor(ch * 1.3)}px Arial`;
+  g.textAlign = "center";
+  g.fillText("➡️", Math.max(0.7, sc + 0.7) * cw, (sr + 0.9) * ch);
+  g.fillText("🏰", Math.min(COLS - 0.8, ec - 0.6) * cw, (er + 0.9) * ch);
+}
+
+function buildMapGrid() {
+  const grid = document.getElementById("map-grid");
+  grid.innerHTML = "";
+  for (const key of MAP_ORDER) {
+    const map = MAPS[key];
+    const card = document.createElement("div");
+    card.className = "map-card";
+    const cv = document.createElement("canvas");
+    cv.width = 200; cv.height = 130;
+    drawMapPreview(cv, key);
+    card.appendChild(cv);
+    const info = document.createElement("div");
+    info.className = "map-card-info";
+    info.innerHTML = `
+      <div class="map-card-name">${map.icon} ${map.name}</div>
+      <div class="map-card-stars">${"⭐".repeat(map.stars)}</div>
+      <div class="map-card-diff">Schwierigkeit: ${map.diffName}</div>
+      <div class="map-card-record">🏆 ${recordText(key)}</div>`;
+    card.appendChild(info);
+    card.addEventListener("click", () => openMapInfo(key));
+    grid.appendChild(card);
+  }
+}
+
+let infoMapKey = null;
+function openMapInfo(key) {
+  infoMapKey = key;
+  const map = MAPS[key];
+  document.getElementById("mi-name").textContent = `${map.icon} ${map.name}`;
+  drawMapPreview(document.getElementById("mi-preview"), key);
+  document.getElementById("mi-stats").innerHTML = `
+    <span style="color:#ffd24a">${"⭐".repeat(map.stars)}</span> – ${map.diffName}<br>
+    ${map.desc}<br>
+    <span style="color:#7ee787">🏆 ${recordText(key)}</span>`;
+  openWindow("mapinfo-overlay");
+}
+
+function refreshMenuInfo() {
+  const best = bestRecordText();
+  document.getElementById("menu-info").innerHTML =
+    (best ? `🏆 Bester Rekord: ${best} · ` : "") + `🪙 ${getCoins()} Münzen`;
+}
+
+/* ---------------- Skin-Shop ---------------- */
+
+function buildSkinGrid() {
+  const grid = document.getElementById("skin-grid");
+  grid.innerHTML = "";
+  document.getElementById("shop-coins").textContent = getCoins();
+  const owned = getOwnedSkins();
+  const equipped = getEquippedSkin().id;
+
+  for (const skin of SKINS) {
+    const card = document.createElement("div");
+    card.className = "skin-card" + (skin.id === equipped ? " equipped" : "");
+    const has = owned.includes(skin.id);
+    card.innerHTML = `
+      <div class="skin-preview">
+        <div class="skin-hat" style="background:${skin.hat}"></div>
+        <div class="skin-head"></div>
+        <div class="skin-body" style="background:${skin.body}"></div>
+      </div>
+      <div class="skin-name">${skin.name}</div>
+      <div class="skin-price ${has ? "owned" : ""}">${skin.id === equipped ? "✅ Angezogen" : has ? "Anziehen" : `🪙 ${skin.price}`}</div>`;
+    card.addEventListener("click", () => {
+      ensureAudio();
+      if (has) {
+        localStorage.setItem("btd_skin", skin.id);
+        sfx("upgrade");
+        rebuildPlayerFigure();
+      } else if (getCoins() >= skin.price) {
+        addCoins(-skin.price);
+        owned.push(skin.id);
+        localStorage.setItem("btd_skins", JSON.stringify(owned));
+        localStorage.setItem("btd_skin", skin.id);
+        sfx("cash");
+        rebuildPlayerFigure();
+      } else {
+        sfx("lose");
+        card.classList.add("shake");
+        setTimeout(() => card.classList.remove("shake"), 350);
+        return;
+      }
+      buildSkinGrid();
+      refreshMenuInfo();
+    });
+    grid.appendChild(card);
+  }
+}
+
+/* ---------------- Rekorde-Fenster ---------------- */
+
+function buildRecordsList() {
+  const list = document.getElementById("records-list");
+  list.innerHTML = "";
+  for (const key of MAP_ORDER) {
+    const map = MAPS[key];
+    const row = document.createElement("div");
+    row.className = "record-row";
+    row.innerHTML = `
+      <div class="record-icon">${map.icon}</div>
+      <div>
+        <div class="record-name">${map.name}</div>
+        <div class="record-stars">${"⭐".repeat(map.stars)}</div>
+      </div>
+      <div class="record-value">${recordText(key)}</div>`;
+    list.appendChild(row);
+  }
+  const coins = document.createElement("div");
+  coins.className = "coins-line";
+  coins.style.marginTop = "10px";
+  coins.innerHTML = `🪙 Münzen gesamt: <b>${getCoins()}</b>`;
+  list.appendChild(coins);
+}
+
+/* ---------------- Einstellungen ---------------- */
+
+function applySettings() {
+  sun.castShadow = state.settings.shadows;
+  document.getElementById("btn-sound").textContent = state.settings.sound ? "🔊" : "🔇";
+  document.getElementById("btn-music").textContent = state.settings.music ? "🎵" : "🔕";
+  document.getElementById("set-sound").checked = state.settings.sound;
+  document.getElementById("set-music").checked = state.settings.music;
+  document.getElementById("set-shadows").checked = state.settings.shadows;
+  document.getElementById("set-dmg").checked = state.settings.dmgNumbers;
+}
+
+/* ---------------- Ladebildschirm & Spielstart ---------------- */
+
+function startGameOnMap(mapKey) {
+  state.map = mapKey;
+  localStorage.setItem("btd_map", mapKey);
+  closeAllWindows();
+  document.getElementById("menu-overlay").classList.add("hidden");
+  document.getElementById("lobby-ui").classList.add("hidden");
+
+  // Ladebildschirm
+  const loading = document.getElementById("loading-overlay");
+  document.getElementById("loading-map").textContent = `${MAPS[mapKey].icon} ${MAPS[mapKey].name}`;
+  const fill = document.getElementById("loading-fill");
+  fill.classList.remove("animate");
+  void fill.offsetWidth;
+  fill.classList.add("animate");
+  loading.classList.remove("hidden");
+  sfx("wave");
+
+  setTimeout(() => {
+    buildMap(mapKey);
+    enterGame();
+    loading.classList.add("hidden");
+  }, 1200);
+}
+
+/* ---------------- Moduswechsel ---------------- */
+
+function showMainMenu() {
+  state.mode = "menu";
+  state.running = false;
+  state.paused = false;
+  clearEntities();
+  hideBanner();
+  closeAllWindows();
+
+  document.getElementById("gameover-overlay").classList.add("hidden");
+  document.getElementById("win-overlay").classList.add("hidden");
+  document.getElementById("loading-overlay").classList.add("hidden");
+  document.getElementById("lobby-ui").classList.add("hidden");
+  document.getElementById("menu-overlay").classList.remove("hidden");
+  document.getElementById("sidebar").style.display = "";
+  hideTowerPanel();
+
+  world.visible = true;
+  lobbyGroup.visible = false;
+  controls.enabled = true;
+  camera.position.copy(CAM_HOME.pos);
+  controls.target.copy(CAM_HOME.target);
+  controls.update();
+
+  refreshMenuInfo();
+  buildMapGrid();
+  updateHUD();
+}
+
+function enterLobby() {
+  state.mode = "lobby";
+  state.running = false;
+  state.paused = false;
+  clearEntities();
+  hideBanner();
+  closeAllWindows();
+
+  document.getElementById("menu-overlay").classList.add("hidden");
+  document.getElementById("gameover-overlay").classList.add("hidden");
+  document.getElementById("win-overlay").classList.add("hidden");
+  document.getElementById("sidebar").style.display = "none";
+  document.getElementById("lobby-ui").classList.remove("hidden");
+  hideTowerPanel();
+
+  world.visible = false;
+  lobbyGroup.visible = true;
+  controls.enabled = false;
+
+  ensurePlayerFigure();
+  player.x = LOBBY.spawn.x;
+  player.z = LOBBY.spawn.z;
+  player.yaw = Math.PI;
+  player.group.position.set(player.x, 0, player.z);
+  player.portalLatch = true; // erst auslösen, wenn man neu ins Portal läuft
+  refreshLobbyBoard();
+  updateHUD();
+}
+
+function enterGame() {
+  state.mode = "game";
+  world.visible = true;
+  lobbyGroup.visible = false;
+  controls.enabled = true;
+  document.getElementById("sidebar").style.display = "";
+  document.getElementById("lobby-ui").classList.add("hidden");
+  camera.position.copy(CAM_HOME.pos);
+  controls.target.copy(CAM_HOME.target);
+  controls.update();
+  resetGame();
+  showBanner(`🗺 ${MAPS[state.map].name}`);
+}
+
+/* =====================================================================
+   LOBBY-STEUERUNG (Laufen, Portal)
+   ===================================================================== */
+
+const keysDown = new Set();
+document.addEventListener("keydown", (ev) => {
+  keysDown.add(ev.key.toLowerCase());
+  if (state.mode === "lobby" && ["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(ev.key.toLowerCase())) {
+    ev.preventDefault();
+  }
+});
+document.addEventListener("keyup", (ev) => keysDown.delete(ev.key.toLowerCase()));
+window.addEventListener("blur", () => keysDown.clear());
+
+const PLAYER_SPEED = 160;
+const PORTAL_RADIUS = 42;
+
+function updateLobby(dt) {
+  updateEffects(dt);
+  state.lobbyTime = (state.lobbyTime || 0) + dt;
+
+  // Bewegung (pausiert, solange ein Fenster offen ist)
+  let mx = 0, mz = 0;
+  if (modalStack.length === 0) {
+    if (keysDown.has("w") || keysDown.has("arrowup")) mz -= 1;
+    if (keysDown.has("s") || keysDown.has("arrowdown")) mz += 1;
+    if (keysDown.has("a") || keysDown.has("arrowleft")) mx -= 1;
+    if (keysDown.has("d") || keysDown.has("arrowright")) mx += 1;
+  }
+
+  player.moving = mx !== 0 || mz !== 0;
+  if (player.moving) {
+    const len = Math.hypot(mx, mz);
+    player.x += (mx / len) * PLAYER_SPEED * dt;
+    player.z += (mz / len) * PLAYER_SPEED * dt;
+    player.x = Math.max(LOBBY.bounds.minX, Math.min(LOBBY.bounds.maxX, player.x));
+    player.z = Math.max(LOBBY.bounds.minZ, Math.min(LOBBY.bounds.maxZ, player.z));
+    player.yaw = approachAngle(player.yaw, Math.atan2(mx, mz), dt * 12);
+    player.walkPhase += dt * 10;
+  }
+
+  // SPIELEN-Portal: beim Betreten öffnet sich die Modus-Auswahl
+  const p = LOBBY.playPortal;
+  const distToPortal = Math.hypot(player.x - p.trigger.x, player.z - p.trigger.z);
+  if (distToPortal < PORTAL_RADIUS) {
+    if (!player.portalLatch && modalStack.length === 0) {
+      player.portalLatch = true;
+      burst(player.x, 25, player.z, "#ffd24a", 12, 90, false);
+      sfx("upgrade");
+      openWindow("mode-overlay");
+    }
+  } else if (distToPortal > PORTAL_RADIUS + 25) {
+    player.portalLatch = false;
+  }
+
+  // Lobby-Animationen
+  ensurePlayerFigure();
+  player.group.position.set(player.x, 0, player.z);
+  player.group.rotation.y = player.yaw;
+  const f = player.group.userData;
+  const swing = player.moving ? Math.sin(player.walkPhase) * 0.7 : 0;
+  f.legL.rotation.x = swing;
+  f.legR.rotation.x = -swing;
+  f.armL.rotation.x = -swing * 0.8;
+  f.armR.rotation.x = swing * 0.8;
+
+  p.glow.material.opacity = 0.5 + Math.sin(state.lobbyTime * 3) * 0.2;
+
+  // Kamera folgt dem Spieler
+  const camTarget = new THREE.Vector3(player.x, 30, player.z);
+  const camPos = new THREE.Vector3(player.x, 260, player.z + 340);
+  camera.position.lerp(camPos, Math.min(1, dt * 5));
+  camera.lookAt(camTarget);
+}
+
+/* =====================================================================
    EINGABEN (Maus-Raycasting, Klick vs. Kamera-Drehen)
    ===================================================================== */
 
@@ -2209,7 +2814,6 @@ renderer.domElement.addEventListener("pointermove", (ev) => {
 });
 renderer.domElement.addEventListener("pointerleave", () => { state.hoverTile = null; });
 
-// Klick erkennen (kurze Bewegung), Drag = Kamera drehen
 let downPos = null;
 renderer.domElement.addEventListener("pointerdown", (ev) => {
   if (ev.button === 0) downPos = { x: ev.clientX, y: ev.clientY };
@@ -2218,7 +2822,7 @@ renderer.domElement.addEventListener("pointerup", (ev) => {
   if (ev.button !== 0 || !downPos) return;
   const moved = Math.hypot(ev.clientX - downPos.x, ev.clientY - downPos.y);
   downPos = null;
-  if (moved > 6) return; // war ein Kamera-Drag
+  if (moved > 6) return;
   handleClick(ev);
 });
 
@@ -2248,6 +2852,10 @@ function handleClick(ev) {
 
 document.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") {
+    if (modalStack.length > 0) {
+      closeWindow(modalStack[modalStack.length - 1]);
+      return;
+    }
     state.placing = null;
     selectTower(null);
     refreshShopSelection();
@@ -2268,12 +2876,61 @@ function togglePause() {
 
 /* ---------------- Buttons ---------------- */
 
-document.getElementById("btn-play").addEventListener("click", () => { ensureAudio(); enterLobby(); });
-document.getElementById("btn-retry").addEventListener("click", () => { ensureAudio(); resetGame(); });
-document.getElementById("btn-again").addEventListener("click", () => { ensureAudio(); resetGame(); });
-document.getElementById("btn-lobby-go").addEventListener("click", () => { ensureAudio(); enterLobby(); });
-document.getElementById("btn-lobby-win").addEventListener("click", () => { ensureAudio(); enterLobby(); });
+// Hauptmenü
+document.getElementById("btn-spielen").addEventListener("click", () => { ensureAudio(); openWindow("mode-overlay"); });
+document.getElementById("btn-shop-open").addEventListener("click", () => { ensureAudio(); buildSkinGrid(); openWindow("shopwin-overlay"); });
+document.getElementById("btn-settings-open").addEventListener("click", () => { ensureAudio(); applySettings(); openWindow("settings-overlay"); });
+document.getElementById("btn-records-open").addEventListener("click", () => { ensureAudio(); buildRecordsList(); openWindow("records-overlay"); });
+document.getElementById("btn-lobby").addEventListener("click", () => { ensureAudio(); enterLobby(); });
+document.getElementById("btn-menu-from-lobby").addEventListener("click", () => { ensureAudio(); showMainMenu(); });
 
+// Modus-Fenster
+document.getElementById("mode-normal").addEventListener("click", () => {
+  ensureAudio();
+  buildMapGrid();
+  closeWindow("mode-overlay");
+  openWindow("map-overlay");
+});
+for (const card of document.querySelectorAll(".mode-card.locked")) {
+  card.addEventListener("click", () => {
+    sfx("lose");
+    card.classList.add("shake");
+    setTimeout(() => card.classList.remove("shake"), 350);
+  });
+}
+
+// Karten-Detail
+document.getElementById("btn-start-map").addEventListener("click", () => {
+  ensureAudio();
+  if (infoMapKey) startGameOnMap(infoMapKey);
+});
+document.getElementById("btn-back-map").addEventListener("click", () => closeWindow("mapinfo-overlay"));
+
+// Schließen-/Zurück-Knöpfe aller Pixel-Fenster
+for (const btn of document.querySelectorAll(".pixel-close")) {
+  btn.addEventListener("click", () => closeWindow(btn.dataset.close));
+}
+for (const btn of document.querySelectorAll(".pixel-back")) {
+  btn.addEventListener("click", () => {
+    closeWindow(btn.dataset.back);
+    // Zurück führt eine Ebene hoch: Karte -> Modus
+    if (btn.dataset.back === "map-overlay") openWindow("mode-overlay");
+  });
+}
+
+// Einstellungen
+document.getElementById("set-sound").addEventListener("change", (ev) => { state.settings.sound = ev.target.checked; saveSettings(); applySettings(); });
+document.getElementById("set-music").addEventListener("change", (ev) => { ensureAudio(); state.settings.music = ev.target.checked; saveSettings(); applySettings(); });
+document.getElementById("set-shadows").addEventListener("change", (ev) => { state.settings.shadows = ev.target.checked; saveSettings(); applySettings(); });
+document.getElementById("set-dmg").addEventListener("change", (ev) => { state.settings.dmgNumbers = ev.target.checked; saveSettings(); });
+
+// Game Over / Sieg
+document.getElementById("btn-retry").addEventListener("click", () => { ensureAudio(); startGameOnMap(state.map); });
+document.getElementById("btn-again").addEventListener("click", () => { ensureAudio(); startGameOnMap(state.map); });
+document.getElementById("btn-menu-go").addEventListener("click", () => { ensureAudio(); showMainMenu(); });
+document.getElementById("btn-menu-win").addEventListener("click", () => { ensureAudio(); showMainMenu(); });
+
+// Spiel-HUD
 document.getElementById("btn-start").addEventListener("click", () => { ensureAudio(); startWave(); });
 
 document.getElementById("chk-auto").addEventListener("change", (ev) => {
@@ -2286,16 +2943,18 @@ document.getElementById("btn-speed").addEventListener("click", (ev) => {
   ev.target.textContent = `⏩ ${state.speed}x`;
 });
 
-document.getElementById("btn-sound").addEventListener("click", (ev) => {
+document.getElementById("btn-sound").addEventListener("click", () => {
   ensureAudio();
-  state.soundOn = !state.soundOn;
-  ev.target.textContent = state.soundOn ? "🔊" : "🔇";
+  state.settings.sound = !state.settings.sound;
+  saveSettings();
+  applySettings();
 });
 
-document.getElementById("btn-music").addEventListener("click", (ev) => {
+document.getElementById("btn-music").addEventListener("click", () => {
   ensureAudio();
-  state.musicOn = !state.musicOn;
-  ev.target.textContent = state.musicOn ? "🎵" : "🔕";
+  state.settings.music = !state.settings.music;
+  saveSettings();
+  applySettings();
 });
 
 document.getElementById("btn-pause").addEventListener("click", () => { ensureAudio(); togglePause(); });
@@ -2320,7 +2979,6 @@ document.getElementById("btn-upgrade").addEventListener("click", () => {
   burst(t.x, 30, t.z, "#ffd24a", 12, 80, false);
   refreshTowerStuds(t);
 
-  // Ab Level 3 bekommt die Figur einen Helm: Modell neu bauen
   if (t.level === 2 && TOWER_TYPES[t.type].kind !== "farm") {
     const yaw = t.yaw;
     world.remove(t.group);
@@ -2352,157 +3010,6 @@ document.getElementById("btn-sell").addEventListener("click", () => {
 });
 
 /* =====================================================================
-   LOBBY-STEUERUNG (Laufen, Portale, Teleport)
-   ===================================================================== */
-
-const keysDown = new Set();
-document.addEventListener("keydown", (ev) => {
-  keysDown.add(ev.key.toLowerCase());
-  if (state.mode === "lobby" && ["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(ev.key.toLowerCase())) {
-    ev.preventDefault();
-  }
-});
-document.addEventListener("keyup", (ev) => keysDown.delete(ev.key.toLowerCase()));
-window.addEventListener("blur", () => keysDown.clear());
-
-const PLAYER_SPEED = 160;
-const PORTAL_RADIUS = 38;
-const TELEPORT_TIME = 3;
-
-function updateLobby(dt) {
-  // Bewegung aus den Tasten lesen
-  let mx = 0, mz = 0;
-  if (keysDown.has("w") || keysDown.has("arrowup")) mz -= 1;
-  if (keysDown.has("s") || keysDown.has("arrowdown")) mz += 1;
-  if (keysDown.has("a") || keysDown.has("arrowleft")) mx -= 1;
-  if (keysDown.has("d") || keysDown.has("arrowright")) mx += 1;
-
-  player.moving = mx !== 0 || mz !== 0;
-  if (player.moving) {
-    const len = Math.hypot(mx, mz);
-    player.x += (mx / len) * PLAYER_SPEED * dt;
-    player.z += (mz / len) * PLAYER_SPEED * dt;
-    player.x = Math.max(LOBBY.bounds.minX, Math.min(LOBBY.bounds.maxX, player.x));
-    player.z = Math.max(LOBBY.bounds.minZ, Math.min(LOBBY.bounds.maxZ, player.z));
-    player.yaw = approachAngle(player.yaw, Math.atan2(mx, mz), dt * 12);
-    player.walkPhase += dt * 10;
-  }
-
-  updateEffects(dt);
-
-  // Steht der Spieler in einem Portal?
-  let inPortal = null;
-  for (const p of LOBBY.portals) {
-    if (Math.hypot(player.x - p.trigger.x, player.z - p.trigger.z) < PORTAL_RADIUS) {
-      inPortal = p;
-      break;
-    }
-  }
-
-  if (inPortal) {
-    if (!state.teleport || state.teleport.portal !== inPortal) {
-      state.teleport = { portal: inPortal, t: 0, lastSec: -1 };
-    }
-    state.teleport.t += dt;
-    const secLeft = Math.ceil(TELEPORT_TIME - state.teleport.t);
-    if (secLeft !== state.teleport.lastSec && secLeft > 0) {
-      state.teleport.lastSec = secLeft;
-      showBanner(`🌀 ${DIFFICULTIES[inPortal.diff].name} in ${secLeft}…`, true);
-      sfx("upgrade");
-    }
-    // Wirbel-Partikel um den Spieler
-    if (Math.random() < dt * 25) {
-      const a = Math.random() * Math.PI * 2;
-      spawnParticle(
-        player.x + Math.cos(a) * 18, 5, player.z + Math.sin(a) * 18,
-        0, 60 + Math.random() * 40, 0,
-        0.6, 4, "#" + new THREE.Color(inPortal.color).getHexString(), false
-      );
-    }
-    if (state.teleport.t >= TELEPORT_TIME) {
-      const diff = inPortal.diff;
-      state.teleport = null;
-      hideBanner();
-      burst(player.x, 25, player.z, "#ffffff", 20, 120, false);
-      sfx("win");
-      state.difficulty = diff;
-      localStorage.setItem("btd_difficulty", diff);
-      enterGame();
-      return;
-    }
-  } else if (state.teleport) {
-    state.teleport = null;
-    hideBanner();
-  }
-
-  // Lobby-Animationen
-  ensurePlayerFigure();
-  player.group.position.set(player.x, 0, player.z);
-  player.group.rotation.y = player.yaw;
-  const f = player.group.userData;
-  const swing = player.moving ? Math.sin(player.walkPhase) * 0.7 : 0;
-  f.legL.rotation.x = swing;
-  f.legR.rotation.x = -swing;
-  f.armL.rotation.x = -swing * 0.8;
-  f.armR.rotation.x = swing * 0.8;
-
-  state.lobbyTime = (state.lobbyTime || 0) + dt;
-  for (const p of LOBBY.portals) {
-    const active = state.teleport && state.teleport.portal === p;
-    p.glow.material.opacity = 0.5 + Math.sin(state.lobbyTime * (active ? 14 : 3)) * 0.2 + (active ? 0.25 : 0);
-  }
-
-  // Kamera folgt dem Spieler
-  const camTarget = new THREE.Vector3(player.x, 30, player.z);
-  const camPos = new THREE.Vector3(player.x, 260, player.z + 340);
-  camera.position.lerp(camPos, Math.min(1, dt * 5));
-  camera.lookAt(camTarget);
-}
-
-/* ---------------- Moduswechsel ---------------- */
-
-function enterLobby() {
-  state.mode = "lobby";
-  state.running = false;
-  state.paused = false;
-  state.teleport = null;
-  clearEntities();
-  hideBanner();
-
-  document.getElementById("menu-overlay").classList.add("hidden");
-  document.getElementById("gameover-overlay").classList.add("hidden");
-  document.getElementById("win-overlay").classList.add("hidden");
-  document.getElementById("sidebar").style.display = "none";
-  hideTowerPanel();
-
-  world.visible = false;
-  lobbyGroup.visible = true;
-  controls.enabled = false;
-
-  ensurePlayerFigure();
-  player.x = LOBBY.spawn.x;
-  player.z = LOBBY.spawn.z;
-  player.yaw = Math.PI;
-  player.group.position.set(player.x, 0, player.z);
-  refreshLobbyBoard();
-  refreshHighscoreLine();
-  updateHUD();
-}
-
-function enterGame() {
-  state.mode = "game";
-  world.visible = true;
-  lobbyGroup.visible = false;
-  controls.enabled = true;
-  document.getElementById("sidebar").style.display = "";
-  camera.position.copy(CAM_HOME.pos);
-  controls.target.copy(CAM_HOME.target);
-  controls.update();
-  resetGame();
-  showBanner(`Schwierigkeit: ${DIFFICULTIES[state.difficulty].name}`);
-}
-
-/* =====================================================================
    GAME-LOOP
    ===================================================================== */
 
@@ -2519,12 +3026,16 @@ function loop(now) {
   }
 
   syncVisuals(dt);
-  if (state.mode !== "lobby") controls.update(); // in der Lobby steuert die Kamera der Spieler
+  if (state.mode !== "lobby") controls.update();
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
 
+/* ---------------- Start ---------------- */
+
+loadSettings();
+buildMap(state.map);
 refreshShop();
-refreshHighscoreLine();
-updateHUD();
+applySettings();
+showMainMenu();
 requestAnimationFrame(loop);

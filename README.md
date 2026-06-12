@@ -16,26 +16,49 @@ python3 -m http.server 8000
 
 und dann `http://localhost:8000` öffnen.
 
+## 🎮 Das Menüsystem
+
+1. **Hauptmenü:** Großer 🎮 **SPIELEN**-Button, dazu 🏪 Shop, ⚙ Einstellungen und 🏆 Rekorde.
+2. **Modus auswählen:** Aktuell 🛡 **Normaler Modus** (40 Wellen). Hardcore, Endlos,
+   Boss Rush, Sandbox und Koop sind schon sichtbar, aber noch 🔒 gesperrt.
+3. **Karte auswählen:** 5 Karten mit Vorschaubild, ⭐-Schwierigkeit und deinem Rekord.
+4. **▶ SPIEL STARTEN:** Kurzer Ladebildschirm („Lade Karte…"), dann geht's los –
+   mit 500 Startgeld, 100 Leben, Welle 1.
+
+## 🗺 Die 5 Karten
+
+| Karte | Schwierigkeit | Thema |
+|---|---|---|
+| 🌲 Grasslands | ⭐ Einfach | Grüne Wiesen, Holzbrücke, kleine Häuser |
+| 🏜 Desert Valley | ⭐⭐ Mittel | Sand, Kakteen, Ruinen |
+| ❄ Frozen Base | ⭐⭐⭐ Mittel | Schnee, Eiswege, gefrorene Gebäude |
+| 🌋 Volcano Island | ⭐⭐⭐⭐ Schwer | **Lava statt Wasser**, Vulkan, schwarze Felsen |
+| 🌌 Space Station | ⭐⭐⭐⭐⭐ Extrem | Weltraum, Neonblöcke, schwebende Plattformen |
+
+Jede Karte hat einen **eigenen Weg**, eigene Farben und Deko – und je mehr Sterne,
+desto stärker die Gegner!
+
+## 🏪 Shop & Münzen
+
+- Du verdienst 🪙 **Münzen** durch geschaffte Wellen, Siege und Niederlagen.
+- Im Shop kaufst du **Skins** für deine Lobby-Figur (Roter Ritter, Ninja, Magier,
+  Goldener Held, Schatten …).
+
 ## 🌀 Die Lobby
 
-Nach dem Start landest du in der **Lobby** – wie auf Roblox!
+Über „3D-Lobby erkunden" läufst du mit deiner Figur (**WASD**/Pfeiltasten) über
+die Lobby-Insel – mit deinem gekauften Skin! Das goldene **SPIELEN-Portal**
+öffnet die Modus-Auswahl, die Rekord-Tafel zeigt deine beste Welle.
 
-- **Laufen:** `WASD` oder Pfeiltasten
-- **Schwierigkeit wählen:** Stell dich in eines der drei Portale
-  (🟢 Leicht / 🔵 Normal / 🔴 Schwer) – nach 3 Sekunden Countdown wirst du
-  auf die Spiel-Insel **teleportiert**!
-- Auf der **Rekord-Tafel** in der Lobby siehst du deine beste Welle.
-- Nach Game Over oder Sieg kommst du mit dem 🌀 LOBBY-Knopf zurück.
+## 🎮 So funktioniert's im Spiel
 
-## 🎮 So funktioniert's
-
-- **Türme kaufen:** Im Shop rechts auf einen Turm klicken, dann aufs Gras klicken zum Platzieren. Auf dem Weg geht's nicht!
-- **Upgraden:** Platzierten Turm anklicken → im Panel rechts auf 🆙 Upgrade (5 Level pro Turm).
+- **Türme kaufen:** Im Shop rechts auf einen Turm klicken, dann aufs Feld klicken. Auf dem Weg geht's nicht!
+- **Upgraden:** Platzierten Turm anklicken → 🆙 Upgrade (5 Level pro Turm).
 - **Verkaufen:** Bringt 70 % des investierten Geldes zurück.
 - **Zielmodus:** Pro Turm umschaltbar – Erster / Letzter / Stärkster.
 - **Wellen:** 40 Wellen, alle 10 Wellen kommt ein **BOSS** 👑. Mit „Auto" starten die Wellen automatisch.
 - **Geschwindigkeit:** ⏩ Knopf schaltet 1x / 2x / 3x.
-- **Tasten:** `Leertaste` = Welle starten, `ESC` = Abbrechen.
+- **Tasten:** `Leertaste` = Welle starten, `ESC` = Fenster schließen/Abbrechen, `P` = Pause.
 
 ## 🎥 Kamera (3D)
 
@@ -65,9 +88,9 @@ Die Gegner werden mit jeder Welle stärker – baue deine Verteidigung clever au
 
 ## ✨ Extras
 
-- **3D-Lobby mit Portalen:** Schwierigkeit per Teleport wählen (😊 Leicht / 🙂 Normal / 😈 Schwer)
-- **🏆 Highscore** wird automatisch gespeichert
+- **🏆 Rekorde pro Karte** werden automatisch gespeichert
 - **Wellen-Vorschau:** Du siehst vor jeder Welle, welche Gegner kommen
+- **⚙ Einstellungen:** Sound, Musik, Schatten und Schadenszahlen umschaltbar
 - **⏸ Pause** (Knopf oder Taste P), 🎵 Hintergrundmusik an/aus
 - **Schadenszahlen**, Todesanimationen, brennende Gegner und Kettenblitze in 3D
 

@@ -41,20 +41,133 @@
       <!-- Wellen-Banner -->
       <div id="wave-banner" class="hidden"></div>
 
-      <!-- Startmenü -->
+      <!-- Menü-Knopf in der Lobby -->
+      <div id="lobby-ui" class="hidden">
+        <button id="btn-menu-from-lobby" class="btn">📋 MENÜ</button>
+      </div>
+
+      <!-- ========== HAUPTMENÜ ========== -->
       <div id="menu-overlay" class="overlay">
-        <div class="overlay-box">
+        <div class="overlay-box menu-box">
           <h1>🏰 BLOX TOWER DEFENSE 3D</h1>
-          <p>Verteidige deine Basis gegen 40 Wellen von Zombies – jetzt in 3D!</p>
-          <p class="small">
-            🏃 In der Lobby läufst du mit <b>WASD</b> oder den <b>Pfeiltasten</b> herum<br>
-            🌀 Stell dich in ein Portal, um die Schwierigkeit zu wählen – dann wirst du teleportiert!<br>
-            🖱️ Im Spiel: Turm im Shop auswählen und auf dem Gras platzieren<br>
-            🎥 Kamera: Linke Maustaste ziehen = drehen, Mausrad = zoomen<br>
-            ⏩ Geschwindigkeit bis 3x &nbsp;|&nbsp; ESC = Abbrechen &nbsp;|&nbsp; Leertaste = Welle &nbsp;|&nbsp; P = Pause
-          </p>
-          <p class="small" id="highscore-line"></p>
-          <button id="btn-play" class="btn btn-big btn-green">🌀 ZUR LOBBY</button>
+          <p class="small" id="menu-info"></p>
+          <button id="btn-spielen" class="btn btn-huge btn-green">🎮 SPIELEN</button>
+          <div class="btn-row">
+            <button id="btn-shop-open" class="btn">🏪 Shop</button>
+            <button id="btn-settings-open" class="btn">⚙ Einstellungen</button>
+            <button id="btn-records-open" class="btn">🏆 Rekorde</button>
+          </div>
+          <button id="btn-lobby" class="btn btn-small-extra">🌀 3D-Lobby erkunden</button>
+        </div>
+      </div>
+
+      <!-- ========== MODUS AUSWÄHLEN ========== -->
+      <div id="mode-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window">
+          <div class="pixel-title">
+            <span>MODUS AUSWÄHLEN</span>
+            <button class="pixel-close" data-close="mode-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div class="mode-card unlocked" id="mode-normal">
+              <div class="mode-icon">🛡</div>
+              <div class="mode-info">
+                <div class="mode-name">Normaler Modus</div>
+                <div class="mode-desc">Verteidige deine Basis gegen 40 Wellen von Gegnern.</div>
+              </div>
+              <div class="mode-arrow">▶</div>
+            </div>
+            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Hardcore Modus</div><div class="mode-desc">Bald verfügbar…</div></div></div>
+            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Endlos Modus</div><div class="mode-desc">Bald verfügbar…</div></div></div>
+            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Boss Rush</div><div class="mode-desc">Bald verfügbar…</div></div></div>
+            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Sandbox</div><div class="mode-desc">Bald verfügbar…</div></div></div>
+            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Koop Modus</div><div class="mode-desc">Bald verfügbar…</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== KARTE AUSWÄHLEN ========== -->
+      <div id="map-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window pixel-wide">
+          <div class="pixel-title">
+            <button class="pixel-back" data-back="map-overlay">⬅</button>
+            <span>KARTE AUSWÄHLEN</span>
+            <button class="pixel-close" data-close="map-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div id="map-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== KARTEN-DETAIL ========== -->
+      <div id="mapinfo-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window">
+          <div class="pixel-title">
+            <button class="pixel-back" data-back="mapinfo-overlay">⬅</button>
+            <span id="mi-name">Karte</span>
+            <button class="pixel-close" data-close="mapinfo-overlay">✕</button>
+          </div>
+          <div class="pixel-body" style="text-align:center">
+            <canvas id="mi-preview" width="400" height="260"></canvas>
+            <div id="mi-stats"></div>
+            <div class="btn-row">
+              <button id="btn-start-map" class="btn btn-big btn-green">▶ SPIEL STARTEN</button>
+              <button id="btn-back-map" class="btn btn-big">⬅ ZURÜCK</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== SHOP ========== -->
+      <div id="shopwin-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window pixel-wide">
+          <div class="pixel-title">
+            <span>🏪 SHOP – SKINS</span>
+            <button class="pixel-close" data-close="shopwin-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div class="coins-line">🪙 Münzen: <b id="shop-coins">0</b> <span class="small-note">(verdiene Münzen durch Wellen &amp; Siege!)</span></div>
+            <div id="skin-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== EINSTELLUNGEN ========== -->
+      <div id="settings-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window">
+          <div class="pixel-title">
+            <span>⚙ EINSTELLUNGEN</span>
+            <button class="pixel-close" data-close="settings-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <label class="setting-row"><span>🔊 Soundeffekte</span><input type="checkbox" id="set-sound"></label>
+            <label class="setting-row"><span>🎵 Musik</span><input type="checkbox" id="set-music"></label>
+            <label class="setting-row"><span>🌗 Schatten</span><input type="checkbox" id="set-shadows"></label>
+            <label class="setting-row"><span>🔢 Schadenszahlen</span><input type="checkbox" id="set-dmg"></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== REKORDE ========== -->
+      <div id="records-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window">
+          <div class="pixel-title">
+            <span>🏆 REKORDE</span>
+            <button class="pixel-close" data-close="records-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div id="records-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== LADEBILDSCHIRM ========== -->
+      <div id="loading-overlay" class="overlay hidden">
+        <div class="loading-box">
+          <div class="loading-title">Lade Karte…</div>
+          <div id="loading-map"></div>
+          <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
         </div>
       </div>
 
@@ -66,7 +179,7 @@
           <p class="small" id="go-highscore"></p>
           <div class="btn-row">
             <button id="btn-retry" class="btn btn-big btn-green">NOCHMAL</button>
-            <button id="btn-lobby-go" class="btn btn-big">🌀 LOBBY</button>
+            <button id="btn-menu-go" class="btn btn-big">📋 MENÜ</button>
           </div>
         </div>
       </div>
@@ -76,9 +189,10 @@
         <div class="overlay-box">
           <h1>🏆 SIEG!</h1>
           <p>Du hast alle 40 Wellen überlebt! Deine Basis ist sicher!</p>
+          <p class="small" id="win-info"></p>
           <div class="btn-row">
             <button id="btn-again" class="btn btn-big btn-green">NOCHMAL SPIELEN</button>
-            <button id="btn-lobby-win" class="btn btn-big">🌀 LOBBY</button>
+            <button id="btn-menu-win" class="btn btn-big">📋 MENÜ</button>
           </div>
         </div>
       </div>
