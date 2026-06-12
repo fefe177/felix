@@ -2,19 +2,33 @@
 
 Ein Tower-Defense-Spiel im Roblox-Stil mit **echter 3D-Ansicht** – komplett im Browser spielbar, keine Installation nötig! (Three.js liegt im `vendor/`-Ordner, das Spiel funktioniert auch offline.)
 
-## ▶️ So startest du das Spiel
+## ▶️ Als richtige Desktop-App starten (kein Browser!)
 
-Einfach die Datei **`index.html`** im Browser öffnen (Doppelklick) – fertig!
+Das Spiel läuft als **echte App** mit eigenem Fenster und Icon (Electron –
+damit sind auch Discord und viele Steam-Spiele gebaut). Shader und
+Ray-Tracing-Wasser laufen darin direkt auf deiner Grafikkarte.
 
-Oder mit einem kleinen lokalen Server (falls vorhanden):
+1. Einmalig [Node.js](https://nodejs.org) installieren (LTS-Version)
+2. Im Spielordner ein Terminal öffnen und einmalig: `npm install`
+3. Spiel starten: `npm start`
+
+→ Eigenes Spielfenster, keine Browserleisten, `F11` = Vollbild.
+
+### 📦 Echte EXE bauen (zum Weitergeben)
 
 ```bash
-npx serve .
-# oder
-python3 -m http.server 8000
+npm run build:win     # Windows  → dist/Blox Tower Defense 3D-win32-x64/
+npm run build:mac     # macOS
+npm run build:linux   # Linux
 ```
 
-und dann `http://localhost:8000` öffnen.
+Danach liegt im `dist/`-Ordner eine **Blox Tower Defense 3D.exe**, die auf
+jedem PC per Doppelklick läuft – ganz ohne Node.js oder Browser.
+
+### Alternative (ohne Installation)
+
+Zur Not kann man auch einfach `index.html` doppelklicken – dann läuft das
+Spiel im Browser. Die Grafik ist identisch, denn auch dort rechnet die GPU.
 
 ## 🎮 Das Menüsystem
 

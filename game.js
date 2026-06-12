@@ -3252,6 +3252,12 @@ document.getElementById("btn-cam").addEventListener("click", () => {
   controls.update();
 });
 
+// Vollbild wie ein richtiges Spiel
+document.getElementById("btn-fullscreen").addEventListener("click", () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen();
+});
+
 document.getElementById("btn-upgrade").addEventListener("click", () => {
   const t = state.selected;
   if (!t) return;
