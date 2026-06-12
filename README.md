@@ -52,7 +52,12 @@ die Lobby-Insel – mit deinem gekauften Skin! Das goldene **SPIELEN-Portal**
 
 ## 🎮 So funktioniert's im Spiel
 
-- **Türme kaufen:** Im Shop rechts auf einen Turm klicken, dann aufs Feld klicken. Auf dem Weg geht's nicht!
+- **Türme kaufen:** Im Shop rechts auf einen Turm klicken – die Truppe hängt dann
+  **durchsichtig am Cursor** und kann **frei überall** auf dem Feld platziert werden
+  (nicht auf dem Weg, nicht zu nah an anderen Türmen).
+- **⛰ Anhöhen:** Jede Karte hat erhöhte Plateaus. Der **Scharfschütze** kann **nur
+  auf Anhöhen** platziert werden – alle anderen Truppen überall sonst (aber nicht
+  auf den Anhöhen).
 - **Upgraden:** Platzierten Turm anklicken → 🆙 Upgrade (5 Level pro Turm).
 - **Verkaufen:** Bringt 70 % des investierten Geldes zurück.
 - **Zielmodus:** Pro Turm umschaltbar – Erster / Letzter / Stärkster.

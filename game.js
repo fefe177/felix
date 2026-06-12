@@ -16,6 +16,8 @@ const D = ROWS * TILE;      // 624 (Tiefe des Felds)
 const MAX_WAVE = 40;
 const START_CASH = 500;
 const START_LIVES = 100;
+const TOWER_RADIUS = 15;       // Platzbedarf eines Turms
+const TOWER_MIN_DIST = 32;     // Mindestabstand zwischen Türmen
 
 /* ---------------- Turm-Definitionen ----------------
    Jeder Turm hat 5 Level (Level 0 = Kaufzustand). */
@@ -41,10 +43,11 @@ const TOWER_TYPES = {
     name: "Scharfschütze",
     icon: "🎯",
     color: "#10b981",
-    desc: "Lange Reichweite, harter Schuss",
+    desc: "Riesige Reichweite – nur auf ⛰ Anhöhen!",
     cost: 400,
     unlockWave: 0,
     kind: "hitscan",
+    cliff: true,
     levels: [
       { dmg: 35,  range: 280, rate: 0.35, upgradeCost: 300 },
       { dmg: 60,  range: 290, rate: 0.38, upgradeCost: 700 },
@@ -174,6 +177,7 @@ const MAPS = {
     sky: 0x87ceeb, water: 0x2f7fd1, earth: 0x8a6437,
     deco: "grass", clouds: true,
     waypoints: [[-1, 2], [3, 2], [3, 6], [8, 6], [8, 2], [13, 2], [13, 9], [5, 9], [5, 11], [17, 11], [17, 5], [20, 5]],
+    hills: [{ c: 0, r: 4, w: 2, h: 2 }, { c: 10, r: 4, w: 2, h: 2 }, { c: 15, r: 0, w: 2, h: 2 }],
   },
   desert: {
     name: "Desert Valley", icon: "🏜", stars: 2, diffName: "Mittel", hpMult: 1.15,
@@ -182,6 +186,7 @@ const MAPS = {
     sky: 0xf0c98c, water: 0x3a98c9, earth: 0xa07840,
     deco: "desert", clouds: true,
     waypoints: [[-1, 6], [4, 6], [4, 2], [9, 2], [9, 10], [14, 10], [14, 4], [20, 4]],
+    hills: [{ c: 1, r: 2, w: 2, h: 2 }, { c: 6, r: 4, w: 2, h: 2 }, { c: 16, r: 7, w: 2, h: 2 }],
   },
   frozen: {
     name: "Frozen Base", icon: "❄", stars: 3, diffName: "Mittel", hpMult: 1.3,
@@ -190,6 +195,7 @@ const MAPS = {
     sky: 0xbcd8e8, water: 0x6fb1d8, earth: 0x9aa7b5,
     deco: "snow", clouds: true,
     waypoints: [[-1, 10], [3, 10], [3, 3], [7, 3], [7, 8], [12, 8], [12, 3], [16, 3], [16, 10], [20, 10]],
+    hills: [{ c: 0, r: 0, w: 2, h: 2 }, { c: 9, r: 5, w: 2, h: 2 }, { c: 18, r: 0, w: 2, h: 2 }],
   },
   volcano: {
     name: "Volcano Island", icon: "🌋", stars: 4, diffName: "Schwer", hpMult: 1.5,
@@ -198,6 +204,7 @@ const MAPS = {
     sky: 0x5a3845, water: 0xe25822, waterGlow: 0x892a0a, earth: 0x332f33,
     deco: "volcano", clouds: false,
     waypoints: [[-1, 2], [6, 2], [6, 11], [11, 11], [11, 5], [15, 5], [15, 9], [20, 9]],
+    hills: [{ c: 2, r: 5, w: 2, h: 2 }, { c: 8, r: 4, w: 2, h: 2 }, { c: 17, r: 2, w: 2, h: 2 }],
   },
   space: {
     name: "Space Station", icon: "🌌", stars: 5, diffName: "Extrem", hpMult: 1.75,
@@ -206,6 +213,7 @@ const MAPS = {
     sky: 0x070b1a, water: 0x0a0e22, earth: 0x141831,
     deco: "space", clouds: false,
     waypoints: [[-1, 6], [2, 6], [2, 2], [6, 2], [6, 10], [10, 10], [10, 2], [14, 2], [14, 10], [18, 10], [18, 6], [20, 6]],
+    hills: [{ c: 0, r: 0, w: 2, h: 2 }, { c: 8, r: 4, w: 2, h: 2 }, { c: 16, r: 3, w: 2, h: 2 }],
   },
 };
 const MAP_ORDER = ["grasslands", "desert", "frozen", "volcano", "space"];
@@ -265,7 +273,7 @@ const state = {
   waveTime: 0,
   placing: null,
   selected: null,
-  hoverTile: null,
+  hoverPoint: null,      // Punkt unter dem Cursor (freie Platzierung)
   time: 0,
   shake: 0,
   settings: { sound: true, music: true, shadows: true, dmgNumbers: true },
@@ -531,6 +539,17 @@ function approachAngle(current, target, k) {
 let startArrow = null;
 let decoByTile = new Map();
 
+// Anhöhen der aktiven Karte: { minX, maxX, minZ, maxZ, y }
+const HILL_H = 36;
+let hills = [];
+
+function hillAt(x, z) {
+  for (const h of hills) {
+    if (x >= h.minX && x <= h.maxX && z >= h.minZ && z <= h.maxZ) return h;
+  }
+  return null;
+}
+
 // Wolken (global, werden auf dunklen Karten ausgeblendet)
 const cloudGroup = new THREE.Group();
 world.add(cloudGroup);
@@ -713,8 +732,8 @@ function buildMapExtras(mapKey, registerDeco) {
     bunker.add(box(40, 26, 34, new THREE.MeshLambertMaterial({ color: 0xcfe9f5, transparent: true, opacity: 0.92 }), 0, 13, 0));
     bunker.add(box(44, 6, 38, lambert(0xffffff), 0, 29, 0));
     bunker.add(box(10, 14, 3, lambert(0x7eb8d8), 0, 7, 17.5));
-    bunker.position.set(1.5 * TILE, 0, 1.5 * TILE);
-    registerDeco(1, 1, bunker);
+    bunker.position.set(5.5 * TILE, 0, 0.6 * TILE);
+    registerDeco(5, 0, bunker);
     extras.push(bunker);
   } else if (mapKey === "volcano") {
     // Großer Vulkan
@@ -814,13 +833,42 @@ function buildMap(mapKey) {
   base.castShadow = false;
   mapGroup.add(base);
 
-  // Zufalls-Deko nach Thema
+  // ⛰ Anhöhen (nur hier dürfen Scharfschützen stehen)
+  hills = [];
+  const hillTiles = new Set();
+  for (const h of (map.hills || [])) {
+    const cx = (h.c + h.w / 2) * TILE, cz = (h.r + h.h / 2) * TILE;
+    const wpx = h.w * TILE, dpx = h.h * TILE;
+    // Felsiger Sockel + farbige Deckplatte
+    const body = box(wpx, HILL_H, dpx, lambert(map.earth), cx, HILL_H / 2 - 2, cz);
+    body.receiveShadow = true;
+    mapGroup.add(body);
+    const topCol = shadeColor("#" + new THREE.Color(map.grass[0]).getHexString(), 0.07);
+    const top = box(wpx, 5, dpx, lambert(topCol), cx, HILL_H + 0.5, cz);
+    top.receiveShadow = true;
+    mapGroup.add(top);
+    // Kleine Felskanten an den Ecken
+    for (const [ex, ez] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+      mapGroup.add(box(9, 7, 9, lambert(map.earth), cx + ex * (wpx / 2 - 6), HILL_H + 4, cz + ez * (dpx / 2 - 6)));
+    }
+    hills.push({
+      minX: h.c * TILE, maxX: (h.c + h.w) * TILE,
+      minZ: h.r * TILE, maxZ: (h.r + h.h) * TILE,
+      y: HILL_H + 3,
+    });
+    for (let rr = h.r; rr < h.r + h.h; rr++) {
+      for (let cc = h.c; cc < h.c + h.w; cc++) hillTiles.add(cc + "," + rr);
+    }
+  }
+
+  // Zufalls-Deko nach Thema (nicht auf Weg oder Anhöhen)
   const rnd = seededRandom(1337);
   for (let r = 0; r < ROWS; r++) {
     for (let c = 0; c < COLS; c++) {
       const v = rnd();
       const off = rnd();
       if (pathTiles.has(c + "," + r)) continue;
+      if (hillTiles.has(c + "," + r)) continue;
       if (decoByTile.has(c + "," + r)) continue;
       const g = makeThemeDeco(map.deco, v, off);
       if (g) {
@@ -1264,8 +1312,9 @@ function spawnLightning(points) {
 
 /* ---------------- Marker: Platzierung & Auswahl ---------------- */
 
+// Platzierungs-Marker: Kreis unter der Geister-Figur am Cursor
 const tileMarker = new THREE.Mesh(
-  new THREE.PlaneGeometry(TILE - 2, TILE - 2),
+  new THREE.CircleGeometry(TOWER_RADIUS + 4, 28),
   new THREE.MeshBasicMaterial({ color: 0x7ee787, transparent: true, opacity: 0.45, side: THREE.DoubleSide })
 );
 tileMarker.rotation.x = -Math.PI / 2;
@@ -1624,19 +1673,61 @@ function towerStats(tower) {
   return TOWER_TYPES[tower.type].levels[tower.level];
 }
 
-function placeTower(typeKey, c, r) {
+/* Freie Platzierung: Truppen kleben durchsichtig am Cursor und können
+   überall aufs Feld gesetzt werden. Boden-Truppen NICHT auf Anhöhen,
+   ⛰-Truppen (Scharfschütze) NUR auf Anhöhen. */
+
+// Überlappt ein Kreis um (x,z) eine Weg-Kachel?
+function circleTouchesPath(x, z, radius) {
+  const cMin = Math.floor((x - radius) / TILE), cMax = Math.floor((x + radius) / TILE);
+  const rMin = Math.floor((z - radius) / TILE), rMax = Math.floor((z + radius) / TILE);
+  for (let r = rMin; r <= rMax; r++) {
+    for (let c = cMin; c <= cMax; c++) {
+      if (!pathTiles.has(c + "," + r)) continue;
+      // nächster Punkt der Kachel zum Kreis-Mittelpunkt
+      const nx = Math.max(c * TILE, Math.min(x, (c + 1) * TILE));
+      const nz = Math.max(r * TILE, Math.min(z, (r + 1) * TILE));
+      if (Math.hypot(x - nx, z - nz) < radius) return true;
+    }
+  }
+  return false;
+}
+
+// Prüft, ob Turmtyp an Punkt (x,z) stehen darf. Liefert {ok, reason, y}
+function canPlaceTowerAt(typeKey, x, z) {
+  const def = TOWER_TYPES[typeKey];
+  if (x < TOWER_RADIUS || x > W - TOWER_RADIUS || z < TOWER_RADIUS || z > D - TOWER_RADIUS) {
+    return { ok: false, reason: "Außerhalb des Felds!", y: 0 };
+  }
+  const hill = hillAt(x, z);
+  if (def.cliff && !hill) return { ok: false, reason: "Nur auf ⛰ Anhöhen!", y: 0 };
+  if (!def.cliff && hill) return { ok: false, reason: "Nicht auf Anhöhen!", y: hill.y };
+  if (!hill && circleTouchesPath(x, z, TOWER_RADIUS)) {
+    return { ok: false, reason: "Zu nah am Weg!", y: 0 };
+  }
+  for (const t of state.towers) {
+    if (Math.hypot(t.x - x, t.z - z) < TOWER_MIN_DIST) {
+      return { ok: false, reason: "Zu nah an anderem Turm!", y: hill ? hill.y : 0 };
+    }
+  }
+  return { ok: true, reason: "", y: hill ? hill.y : 0 };
+}
+
+function placeTower(typeKey, x, z) {
   const def = TOWER_TYPES[typeKey];
   if (state.cash < def.cost) return false;
+  const check = canPlaceTowerAt(typeKey, x, z);
+  if (!check.ok) return false;
   state.cash -= def.cost;
 
-  const x = (c + 0.5) * TILE, z = (r + 0.5) * TILE;
   const group = makeTowerMesh(typeKey, 0);
-  group.position.set(x, 0, z);
+  group.position.set(x, check.y, z);
   world.add(group);
 
   const tower = {
     type: typeKey,
-    c, r, x, z,
+    x, z,
+    baseY: check.y,
     level: 0,
     cooldown: 0,
     yaw: 0,
@@ -1644,14 +1735,21 @@ function placeTower(typeKey, c, r) {
     invested: def.cost,
     flash: 0,
     group,
+    hiddenDeco: [],
   };
   state.towers.push(tower);
 
-  const deco = decoByTile.get(c + "," + r);
-  if (deco) deco.visible = false;
+  // Deko in der Nähe ausblenden, damit nichts durch den Turm ragt
+  for (const [key, deco] of decoByTile) {
+    if (!deco.visible) continue;
+    if (Math.hypot(deco.position.x - x, deco.position.z - z) < 34) {
+      deco.visible = false;
+      tower.hiddenDeco.push(key);
+    }
+  }
 
   sfx("place");
-  burst(x, 10, z, "#ffd24a", 10, 70, false);
+  burst(x, check.y + 10, z, "#ffd24a", 10, 70, false);
   updateHUD();
   return true;
 }
@@ -1660,14 +1758,10 @@ function removeTower(tower) {
   state.towers = state.towers.filter(t => t !== tower);
   world.remove(tower.group);
   disposeObject(tower.group);
-  const deco = decoByTile.get(tower.c + "," + tower.r);
-  if (deco) deco.visible = true;
-}
-
-function canPlaceAt(c, r) {
-  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return false;
-  if (pathTiles.has(c + "," + r)) return false;
-  return !state.towers.some(t => t.c === c && t.r === r);
+  for (const key of tower.hiddenDeco) {
+    const deco = decoByTile.get(key);
+    if (deco) deco.visible = true;
+  }
 }
 
 const TARGET_MODES = ["Erster", "Letzter", "Stärkster"];
@@ -1969,8 +2063,10 @@ function clearEntities() {
   for (const t of state.towers) {
     world.remove(t.group);
     disposeObject(t.group);
-    const deco = decoByTile.get(t.c + "," + t.r);
-    if (deco) deco.visible = true;
+    for (const key of t.hiddenDeco) {
+      const deco = decoByTile.get(key);
+      if (deco) deco.visible = true;
+    }
   }
   for (const p of state.projectiles) { world.remove(p.mesh); disposeObject(p.mesh); }
   for (const p of state.particles) p.mesh.visible = false;
@@ -2253,26 +2349,26 @@ function syncVisuals(dtReal) {
 function syncMarkers() {
   for (const g of ghostCache.values()) g.visible = false;
 
-  if (state.placing && state.hoverTile) {
-    const { c, r } = state.hoverTile;
-    const ok = canPlaceAt(c, r);
+  // Durchsichtige Truppe klebt am Cursor
+  if (state.placing && state.hoverPoint) {
+    const { x, z } = state.hoverPoint;
+    const check = canPlaceTowerAt(state.placing, x, z);
     const def = TOWER_TYPES[state.placing];
-    const x = (c + 0.5) * TILE, z = (r + 0.5) * TILE;
 
     tileMarker.visible = true;
-    tileMarker.position.set(x, 1, z);
-    tileMarker.material.color.set(ok ? 0x7ee787 : 0xff5050);
+    tileMarker.position.set(x, check.y + 1, z);
+    tileMarker.material.color.set(check.ok ? 0x7ee787 : 0xff5050);
 
     const ghost = getGhost(state.placing);
     ghost.visible = true;
-    ghost.position.set(x, 2, z);
+    ghost.position.set(x, check.y + 1.5, z);
 
     if (def.kind !== "farm") {
       placeRing.visible = true;
-      placeRing.position.set(x, 1.2, z);
+      placeRing.position.set(x, check.y + 1.2, z);
       const range = def.levels[0].range;
       placeRing.scale.set(range, 1, range);
-      setRingColor(placeRing, ok ? 0xffffff : 0xff5050);
+      setRingColor(placeRing, check.ok ? 0xffffff : 0xff5050);
     } else {
       placeRing.visible = false;
     }
@@ -2284,7 +2380,7 @@ function syncMarkers() {
   const sel = state.selected;
   if (sel && TOWER_TYPES[sel.type].kind !== "farm") {
     selectRing.visible = true;
-    selectRing.position.set(sel.x, 1.2, sel.z);
+    selectRing.position.set(sel.x, sel.baseY + 1.2, sel.z);
     const range = towerStats(sel).range;
     selectRing.scale.set(range, 1, range);
   } else {
@@ -2478,6 +2574,14 @@ function drawMapPreview(canvas, mapKey) {
       g.fillStyle = toCSS(pair[(c + r) % 2]);
       g.fillRect(c * cw, r * ch, cw + 1, ch + 1);
     }
+  }
+  // Anhöhen einzeichnen
+  g.fillStyle = "rgba(255,255,255,0.30)";
+  g.strokeStyle = "rgba(0,0,0,0.25)";
+  g.lineWidth = 2;
+  for (const h of (map.hills || [])) {
+    g.fillRect(h.c * cw, h.r * ch, h.w * cw, h.h * ch);
+    g.strokeRect(h.c * cw, h.r * ch, h.w * cw, h.h * ch);
   }
   // Start & Ziel markieren
   const [sc, sr] = map.waypoints[0];
@@ -2798,21 +2902,30 @@ const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 const _ndc = new THREE.Vector2();
 const _hit = new THREE.Vector3();
 
-function tileFromEvent(ev) {
+// Liefert den Punkt auf dem Spielfeld unter dem Cursor (oder null).
+// Prüft zuerst die Anhöhen-Ebene, damit man oben auf Hügeln genau zielt.
+const hillPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(HILL_H + 3));
+function pointFromEvent(ev) {
   const rect = renderer.domElement.getBoundingClientRect();
   _ndc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
   _ndc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
   raycaster.setFromCamera(_ndc, camera);
+
+  // Trifft der Strahl die Deckfläche einer Anhöhe?
+  if (raycaster.ray.intersectPlane(hillPlane, _hit)) {
+    if (_hit.x >= 0 && _hit.x <= W && _hit.z >= 0 && _hit.z <= D && hillAt(_hit.x, _hit.z)) {
+      return { x: _hit.x, z: _hit.z };
+    }
+  }
   if (!raycaster.ray.intersectPlane(groundPlane, _hit)) return null;
-  const c = Math.floor(_hit.x / TILE), r = Math.floor(_hit.z / TILE);
-  if (c < 0 || c >= COLS || r < 0 || r >= ROWS) return null;
-  return { c, r, x: _hit.x, z: _hit.z };
+  if (_hit.x < 0 || _hit.x > W || _hit.z < 0 || _hit.z > D) return null;
+  return { x: _hit.x, z: _hit.z };
 }
 
 renderer.domElement.addEventListener("pointermove", (ev) => {
-  state.hoverTile = tileFromEvent(ev);
+  state.hoverPoint = pointFromEvent(ev);
 });
-renderer.domElement.addEventListener("pointerleave", () => { state.hoverTile = null; });
+renderer.domElement.addEventListener("pointerleave", () => { state.hoverPoint = null; });
 
 let downPos = null;
 renderer.domElement.addEventListener("pointerdown", (ev) => {
@@ -2829,25 +2942,31 @@ renderer.domElement.addEventListener("pointerup", (ev) => {
 function handleClick(ev) {
   ensureAudio();
   if (!state.running) return;
-  const tile = tileFromEvent(ev);
-  if (!tile) return;
-  const { c, r } = tile;
+  const point = pointFromEvent(ev);
+  if (!point) return;
 
   if (state.placing) {
-    if (canPlaceAt(c, r)) {
-      const ok = placeTower(state.placing, c, r);
+    const check = canPlaceTowerAt(state.placing, point.x, point.z);
+    if (check.ok) {
+      const ok = placeTower(state.placing, point.x, point.z);
       if (ok && state.cash < TOWER_TYPES[state.placing].cost) {
         state.placing = null;
         refreshShopSelection();
       }
     } else {
-      addText(tile.x, 14, tile.z, "Hier nicht möglich!", "#f87171");
+      addText(point.x, check.y + 14, point.z, check.reason, "#f87171");
     }
     return;
   }
 
-  const hit = state.towers.find(t => t.c === c && t.r === r);
-  selectTower(hit || null);
+  // Nächsten Turm am Klick-Strahl auswählen (funktioniert auch auf Anhöhen)
+  let hit = null, bestD = 24;
+  const center = new THREE.Vector3();
+  for (const t of state.towers) {
+    const d = raycaster.ray.distanceToPoint(center.set(t.x, t.baseY + 22, t.z));
+    if (d < bestD) { bestD = d; hit = t; }
+  }
+  selectTower(hit);
 }
 
 document.addEventListener("keydown", (ev) => {
@@ -2975,8 +3094,8 @@ document.getElementById("btn-upgrade").addEventListener("click", () => {
   t.invested += st.upgradeCost;
   t.level++;
   sfx("upgrade");
-  addText(t.x, 56, t.z, "LEVEL UP!", "#ffd24a");
-  burst(t.x, 30, t.z, "#ffd24a", 12, 80, false);
+  addText(t.x, t.baseY + 56, t.z, "LEVEL UP!", "#ffd24a");
+  burst(t.x, t.baseY + 30, t.z, "#ffd24a", 12, 80, false);
   refreshTowerStuds(t);
 
   if (t.level === 2 && TOWER_TYPES[t.type].kind !== "farm") {
@@ -2984,7 +3103,7 @@ document.getElementById("btn-upgrade").addEventListener("click", () => {
     world.remove(t.group);
     disposeObject(t.group);
     t.group = makeTowerMesh(t.type, t.level);
-    t.group.position.set(t.x, 0, t.z);
+    t.group.position.set(t.x, t.baseY, t.z);
     t.group.userData.rotG.rotation.y = yaw;
     world.add(t.group);
     refreshTowerStuds(t);
