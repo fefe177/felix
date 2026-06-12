@@ -16,6 +16,17 @@ python3 -m http.server 8000
 
 und dann `http://localhost:8000` öffnen.
 
+## 🌀 Die Lobby
+
+Nach dem Start landest du in der **Lobby** – wie auf Roblox!
+
+- **Laufen:** `WASD` oder Pfeiltasten
+- **Schwierigkeit wählen:** Stell dich in eines der drei Portale
+  (🟢 Leicht / 🔵 Normal / 🔴 Schwer) – nach 3 Sekunden Countdown wirst du
+  auf die Spiel-Insel **teleportiert**!
+- Auf der **Rekord-Tafel** in der Lobby siehst du deine beste Welle.
+- Nach Game Over oder Sieg kommst du mit dem 🌀 LOBBY-Knopf zurück.
+
 ## 🎮 So funktioniert's
 
 - **Türme kaufen:** Im Shop rechts auf einen Turm klicken, dann aufs Gras klicken zum Platzieren. Auf dem Weg geht's nicht!
@@ -54,7 +65,7 @@ Die Gegner werden mit jeder Welle stärker – baue deine Verteidigung clever au
 
 ## ✨ Extras
 
-- **3 Schwierigkeitsgrade:** 😊 Leicht / 🙂 Normal / 😈 Schwer (mehr Gegner-HP, weniger Startgeld)
+- **3D-Lobby mit Portalen:** Schwierigkeit per Teleport wählen (😊 Leicht / 🙂 Normal / 😈 Schwer)
 - **🏆 Highscore** wird automatisch gespeichert
 - **Wellen-Vorschau:** Du siehst vor jeder Welle, welche Gegner kommen
 - **⏸ Pause** (Knopf oder Taste P), 🎵 Hintergrundmusik an/aus

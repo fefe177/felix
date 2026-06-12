@@ -86,8 +86,8 @@ body {
 }
 #wave-preview b { color: #ffd24a; }
 
-/* ---------- Schwierigkeits-Auswahl ---------- */
-.diff-row { display: flex; gap: 8px; justify-content: center; margin: 14px 0 6px; }
+/* ---------- Schwierigkeits-Auswahl / Button-Reihen ---------- */
+.diff-row, .btn-row { display: flex; gap: 10px; justify-content: center; margin: 14px 0 6px; }
 .diff-btn { opacity: 0.55; }
 .diff-btn.selected {
   opacity: 1;

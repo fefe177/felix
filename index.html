@@ -47,19 +47,14 @@
           <h1>🏰 BLOX TOWER DEFENSE 3D</h1>
           <p>Verteidige deine Basis gegen 40 Wellen von Zombies – jetzt in 3D!</p>
           <p class="small">
-            🖱️ Turm im Shop auswählen und auf dem Gras platzieren<br>
-            🆙 Platzierten Turm anklicken zum Upgraden &amp; Verkaufen<br>
-            🎯 Zielmodus pro Turm umschaltbar (Erster / Letzter / Stärkster)<br>
-            🎥 Kamera: Linke Maustaste ziehen = drehen, Mausrad = zoomen, Rechte Maustaste = verschieben<br>
-            ⏩ Spielgeschwindigkeit bis 3x &nbsp;|&nbsp; ESC = Abbrechen &nbsp;|&nbsp; Leertaste = Welle starten &nbsp;|&nbsp; P = Pause
+            🏃 In der Lobby läufst du mit <b>WASD</b> oder den <b>Pfeiltasten</b> herum<br>
+            🌀 Stell dich in ein Portal, um die Schwierigkeit zu wählen – dann wirst du teleportiert!<br>
+            🖱️ Im Spiel: Turm im Shop auswählen und auf dem Gras platzieren<br>
+            🎥 Kamera: Linke Maustaste ziehen = drehen, Mausrad = zoomen<br>
+            ⏩ Geschwindigkeit bis 3x &nbsp;|&nbsp; ESC = Abbrechen &nbsp;|&nbsp; Leertaste = Welle &nbsp;|&nbsp; P = Pause
           </p>
-          <div class="diff-row">
-            <button class="btn diff-btn" data-diff="easy">😊 Leicht</button>
-            <button class="btn diff-btn selected" data-diff="normal">🙂 Normal</button>
-            <button class="btn diff-btn" data-diff="hard">😈 Schwer</button>
-          </div>
           <p class="small" id="highscore-line"></p>
-          <button id="btn-play" class="btn btn-big btn-green">SPIELEN</button>
+          <button id="btn-play" class="btn btn-big btn-green">🌀 ZUR LOBBY</button>
         </div>
       </div>
 
@@ -69,7 +64,10 @@
           <h1>💀 GAME OVER</h1>
           <p>Du hast es bis Welle <span id="go-wave">1</span> geschafft!</p>
           <p class="small" id="go-highscore"></p>
-          <button id="btn-retry" class="btn btn-big btn-green">NOCHMAL</button>
+          <div class="btn-row">
+            <button id="btn-retry" class="btn btn-big btn-green">NOCHMAL</button>
+            <button id="btn-lobby-go" class="btn btn-big">🌀 LOBBY</button>
+          </div>
         </div>
       </div>
 
@@ -78,7 +76,10 @@
         <div class="overlay-box">
           <h1>🏆 SIEG!</h1>
           <p>Du hast alle 40 Wellen überlebt! Deine Basis ist sicher!</p>
-          <button id="btn-again" class="btn btn-big btn-green">NOCHMAL SPIELEN</button>
+          <div class="btn-row">
+            <button id="btn-again" class="btn btn-big btn-green">NOCHMAL SPIELEN</button>
+            <button id="btn-lobby-win" class="btn btn-big">🌀 LOBBY</button>
+          </div>
         </div>
       </div>
     </div>

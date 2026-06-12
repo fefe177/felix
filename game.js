@@ -206,6 +206,8 @@ function seededRandom(seed) {
 /* ---------------- Spielzustand ---------------- */
 
 const state = {
+  mode: "menu",          // "menu" | "lobby" | "game"
+  teleport: null,        // { portal, t } – Countdown im Portal
   running: false,
   paused: false,
   cash: START_CASH,
@@ -293,7 +295,8 @@ const BASS = [131, 0, 0, 0, 165, 0, 0, 0, 110, 0, 0, 0, 196, 0, 0, 0];
 let musicStep = 0;
 
 function musicTick() {
-  if (!state.musicOn || !audioCtx || !state.running || state.paused) return;
+  const active = state.running || state.mode === "lobby";
+  if (!state.musicOn || !audioCtx || !active || state.paused) return;
   const t = audioCtx.currentTime;
 
   const note = MELODY[musicStep % MELODY.length];
@@ -454,15 +457,15 @@ function approachAngle(current, target, k) {
   world.add(base);
 }
 
-// Wasser rund um die Insel
+// Wasser rund um Insel und Lobby
 const water = new THREE.Mesh(
-  new THREE.PlaneGeometry(6000, 6000),
+  new THREE.PlaneGeometry(12000, 12000),
   new THREE.MeshLambertMaterial({ color: 0x2f7fd1, transparent: true, opacity: 0.92 })
 );
 water.rotation.x = -Math.PI / 2;
 water.position.set(W / 2, -44, D / 2);
 water.receiveShadow = true;
-world.add(water);
+scene.add(water); // an der Szene, damit es auch unter der Lobby liegt
 
 // Deko: Bäume, Steine, Blumen (deterministisch verteilt, je Kachel ein-/ausblendbar)
 const decoByTile = new Map();
@@ -548,6 +551,192 @@ const clouds = [];
     world.add(g);
     clouds.push(g);
   }
+}
+
+/* =====================================================================
+   LOBBY – Plaza mit Schwierigkeits-Portalen
+   ===================================================================== */
+
+const LOBBY = {
+  origin: new THREE.Vector3(-2400, 0, 312),
+  portals: [],     // { diff, color, group, glow, trigger: Vector3 }
+  spawn: null,
+  bounds: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 },
+};
+
+const lobbyGroup = new THREE.Group();
+lobbyGroup.visible = false;
+scene.add(lobbyGroup);
+
+// Text-Schild als Canvas-Textur
+function makeTextPanel(lines, bgColor, w, h) {
+  const cv = document.createElement("canvas");
+  cv.width = 512; cv.height = 256;
+  const g = cv.getContext("2d");
+  g.fillStyle = bgColor;
+  g.fillRect(0, 0, 512, 256);
+  g.strokeStyle = "rgba(0,0,0,0.35)";
+  g.lineWidth = 16;
+  g.strokeRect(8, 8, 496, 240);
+  g.fillStyle = "#ffffff";
+  g.textAlign = "center";
+  g.shadowColor = "rgba(0,0,0,0.5)";
+  g.shadowOffsetY = 5;
+  const lineH = 256 / (lines.length + 1);
+  lines.forEach((line, i) => {
+    g.font = `bold ${i === 0 ? 84 : 56}px Arial`;
+    g.fillText(line, 256, lineH * (i + 1) + (i === 0 ? 30 : 20));
+  });
+  const tex = new THREE.CanvasTexture(cv);
+  tex.encoding = THREE.sRGBEncoding;
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    new THREE.MeshBasicMaterial({ map: tex, side: THREE.DoubleSide })
+  );
+  mesh.userData.canvas = cv;
+  mesh.userData.texture = tex;
+  return mesh;
+}
+
+{
+  const L = LOBBY.origin;
+
+  // Stein-Plaza (Schachbrett)
+  const tileGeo = new THREE.BoxGeometry(40, 8, 40);
+  const tileMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+  const PCOLS = 14, PROWS = 10;
+  const plaza = new THREE.InstancedMesh(tileGeo, tileMat, PCOLS * PROWS);
+  plaza.receiveShadow = true;
+  const m4 = new THREE.Matrix4();
+  const pcol = new THREE.Color();
+  let pi = 0;
+  for (let r = 0; r < PROWS; r++) {
+    for (let c = 0; c < PCOLS; c++) {
+      m4.setPosition(L.x + (c - PCOLS / 2 + 0.5) * 40, -4, L.z + (r - PROWS / 2 + 0.5) * 40);
+      plaza.setMatrixAt(pi, m4);
+      pcol.set((c + r) % 2 === 0 ? 0xc9c4bd : 0xb5afa6);
+      plaza.setColorAt(pi, pcol);
+      pi++;
+    }
+  }
+  plaza.instanceColor.needsUpdate = true;
+  lobbyGroup.add(plaza);
+
+  // Gras-Insel drumherum + Erdsockel
+  const grass = box(660, 10, 500, lambert(0x69b54c), L.x, -10, L.z);
+  grass.castShadow = false;
+  grass.receiveShadow = true;
+  lobbyGroup.add(grass);
+  const earth = box(680, 36, 520, lambert(0x8a6437), L.x, -33, L.z);
+  earth.castShadow = false;
+  lobbyGroup.add(earth);
+
+  LOBBY.bounds = { minX: L.x - 300, maxX: L.x + 300, minZ: L.z - 200, maxZ: L.z + 220 };
+  LOBBY.spawn = new THREE.Vector3(L.x, 0, L.z + 130);
+
+  // Deko-Bäume an den Ecken
+  for (const [dx, dz] of [[-290, -210], [290, -210], [-290, 215], [290, 215], [-160, 225], [160, 225]]) {
+    const t = new THREE.Group();
+    t.add(box(8, 22, 8, lambert(0x7a5230), 0, 11, 0));
+    t.add(box(30, 22, 30, lambert(0x3e8e41), 0, 32, 0));
+    t.add(box(20, 15, 20, lambert(0x4caf50), 0, 50, 0));
+    t.position.set(L.x + dx, 0, L.z + dz);
+    lobbyGroup.add(t);
+  }
+
+  // Großes Lobby-Schild
+  const title = makeTextPanel(["BLOX TOWER", "DEFENSE 3D"], "#232f4b", 170, 70);
+  title.position.set(L.x, 130, L.z - 235);
+  lobbyGroup.add(title);
+  lobbyGroup.add(box(10, 110, 10, lambert(0x4b5563), L.x - 70, 55, L.z - 235));
+  lobbyGroup.add(box(10, 110, 10, lambert(0x4b5563), L.x + 70, 55, L.z - 235));
+
+  // Die 3 Schwierigkeits-Portale
+  const portalDefs = [
+    { diff: "easy",   label: "LEICHT", sub: "150 Leben", color: 0x22c55e, x: -180 },
+    { diff: "normal", label: "NORMAL", sub: "100 Leben", color: 0x3b82f6, x: 0 },
+    { diff: "hard",   label: "SCHWER", sub: "75 Leben · starke Gegner", color: 0xef4444, x: 180 },
+  ];
+  for (const pd of portalDefs) {
+    const g = new THREE.Group();
+    const px = L.x + pd.x, pz = L.z - 150;
+    const frameMat = lambert(new THREE.Color(pd.color).multiplyScalar(0.55));
+
+    // Sockel + Säulen + Querbalken
+    g.add(box(90, 8, 50, lambert(0x9ca3af), 0, 4, 0));
+    g.add(box(14, 78, 14, frameMat, -32, 47, 0));
+    g.add(box(14, 78, 14, frameMat, 32, 47, 0));
+    g.add(box(86, 14, 16, frameMat, 0, 92, 0));
+
+    // Leuchtende Portal-Fläche
+    const glow = new THREE.Mesh(
+      new THREE.PlaneGeometry(50, 70),
+      new THREE.MeshBasicMaterial({ color: pd.color, transparent: true, opacity: 0.65, side: THREE.DoubleSide })
+    );
+    glow.position.set(0, 50, 0);
+    g.add(glow);
+
+    // Schild über dem Portal
+    const sign = makeTextPanel([pd.label, pd.sub], "#" + new THREE.Color(pd.color).multiplyScalar(0.6).getHexString(), 95, 42);
+    sign.position.set(0, 125, 0);
+    g.add(sign);
+
+    g.position.set(px, 0, pz);
+    lobbyGroup.add(g);
+    LOBBY.portals.push({
+      diff: pd.diff,
+      color: pd.color,
+      group: g,
+      glow,
+      trigger: new THREE.Vector3(px, 0, pz + 12),
+    });
+  }
+
+  // Highscore-Tafel
+  const board = makeTextPanel(["🏆 REKORD", "–"], "#7a5230", 120, 58);
+  board.position.set(L.x + 250, 70, L.z + 40);
+  board.rotation.y = -Math.PI / 2.4;
+  lobbyGroup.add(board);
+  const post = box(8, 60, 8, lambert(0x5b3a1e), L.x + 250, 25, L.z + 40);
+  lobbyGroup.add(post);
+  LOBBY.board = board;
+}
+
+function refreshLobbyBoard() {
+  const hs = loadHighscore();
+  const cv = LOBBY.board.userData.canvas;
+  const g = cv.getContext("2d");
+  g.fillStyle = "#7a5230";
+  g.fillRect(0, 0, 512, 256);
+  g.strokeStyle = "rgba(0,0,0,0.35)";
+  g.lineWidth = 16;
+  g.strokeRect(8, 8, 496, 240);
+  g.fillStyle = "#ffd24a";
+  g.textAlign = "center";
+  g.font = "bold 76px Arial";
+  g.fillText("🏆 REKORD", 256, 100);
+  g.fillStyle = "#ffffff";
+  g.font = "bold 56px Arial";
+  const diffName = hs && DIFFICULTIES[hs.diff] ? DIFFICULTIES[hs.diff].name : "";
+  g.fillText(
+    !hs ? "Noch keiner!" : hs.wave > MAX_WAVE ? `Alle ${MAX_WAVE} Wellen!` : `Welle ${hs.wave} (${diffName})`,
+    256, 190
+  );
+  LOBBY.board.userData.texture.needsUpdate = true;
+}
+
+// Spieler-Figur für die Lobby (wird beim ersten Lobby-Besuch gebaut)
+const player = {
+  group: null,
+  x: 0, z: 0,
+  yaw: Math.PI,
+  walkPhase: 0,
+  moving: false,
+};
+function ensurePlayerFigure() {
+  if (player.group) return;
+  player.group = makeMinifig("#3b82f6", "#fbbf24", { hat: "#dc2626" });
+  lobbyGroup.add(player.group);
 }
 
 /* ---------------- Roblox-Minifigur (3D) ---------------- */
@@ -673,7 +862,7 @@ const particlePool = [];
   for (let i = 0; i < PARTICLE_POOL; i++) {
     const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true }));
     m.visible = false;
-    world.add(m);
+    scene.add(m); // an der Szene, damit Partikel auch in der Lobby sichtbar sind
     particlePool.push(m);
   }
 }
@@ -1426,7 +1615,7 @@ function startWave() {
   updateHUD();
 }
 
-function showBanner(text) {
+function showBanner(text, sticky) {
   const el = document.getElementById("wave-banner");
   el.textContent = text;
   el.classList.remove("hidden");
@@ -1434,7 +1623,12 @@ function showBanner(text) {
   void el.offsetWidth;
   el.style.animation = "";
   clearTimeout(showBanner._t);
-  showBanner._t = setTimeout(() => el.classList.add("hidden"), 2300);
+  if (!sticky) showBanner._t = setTimeout(() => el.classList.add("hidden"), 2300);
+}
+
+function hideBanner() {
+  clearTimeout(showBanner._t);
+  document.getElementById("wave-banner").classList.add("hidden");
 }
 
 function finishWave() {
@@ -1562,6 +1756,49 @@ function resetGame() {
    HAUPT-UPDATE (Spiellogik)
    ===================================================================== */
 
+// Effekte (laufen im Spiel UND in der Lobby)
+function updateEffects(dt) {
+  for (const p of state.particles) {
+    p.life -= dt;
+    if (p.life <= 0) { p.mesh.visible = false; continue; }
+    p.mesh.position.x += p.vx * dt;
+    p.mesh.position.y += p.vy * dt;
+    p.mesh.position.z += p.vz * dt;
+    if (p.gravity) p.vy -= 300 * dt;
+    if (p.mesh.position.y < 1) { p.mesh.position.y = 1; p.vy = 0; p.vx *= 0.9; p.vz *= 0.9; }
+    p.mesh.material.opacity = Math.max(0, p.life / p.maxLife);
+  }
+  state.particles = state.particles.filter(p => p.life > 0);
+
+  for (const t of state.tracers) {
+    t.life -= dt;
+    if (t.life <= 0) t.line.visible = false;
+    else t.line.material.opacity = 0.9 * (t.life / t.maxLife);
+  }
+  state.tracers = state.tracers.filter(t => t.life > 0);
+
+  for (const r of state.rings) {
+    r.life -= dt;
+    if (r.life <= 0) { world.remove(r.mesh); disposeObject(r.mesh); continue; }
+    const a = 1 - r.life / r.maxLife;
+    r.mesh.scale.setScalar(r.radius * (0.3 + a * 0.9));
+    r.mesh.material.opacity = 1 - a;
+  }
+  state.rings = state.rings.filter(r => r.life > 0);
+
+  for (const b of state.bolts) {
+    b.life -= dt;
+    if (b.life <= 0) {
+      world.remove(b.line);
+      b.line.geometry.dispose();
+      b.line.material.dispose();
+    } else {
+      b.line.material.opacity = b.life / b.maxLife;
+    }
+  }
+  state.bolts = state.bolts.filter(b => b.life > 0);
+}
+
 function update(dt) {
   if (!state.running || state.paused) return;
   state.time += dt;
@@ -1645,49 +1882,8 @@ function update(dt) {
   // Projektile
   state.projectiles = state.projectiles.filter(p => !updateProjectile(p, dt));
 
-  // Partikel
-  for (const p of state.particles) {
-    p.life -= dt;
-    if (p.life <= 0) { p.mesh.visible = false; continue; }
-    p.mesh.position.x += p.vx * dt;
-    p.mesh.position.y += p.vy * dt;
-    p.mesh.position.z += p.vz * dt;
-    if (p.gravity) p.vy -= 300 * dt;
-    if (p.mesh.position.y < 1) { p.mesh.position.y = 1; p.vy = 0; p.vx *= 0.9; p.vz *= 0.9; }
-    p.mesh.material.opacity = Math.max(0, p.life / p.maxLife);
-  }
-  state.particles = state.particles.filter(p => p.life > 0);
-
-  // Tracer
-  for (const t of state.tracers) {
-    t.life -= dt;
-    if (t.life <= 0) t.line.visible = false;
-    else t.line.material.opacity = 0.9 * (t.life / t.maxLife);
-  }
-  state.tracers = state.tracers.filter(t => t.life > 0);
-
-  // Explosionsringe
-  for (const r of state.rings) {
-    r.life -= dt;
-    if (r.life <= 0) { world.remove(r.mesh); disposeObject(r.mesh); continue; }
-    const a = 1 - r.life / r.maxLife;
-    r.mesh.scale.setScalar(r.radius * (0.3 + a * 0.9));
-    r.mesh.material.opacity = 1 - a;
-  }
-  state.rings = state.rings.filter(r => r.life > 0);
-
-  // Tesla-Blitze ausblenden
-  for (const b of state.bolts) {
-    b.life -= dt;
-    if (b.life <= 0) {
-      world.remove(b.line);
-      b.line.geometry.dispose();
-      b.line.material.dispose();
-    } else {
-      b.line.material.opacity = b.life / b.maxLife;
-    }
-  }
-  state.bolts = state.bolts.filter(b => b.life > 0);
+  // Partikel, Tracer, Ringe, Blitze
+  updateEffects(dt);
 
   // Wellenende prüfen
   if (state.phase === "wave" && state.spawnQueue.length === 0 && state.enemies.length === 0) {
@@ -1770,8 +1966,9 @@ function syncVisuals(dtReal) {
   startArrow.position.y = 45 + Math.sin(state.time * 3) * 6;
   startArrow.rotation.y = state.time * 0.8;
 
-  // Wasser leicht schaukeln lassen
-  water.position.y = -44 + Math.sin(state.time * 0.8) * 1.5;
+  // Wasser leicht schaukeln lassen (läuft auch in der Lobby weiter)
+  syncVisuals._t = (syncVisuals._t || 0) + dtReal;
+  water.position.y = -44 + Math.sin(syncVisuals._t * 0.8) * 1.5;
 
   // Wolken treiben lassen
   for (const c of clouds) {
@@ -1855,8 +2052,10 @@ function updateHUD() {
 
   // Wellen-Vorschau (nur bei Änderung neu schreiben)
   let previewText;
-  if (!state.running) {
-    previewText = "Wähle die Schwierigkeit und drücke SPIELEN!";
+  if (state.mode === "lobby") {
+    previewText = "🏃 <b>WASD</b> oder <b>Pfeiltasten</b> = laufen – stell dich in ein Portal, um teleportiert zu werden!";
+  } else if (!state.running) {
+    previewText = "Drücke ZUR LOBBY, um loszulegen!";
   } else if (state.paused) {
     previewText = "<b>⏸ PAUSE</b> – Weiter mit ⏸ oder Taste P";
   } else if (state.phase === "idle") {
@@ -2069,9 +2268,11 @@ function togglePause() {
 
 /* ---------------- Buttons ---------------- */
 
-document.getElementById("btn-play").addEventListener("click", () => { ensureAudio(); resetGame(); });
+document.getElementById("btn-play").addEventListener("click", () => { ensureAudio(); enterLobby(); });
 document.getElementById("btn-retry").addEventListener("click", () => { ensureAudio(); resetGame(); });
 document.getElementById("btn-again").addEventListener("click", () => { ensureAudio(); resetGame(); });
+document.getElementById("btn-lobby-go").addEventListener("click", () => { ensureAudio(); enterLobby(); });
+document.getElementById("btn-lobby-win").addEventListener("click", () => { ensureAudio(); enterLobby(); });
 
 document.getElementById("btn-start").addEventListener("click", () => { ensureAudio(); startWave(); });
 
@@ -2099,21 +2300,8 @@ document.getElementById("btn-music").addEventListener("click", (ev) => {
 
 document.getElementById("btn-pause").addEventListener("click", () => { ensureAudio(); togglePause(); });
 
-// Schwierigkeits-Auswahl im Menü
-for (const btn of document.querySelectorAll(".diff-btn")) {
-  if (btn.dataset.diff === state.difficulty) {
-    document.querySelectorAll(".diff-btn").forEach(b => b.classList.remove("selected"));
-    btn.classList.add("selected");
-  }
-  btn.addEventListener("click", () => {
-    state.difficulty = btn.dataset.diff;
-    localStorage.setItem("btd_difficulty", state.difficulty);
-    document.querySelectorAll(".diff-btn").forEach(b => b.classList.remove("selected"));
-    btn.classList.add("selected");
-  });
-}
-
 document.getElementById("btn-cam").addEventListener("click", () => {
+  if (state.mode !== "game") return;
   camera.position.copy(CAM_HOME.pos);
   controls.target.copy(CAM_HOME.target);
   controls.update();
@@ -2164,6 +2352,157 @@ document.getElementById("btn-sell").addEventListener("click", () => {
 });
 
 /* =====================================================================
+   LOBBY-STEUERUNG (Laufen, Portale, Teleport)
+   ===================================================================== */
+
+const keysDown = new Set();
+document.addEventListener("keydown", (ev) => {
+  keysDown.add(ev.key.toLowerCase());
+  if (state.mode === "lobby" && ["arrowup", "arrowdown", "arrowleft", "arrowright", " "].includes(ev.key.toLowerCase())) {
+    ev.preventDefault();
+  }
+});
+document.addEventListener("keyup", (ev) => keysDown.delete(ev.key.toLowerCase()));
+window.addEventListener("blur", () => keysDown.clear());
+
+const PLAYER_SPEED = 160;
+const PORTAL_RADIUS = 38;
+const TELEPORT_TIME = 3;
+
+function updateLobby(dt) {
+  // Bewegung aus den Tasten lesen
+  let mx = 0, mz = 0;
+  if (keysDown.has("w") || keysDown.has("arrowup")) mz -= 1;
+  if (keysDown.has("s") || keysDown.has("arrowdown")) mz += 1;
+  if (keysDown.has("a") || keysDown.has("arrowleft")) mx -= 1;
+  if (keysDown.has("d") || keysDown.has("arrowright")) mx += 1;
+
+  player.moving = mx !== 0 || mz !== 0;
+  if (player.moving) {
+    const len = Math.hypot(mx, mz);
+    player.x += (mx / len) * PLAYER_SPEED * dt;
+    player.z += (mz / len) * PLAYER_SPEED * dt;
+    player.x = Math.max(LOBBY.bounds.minX, Math.min(LOBBY.bounds.maxX, player.x));
+    player.z = Math.max(LOBBY.bounds.minZ, Math.min(LOBBY.bounds.maxZ, player.z));
+    player.yaw = approachAngle(player.yaw, Math.atan2(mx, mz), dt * 12);
+    player.walkPhase += dt * 10;
+  }
+
+  updateEffects(dt);
+
+  // Steht der Spieler in einem Portal?
+  let inPortal = null;
+  for (const p of LOBBY.portals) {
+    if (Math.hypot(player.x - p.trigger.x, player.z - p.trigger.z) < PORTAL_RADIUS) {
+      inPortal = p;
+      break;
+    }
+  }
+
+  if (inPortal) {
+    if (!state.teleport || state.teleport.portal !== inPortal) {
+      state.teleport = { portal: inPortal, t: 0, lastSec: -1 };
+    }
+    state.teleport.t += dt;
+    const secLeft = Math.ceil(TELEPORT_TIME - state.teleport.t);
+    if (secLeft !== state.teleport.lastSec && secLeft > 0) {
+      state.teleport.lastSec = secLeft;
+      showBanner(`🌀 ${DIFFICULTIES[inPortal.diff].name} in ${secLeft}…`, true);
+      sfx("upgrade");
+    }
+    // Wirbel-Partikel um den Spieler
+    if (Math.random() < dt * 25) {
+      const a = Math.random() * Math.PI * 2;
+      spawnParticle(
+        player.x + Math.cos(a) * 18, 5, player.z + Math.sin(a) * 18,
+        0, 60 + Math.random() * 40, 0,
+        0.6, 4, "#" + new THREE.Color(inPortal.color).getHexString(), false
+      );
+    }
+    if (state.teleport.t >= TELEPORT_TIME) {
+      const diff = inPortal.diff;
+      state.teleport = null;
+      hideBanner();
+      burst(player.x, 25, player.z, "#ffffff", 20, 120, false);
+      sfx("win");
+      state.difficulty = diff;
+      localStorage.setItem("btd_difficulty", diff);
+      enterGame();
+      return;
+    }
+  } else if (state.teleport) {
+    state.teleport = null;
+    hideBanner();
+  }
+
+  // Lobby-Animationen
+  ensurePlayerFigure();
+  player.group.position.set(player.x, 0, player.z);
+  player.group.rotation.y = player.yaw;
+  const f = player.group.userData;
+  const swing = player.moving ? Math.sin(player.walkPhase) * 0.7 : 0;
+  f.legL.rotation.x = swing;
+  f.legR.rotation.x = -swing;
+  f.armL.rotation.x = -swing * 0.8;
+  f.armR.rotation.x = swing * 0.8;
+
+  state.lobbyTime = (state.lobbyTime || 0) + dt;
+  for (const p of LOBBY.portals) {
+    const active = state.teleport && state.teleport.portal === p;
+    p.glow.material.opacity = 0.5 + Math.sin(state.lobbyTime * (active ? 14 : 3)) * 0.2 + (active ? 0.25 : 0);
+  }
+
+  // Kamera folgt dem Spieler
+  const camTarget = new THREE.Vector3(player.x, 30, player.z);
+  const camPos = new THREE.Vector3(player.x, 260, player.z + 340);
+  camera.position.lerp(camPos, Math.min(1, dt * 5));
+  camera.lookAt(camTarget);
+}
+
+/* ---------------- Moduswechsel ---------------- */
+
+function enterLobby() {
+  state.mode = "lobby";
+  state.running = false;
+  state.paused = false;
+  state.teleport = null;
+  clearEntities();
+  hideBanner();
+
+  document.getElementById("menu-overlay").classList.add("hidden");
+  document.getElementById("gameover-overlay").classList.add("hidden");
+  document.getElementById("win-overlay").classList.add("hidden");
+  document.getElementById("sidebar").style.display = "none";
+  hideTowerPanel();
+
+  world.visible = false;
+  lobbyGroup.visible = true;
+  controls.enabled = false;
+
+  ensurePlayerFigure();
+  player.x = LOBBY.spawn.x;
+  player.z = LOBBY.spawn.z;
+  player.yaw = Math.PI;
+  player.group.position.set(player.x, 0, player.z);
+  refreshLobbyBoard();
+  refreshHighscoreLine();
+  updateHUD();
+}
+
+function enterGame() {
+  state.mode = "game";
+  world.visible = true;
+  lobbyGroup.visible = false;
+  controls.enabled = true;
+  document.getElementById("sidebar").style.display = "";
+  camera.position.copy(CAM_HOME.pos);
+  controls.target.copy(CAM_HOME.target);
+  controls.update();
+  resetGame();
+  showBanner(`Schwierigkeit: ${DIFFICULTIES[state.difficulty].name}`);
+}
+
+/* =====================================================================
    GAME-LOOP
    ===================================================================== */
 
@@ -2173,10 +2512,14 @@ function loop(now) {
   lastTime = now;
   dt = Math.min(dt, 0.05);
 
-  for (let i = 0; i < state.speed; i++) update(dt);
+  if (state.mode === "lobby") {
+    updateLobby(dt);
+  } else {
+    for (let i = 0; i < state.speed; i++) update(dt);
+  }
 
   syncVisuals(dt);
-  controls.update();
+  if (state.mode !== "lobby") controls.update(); // in der Lobby steuert die Kamera der Spieler
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
