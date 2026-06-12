@@ -276,7 +276,7 @@ const state = {
   hoverPoint: null,      // Punkt unter dem Cursor (freie Platzierung)
   time: 0,
   shake: 0,
-  settings: { sound: true, music: true, shadows: true, dmgNumbers: true },
+  settings: { sound: true, music: true, shadows: true, dmgNumbers: true, hiRes: true },
 };
 
 /* ---------------- Speicherstände (localStorage) ---------------- */
@@ -464,6 +464,11 @@ sun.shadow.camera.bottom = -600;
 sun.shadow.camera.far = 2000;
 scene.add(sun, sun.target);
 
+// Sanftes Fülllicht von der Gegenseite – lässt die Klötzchen plastischer wirken
+const fillLight = new THREE.DirectionalLight(0xc9e0ff, 0.28);
+fillLight.position.set(W * 0.85, 320, D * 1.3);
+scene.add(fillLight);
+
 // Welt-Gruppe (für Kamera-Wackeln bei Treffern)
 const world = new THREE.Group();
 scene.add(world);
@@ -482,12 +487,16 @@ water.position.set(W / 2, -44, D / 2);
 water.receiveShadow = true;
 scene.add(water);
 
-// Größe an Container anpassen
+// Größe an Container anpassen.
+// "Hohe Grafik": mindestens 2x Supersampling (mehr Pixel), max. 3x.
 function resize() {
   const w = container.clientWidth, h = container.clientHeight;
   if (w === 0 || h === 0) return;
   renderer.setSize(w, h);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  const ratio = state.settings.hiRes
+    ? Math.min(Math.max(window.devicePixelRatio, 2), 3)
+    : Math.min(window.devicePixelRatio, 1.5);
+  renderer.setPixelRatio(ratio);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
 }
@@ -859,6 +868,37 @@ function buildMap(mapKey) {
     for (let rr = h.r; rr < h.r + h.h; rr++) {
       for (let cc = h.c; cc < h.c + h.w; cc++) hillTiles.add(cc + "," + rr);
     }
+  }
+
+  // Roblox-Noppen (Studs) auf Boden- und Anhöhen-Kacheln
+  {
+    const studPositions = [];
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (pathTiles.has(c + "," + r)) continue;
+        const onHill = hillTiles.has(c + "," + r);
+        const y = onHill ? HILL_H + 4.5 : 1.5;
+        const baseHex = onHill ? map.grass[0] : ((c + r) % 2 === 0 ? map.grass[0] : map.grass[1]);
+        const col = shadeColor("#" + new THREE.Color(baseHex).getHexString(), onHill ? 0.11 : 0.05);
+        for (const ox of [12, 36]) {
+          for (const oz of [12, 36]) {
+            studPositions.push({ x: c * TILE + ox, y, z: r * TILE + oz, col });
+          }
+        }
+      }
+    }
+    const studGeo = new THREE.CylinderGeometry(4.5, 4.5, 3, 10);
+    const studs = new THREE.InstancedMesh(studGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), studPositions.length);
+    const sm = new THREE.Matrix4();
+    studPositions.forEach((s, i) => {
+      sm.setPosition(s.x, s.y, s.z);
+      studs.setMatrixAt(i, sm);
+      studs.setColorAt(i, s.col);
+    });
+    studs.instanceColor.needsUpdate = true;
+    studs.receiveShadow = true;
+    studs.castShadow = false;
+    mapGroup.add(studs);
   }
 
   // Zufalls-Deko nach Thema (nicht auf Weg oder Anhöhen)
@@ -2711,6 +2751,16 @@ function buildRecordsList() {
 
 function applySettings() {
   sun.castShadow = state.settings.shadows;
+
+  // Schatten-Auflösung an Grafikstufe koppeln (Neuaufbau der Shadow-Map)
+  const shadowSize = state.settings.hiRes ? 4096 : 2048;
+  if (sun.shadow.mapSize.x !== shadowSize) {
+    sun.shadow.mapSize.set(shadowSize, shadowSize);
+    if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
+  }
+  resize(); // Pixel-Anzahl (Supersampling) neu setzen
+
+  document.getElementById("set-hires").checked = state.settings.hiRes;
   document.getElementById("btn-sound").textContent = state.settings.sound ? "🔊" : "🔇";
   document.getElementById("btn-music").textContent = state.settings.music ? "🎵" : "🔕";
   document.getElementById("set-sound").checked = state.settings.sound;
@@ -3038,6 +3088,7 @@ for (const btn of document.querySelectorAll(".pixel-back")) {
 }
 
 // Einstellungen
+document.getElementById("set-hires").addEventListener("change", (ev) => { state.settings.hiRes = ev.target.checked; saveSettings(); applySettings(); });
 document.getElementById("set-sound").addEventListener("change", (ev) => { state.settings.sound = ev.target.checked; saveSettings(); applySettings(); });
 document.getElementById("set-music").addEventListener("change", (ev) => { ensureAudio(); state.settings.music = ev.target.checked; saveSettings(); applySettings(); });
 document.getElementById("set-shadows").addEventListener("change", (ev) => { state.settings.shadows = ev.target.checked; saveSettings(); applySettings(); });

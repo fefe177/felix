@@ -95,7 +95,9 @@ Die Gegner werden mit jeder Welle stärker – baue deine Verteidigung clever au
 
 - **🏆 Rekorde pro Karte** werden automatisch gespeichert
 - **Wellen-Vorschau:** Du siehst vor jeder Welle, welche Gegner kommen
-- **⚙ Einstellungen:** Sound, Musik, Schatten und Schadenszahlen umschaltbar
+- **🖥 Hohe Grafik:** Bis zu 3-fach Supersampling (mehr Pixel!), 4K-Schatten und
+  Roblox-Noppen auf allen Kacheln – in den Einstellungen umschaltbar
+- **⚙ Einstellungen:** Grafik, Sound, Musik, Schatten und Schadenszahlen umschaltbar
 - **⏸ Pause** (Knopf oder Taste P), 🎵 Hintergrundmusik an/aus
 - **Schadenszahlen**, Todesanimationen, brennende Gegner und Kettenblitze in 3D
 
