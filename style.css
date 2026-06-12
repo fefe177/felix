@@ -1,0 +1,219 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: #1a2233;
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 10px;
+  user-select: none;
+}
+
+#game-container {
+  width: 1240px;
+  max-width: 100%;
+}
+
+/* ---------- Topbar ---------- */
+#topbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: #232f4b;
+  border: 3px solid #34466e;
+  border-radius: 12px;
+  padding: 8px 14px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.logo {
+  font-weight: 900;
+  font-size: 18px;
+  letter-spacing: 1px;
+  color: #ffd24a;
+  text-shadow: 2px 2px 0 #0006;
+}
+
+.stats { display: flex; gap: 14px; flex: 1; }
+
+.stat {
+  background: #16203a;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.controls { display: flex; gap: 8px; align-items: center; }
+
+.auto-label { font-size: 14px; display: flex; align-items: center; gap: 4px; cursor: pointer; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  background: #3b4f7d;
+  color: #fff;
+  border: none;
+  border-bottom: 4px solid #2a3a5e;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.05s;
+}
+.btn:hover { filter: brightness(1.15); }
+.btn:active { transform: translateY(2px); border-bottom-width: 2px; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-green { background: #2faa4f; border-bottom-color: #1f7a38; }
+.btn-red   { background: #d04444; border-bottom-color: #962f2f; }
+.btn-big   { font-size: 22px; padding: 14px 40px; margin-top: 16px; }
+.btn-wide  { width: 100%; margin-top: 8px; }
+
+/* ---------- Hauptbereich ---------- */
+#main-row { display: flex; gap: 10px; align-items: flex-start; }
+
+#canvas-wrap {
+  position: relative;
+  flex: 1;
+  border: 3px solid #34466e;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #000;
+  line-height: 0;
+}
+
+canvas#game {
+  width: 100%;
+  height: auto;
+  display: block;
+  cursor: crosshair;
+}
+
+/* ---------- Seitenleiste ---------- */
+#sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: #232f4b;
+  border: 3px solid #34466e;
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.sidebar-title {
+  font-weight: 900;
+  text-align: center;
+  margin-bottom: 8px;
+  color: #ffd24a;
+  letter-spacing: 1px;
+}
+
+#shop { display: flex; flex-direction: column; gap: 6px; }
+
+.shop-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #2c3c63;
+  border: 2px solid #41598f;
+  border-radius: 10px;
+  padding: 7px 9px;
+  cursor: pointer;
+  transition: 0.1s;
+}
+.shop-card:hover { background: #38507f; transform: translateX(2px); }
+.shop-card.selected { border-color: #ffd24a; background: #3d5587; }
+.shop-card.locked { opacity: 0.45; cursor: not-allowed; }
+
+.shop-icon {
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.shop-info { flex: 1; min-width: 0; }
+.shop-name { font-weight: 800; font-size: 14px; }
+.shop-desc { font-size: 11px; color: #aebcdc; }
+.shop-cost { font-weight: 800; font-size: 14px; color: #7ee787; }
+
+/* ---------- Turm-Panel ---------- */
+#tower-panel {
+  margin-top: 10px;
+  background: #2c3c63;
+  border: 2px solid #ffd24a;
+  border-radius: 10px;
+  padding: 10px;
+}
+.panel-title { font-weight: 900; font-size: 16px; color: #ffd24a; }
+.panel-level { font-size: 13px; color: #aebcdc; margin-bottom: 6px; }
+.panel-stats { font-size: 13px; line-height: 1.55; margin-bottom: 4px; }
+
+#hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #8fa1c7;
+  text-align: center;
+  line-height: 1.4;
+}
+
+/* ---------- Overlays ---------- */
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 15, 30, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  line-height: 1.5;
+}
+
+.overlay-box {
+  text-align: center;
+  background: #232f4b;
+  border: 3px solid #34466e;
+  border-radius: 16px;
+  padding: 36px 48px;
+  max-width: 560px;
+}
+.overlay-box h1 { color: #ffd24a; margin-bottom: 12px; text-shadow: 3px 3px 0 #0006; }
+.overlay-box p { margin-bottom: 8px; font-size: 16px; }
+.overlay-box .small { font-size: 13px; color: #aebcdc; }
+
+/* ---------- Wellen-Banner ---------- */
+#wave-banner {
+  position: absolute;
+  top: 38%;
+  left: 0; right: 0;
+  text-align: center;
+  font-size: 44px;
+  font-weight: 900;
+  color: #ffd24a;
+  text-shadow: 3px 3px 0 #000a;
+  pointer-events: none;
+  z-index: 5;
+  animation: bannerPop 2.2s ease forwards;
+}
+
+@keyframes bannerPop {
+  0%   { opacity: 0; transform: scale(0.5); }
+  15%  { opacity: 1; transform: scale(1.1); }
+  25%  { transform: scale(1); }
+  80%  { opacity: 1; }
+  100% { opacity: 0; transform: scale(1); }
+}
+
+.hidden { display: none !important; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1000px) {
+  #main-row { flex-direction: column; }
+  #sidebar { width: 100%; }
+  #shop { flex-direction: row; flex-wrap: wrap; }
+  .shop-card { width: calc(50% - 3px); }
+}
