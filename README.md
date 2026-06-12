@@ -1,6 +1,6 @@
-# 🏰 Blox Tower Defense
+# 🏰 Blox Tower Defense 3D
 
-Ein Tower-Defense-Spiel im Roblox-Stil – komplett im Browser spielbar, keine Installation nötig!
+Ein Tower-Defense-Spiel im Roblox-Stil mit **echter 3D-Ansicht** – komplett im Browser spielbar, keine Installation nötig! (Three.js liegt im `vendor/`-Ordner, das Spiel funktioniert auch offline.)
 
 ## ▶️ So startest du das Spiel
 
@@ -24,7 +24,14 @@ und dann `http://localhost:8000` öffnen.
 - **Zielmodus:** Pro Turm umschaltbar – Erster / Letzter / Stärkster.
 - **Wellen:** 40 Wellen, alle 10 Wellen kommt ein **BOSS** 👑. Mit „Auto" starten die Wellen automatisch.
 - **Geschwindigkeit:** ⏩ Knopf schaltet 1x / 2x / 3x.
-- **Tasten:** `Leertaste` = Welle starten, `ESC` / Rechtsklick = Abbrechen.
+- **Tasten:** `Leertaste` = Welle starten, `ESC` = Abbrechen.
+
+## 🎥 Kamera (3D)
+
+- **Drehen:** Linke Maustaste gedrückt halten und ziehen
+- **Zoomen:** Mausrad
+- **Verschieben:** Rechte Maustaste gedrückt halten und ziehen
+- **Zurücksetzen:** 📷 Knopf oben rechts
 
 ## 🗼 Die Türme
 

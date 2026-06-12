@@ -86,11 +86,38 @@ body {
   line-height: 0;
 }
 
-canvas#game {
+#game3d {
   width: 100%;
-  height: auto;
-  display: block;
+  aspect-ratio: 3 / 2;
   cursor: crosshair;
+  position: relative;
+}
+#game3d canvas { display: block; }
+
+/* Ebene für schwebende Texte (+Geld, Hinweise) */
+#fx-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 4;
+}
+
+.fx-text {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-weight: 900;
+  font-size: 15px;
+  text-shadow: 1px 1px 0 #000c, -1px 1px 0 #000c, 1px -1px 0 #000c;
+  white-space: nowrap;
+  animation: fxFloat 1.2s ease-out forwards;
+}
+
+@keyframes fxFloat {
+  0%   { opacity: 0; margin-top: 6px; }
+  10%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { opacity: 0; margin-top: -38px; }
 }
 
 /* ---------- Seitenleiste ---------- */

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Blox Tower Defense</title>
+<title>Blox Tower Defense 3D</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,7 +11,7 @@
 
   <!-- Obere Leiste mit Statistiken -->
   <div id="topbar">
-    <div class="logo">🏰 BLOX TOWER DEFENSE</div>
+    <div class="logo">🏰 BLOX TOWER DEFENSE 3D</div>
     <div class="stats">
       <div class="stat" id="stat-cash" title="Geld">💰 <span id="cash">0</span></div>
       <div class="stat" id="stat-lives" title="Leben">❤️ <span id="lives">100</span></div>
@@ -22,13 +22,15 @@
       <label class="auto-label"><input type="checkbox" id="chk-auto"> Auto</label>
       <button id="btn-speed" class="btn">⏩ 1x</button>
       <button id="btn-sound" class="btn">🔊</button>
+      <button id="btn-cam" class="btn" title="Kamera zurücksetzen">📷</button>
     </div>
   </div>
 
   <div id="main-row">
-    <!-- Spielfeld -->
+    <!-- 3D-Spielfeld -->
     <div id="canvas-wrap">
-      <canvas id="game" width="960" height="624"></canvas>
+      <div id="game3d"></div>
+      <div id="fx-layer"></div>
 
       <!-- Wellen-Banner -->
       <div id="wave-banner" class="hidden"></div>
@@ -36,13 +38,14 @@
       <!-- Startmenü -->
       <div id="menu-overlay" class="overlay">
         <div class="overlay-box">
-          <h1>🏰 BLOX TOWER DEFENSE</h1>
-          <p>Verteidige deine Basis gegen 40 Wellen von Zombies!</p>
+          <h1>🏰 BLOX TOWER DEFENSE 3D</h1>
+          <p>Verteidige deine Basis gegen 40 Wellen von Zombies – jetzt in 3D!</p>
           <p class="small">
             🖱️ Turm im Shop auswählen und auf dem Gras platzieren<br>
             🆙 Platzierten Turm anklicken zum Upgraden &amp; Verkaufen<br>
             🎯 Zielmodus pro Turm umschaltbar (Erster / Letzter / Stärkster)<br>
-            ⏩ Spielgeschwindigkeit bis 3x &nbsp;|&nbsp; ESC = Abbrechen
+            🎥 Kamera: Linke Maustaste ziehen = drehen, Mausrad = zoomen, Rechte Maustaste = verschieben<br>
+            ⏩ Spielgeschwindigkeit bis 3x &nbsp;|&nbsp; ESC = Abbrechen &nbsp;|&nbsp; Leertaste = Welle starten
           </p>
           <button id="btn-play" class="btn btn-big btn-green">SPIELEN</button>
         </div>
@@ -82,11 +85,13 @@
         <button id="btn-sell" class="btn btn-red btn-wide">💸 Verkaufen</button>
       </div>
 
-      <div id="hint">Wähle einen Turm aus dem Shop und klicke aufs Gras, um ihn zu platzieren.</div>
+      <div id="hint">Wähle einen Turm aus dem Shop und klicke aufs Gras, um ihn zu platzieren.<br><br>🎥 Linke Maustaste ziehen = Kamera drehen, Mausrad = Zoom.</div>
     </div>
   </div>
 </div>
 
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
 <script src="game.js"></script>
 </body>
 </html>
