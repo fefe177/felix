@@ -69,6 +69,22 @@ const TOWER_TYPES = {
       { dmg: 20, range: 160, rate: 1.6, slow: 0.62, slowDur: 2.8, upgradeCost: null },
     ],
   },
+  flame: {
+    name: "Flammenwerfer",
+    icon: "🔥",
+    color: "#f97316",
+    desc: "Verbrennt ganze Gruppen",
+    cost: 650,
+    unlockWave: 6,
+    kind: "flame",
+    levels: [
+      { dmg: 3,  range: 95,  rate: 4, burn: 4,  burnDur: 2.0, targets: 3, upgradeCost: 450 },
+      { dmg: 5,  range: 100, rate: 4, burn: 7,  burnDur: 2.2, targets: 3, upgradeCost: 900 },
+      { dmg: 7,  range: 110, rate: 5, burn: 10, burnDur: 2.5, targets: 4, upgradeCost: 1900 },
+      { dmg: 10, range: 120, rate: 5, burn: 16, burnDur: 3.0, targets: 5, upgradeCost: 3800 },
+      { dmg: 16, range: 130, rate: 6, burn: 26, burnDur: 3.0, targets: 6, upgradeCost: null },
+    ],
+  },
   rocket: {
     name: "Raketenwerfer",
     icon: "🚀",
@@ -101,6 +117,22 @@ const TOWER_TYPES = {
       { dmg: 18, range: 150, rate: 12, upgradeCost: null },
     ],
   },
+  tesla: {
+    name: "Tesla",
+    icon: "⚡",
+    color: "#8b5cf6",
+    desc: "Kettenblitz auf mehrere Gegner",
+    cost: 1100,
+    unlockWave: 12,
+    kind: "tesla",
+    levels: [
+      { dmg: 30,  range: 150, rate: 0.8, chains: 3, upgradeCost: 700 },
+      { dmg: 45,  range: 160, rate: 0.9, chains: 4, upgradeCost: 1400 },
+      { dmg: 70,  range: 170, rate: 1.0, chains: 5, upgradeCost: 2800 },
+      { dmg: 110, range: 180, rate: 1.1, chains: 6, upgradeCost: 5500 },
+      { dmg: 170, range: 195, rate: 1.3, chains: 8, upgradeCost: null },
+    ],
+  },
   farm: {
     name: "Farm",
     icon: "🌾",
@@ -127,7 +159,16 @@ const ENEMY_TYPES = {
   heavy:   { name: "Brocken",  hp: 170,  speed: 38,  reward: 18,  dmg: 2,  scale: 1.2,  color: "#94a3b8", headColor: "#cbd5e1" },
   armored: { name: "Panzer",   hp: 420,  speed: 32,  reward: 35,  dmg: 3,  scale: 1.3,  color: "#475569", headColor: "#64748b" },
   demon:   { name: "Dämon",    hp: 900,  speed: 45,  reward: 70,  dmg: 5,  scale: 1.35, color: "#a855f7", headColor: "#c084fc" },
+  healer:  { name: "Heiler",   hp: 260,  speed: 40,  reward: 30,  dmg: 2,  scale: 1.1,  color: "#f8fafc", headColor: "#fde68a", heals: { radius: 95, frac: 0.05, interval: 1 } },
   boss:    { name: "BOSS",     hp: 3500, speed: 26,  reward: 400, dmg: 25, scale: 1.8,  color: "#dc2626", headColor: "#ef4444" },
+};
+
+/* ---------------- Schwierigkeitsgrade ---------------- */
+
+const DIFFICULTIES = {
+  easy:   { name: "Leicht", lives: 150, cash: 650, hpMult: 0.85 },
+  normal: { name: "Normal", lives: 100, cash: 500, hpMult: 1.0 },
+  hard:   { name: "Schwer", lives: 75,  cash: 450, hpMult: 1.3 },
 };
 
 /* ---------------- Karte / Pfad ---------------- */
@@ -166,20 +207,26 @@ function seededRandom(seed) {
 
 const state = {
   running: false,
+  paused: false,
   cash: START_CASH,
   lives: START_LIVES,
   wave: 1,
+  kills: 0,
+  difficulty: localStorage.getItem("btd_difficulty") || "normal",
   phase: "idle",         // "idle" | "wave"
   speed: 1,
   soundOn: true,
+  musicOn: true,
   autoStart: false,
   autoTimer: 0,
   towers: [],
   enemies: [],
+  dying: [],             // sterbende Gegner (Umfall-Animation)
   projectiles: [],
   particles: [],         // aktive Partikel aus dem Pool
   tracers: [],           // aktive Schusslinien aus dem Pool
   rings: [],             // Explosionsringe
+  bolts: [],             // Tesla-Blitze
   spawnQueue: [],
   waveTime: 0,
   placing: null,
@@ -227,10 +274,53 @@ function sfx(type) {
     case "leak":    tone(220, 0.30, 0.12, "sawtooth", 80); break;
     case "wave":    tone(330, 0.25, 0.10, "triangle", 660); break;
     case "die":     tone(200, 0.12, 0.05, "square", 80); break;
+    case "zap":     tone(1400, 0.10, 0.07, "sawtooth", 250); break;
+    case "flame":   tone(110, 0.12, 0.035, "sawtooth", 55); break;
+    case "heal":    tone(660, 0.12, 0.05, "sine", 990); break;
     case "win":     tone(523, 0.5, 0.12, "triangle", 1046); break;
     case "lose":    tone(300, 0.8, 0.14, "sawtooth", 50); break;
   }
 }
+
+/* ---------------- Hintergrundmusik (WebAudio-Sequencer) ---------------- */
+
+// Fröhliche Pentatonik-Melodie, 32 Schritte (0 = Pause)
+const MELODY = [
+  523, 0, 659, 0, 784, 0, 659, 0, 523, 0, 659, 0, 880, 784, 659, 0,
+  587, 0, 659, 0, 784, 0, 880, 0, 1047, 0, 880, 0, 784, 659, 587, 0,
+];
+const BASS = [131, 0, 0, 0, 165, 0, 0, 0, 110, 0, 0, 0, 196, 0, 0, 0];
+let musicStep = 0;
+
+function musicTick() {
+  if (!state.musicOn || !audioCtx || !state.running || state.paused) return;
+  const t = audioCtx.currentTime;
+
+  const note = MELODY[musicStep % MELODY.length];
+  if (note) {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "triangle";
+    o.frequency.value = note;
+    g.gain.setValueAtTime(0.030, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + 0.22);
+  }
+  const bass = BASS[musicStep % BASS.length];
+  if (bass) {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = "square";
+    o.frequency.value = bass;
+    g.gain.setValueAtTime(0.022, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + 0.3);
+  }
+  musicStep++;
+}
+setInterval(musicTick, 200);
 
 /* =====================================================================
    THREE.JS – SZENE, KAMERA, LICHT
@@ -363,6 +453,16 @@ function approachAngle(current, target, k) {
   base.castShadow = false;
   world.add(base);
 }
+
+// Wasser rund um die Insel
+const water = new THREE.Mesh(
+  new THREE.PlaneGeometry(6000, 6000),
+  new THREE.MeshLambertMaterial({ color: 0x2f7fd1, transparent: true, opacity: 0.92 })
+);
+water.rotation.x = -Math.PI / 2;
+water.position.set(W / 2, -44, D / 2);
+water.receiveShadow = true;
+world.add(water);
 
 // Deko: Bäume, Steine, Blumen (deterministisch verteilt, je Kachel ein-/ausblendbar)
 const decoByTile = new Map();
@@ -645,6 +745,31 @@ function spawnRing(x, z, radius, colorHex) {
   state.rings.push({ mesh: ring, life: 0.3, maxLife: 0.3, radius });
 }
 
+/* ---------------- Tesla-Blitze (gezackte Linien) ---------------- */
+
+function spawnLightning(points) {
+  // Jeden Abschnitt in Zacken unterteilen
+  const jagged = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i], b = points[i + 1];
+    for (let s = 0; s < 4; s++) {
+      const t = s / 4;
+      const jx = s === 0 ? 0 : (Math.random() - 0.5) * 14;
+      const jy = s === 0 ? 0 : (Math.random() - 0.5) * 10;
+      jagged.push(new THREE.Vector3(
+        a.x + (b.x - a.x) * t + jx,
+        a.y + (b.y - a.y) * t + jy,
+        a.z + (b.z - a.z) * t + jx
+      ));
+    }
+  }
+  jagged.push(new THREE.Vector3(points[points.length - 1].x, points[points.length - 1].y, points[points.length - 1].z));
+  const geo = new THREE.BufferGeometry().setFromPoints(jagged);
+  const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xc4b5fd, transparent: true, opacity: 1 }));
+  world.add(line);
+  state.bolts.push({ line, life: 0.13, maxLife: 0.13 });
+}
+
 /* ---------------- Marker: Platzierung & Auswahl ---------------- */
 
 // Kachel-Markierung
@@ -774,6 +899,29 @@ function makeTowerMesh(typeKey, level) {
       orb.position.z = 21;
       gun.add(orb);
       group.userData.frostOrb = orb;
+    } else if (typeKey === "flame") {
+      gun.add(box(6, 6, 14, lambert(0xb91c1c), 0, 0, 6));
+      gun.add(box(8.5, 8.5, 4, lambert(0x7f1d1d), 0, 0, 13));
+      const pilot = new THREE.Mesh(new THREE.SphereGeometry(2.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xfb923c }));
+      pilot.position.z = 16;
+      gun.add(pilot);
+      group.userData.pilotFlame = pilot;
+      // Tank auf dem Rücken
+      const tank = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 14, 10), lambert(0xdc2626));
+      tank.position.set(-6, 26, -8);
+      tank.castShadow = true;
+      rotG.add(tank);
+    } else if (typeKey === "tesla") {
+      gun.add(box(2.5, 2.5, 20, lambert(0x6d28d9), 0, 0, 8));
+      const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(5.5, 0), new THREE.MeshLambertMaterial({ color: 0xddd6fe, emissive: 0x8b5cf6, emissiveIntensity: 0.7 }));
+      orb.position.z = 20;
+      gun.add(orb);
+      group.userData.teslaOrb = orb;
+      // Antenne auf dem Kopf
+      const rod = box(1.5, 12, 1.5, lambert(0x4c1d95), 0, 50, 0);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(2.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xc4b5fd }));
+      tip.position.set(0, 57, 0);
+      rotG.add(rod, tip);
     } else {
       gun.add(box(3.5, 3.5, 18, gunMat, 0, 0, 8));
     }
@@ -822,11 +970,19 @@ function spawnEnemy(typeKey) {
   const def = ENEMY_TYPES[typeKey];
   const hp = Math.round(def.hp * hpScale(state.wave));
 
-  const fig = makeMinifig(def.color, def.headColor, { angry: true, crown: typeKey === "boss" });
+  const fig = makeMinifig(def.color, def.headColor, { angry: typeKey !== "healer", crown: typeKey === "boss" });
   fig.scale.setScalar(def.scale);
+
+  // Heiler bekommt ein rotes Kreuz auf die Brust
+  if (def.heals) {
+    const red = lambert(0xdc2626);
+    fig.add(box(3, 9, 1.5, red, 0, 22, 5));
+    fig.add(box(9, 3, 1.5, red, 0, 22, 5));
+  }
 
   const bar = makeHealthBar(30 * def.scale);
   bar.position.y = 52 * def.scale;
+  bar.visible = false; // erst bei Schaden anzeigen
   setHealthBar(bar, 1);
 
   const g = new THREE.Group();
@@ -842,9 +998,14 @@ function spawnEnemy(typeKey) {
     seg: 0,
     dist: 0,
     slowUntil: 0, slowFactor: 1,
+    burnUntil: 0, burnDps: 0,
+    flash: 0, flashTinted: false,
+    dmgAccum: 0, dmgTimer: 0,
+    healTimer: 1,
     walkPhase: Math.random() * Math.PI * 2,
     yaw: Math.PI / 2,
     dead: false,
+    killed: false,
     group: g,
     figure: fig,
     bar,
@@ -893,18 +1054,53 @@ function moveEnemy(e, dt) {
 
 function killEnemy(e) {
   e.dead = true;
+  e.killed = true;
   state.cash += e.def.reward;
+  state.kills++;
   addText(e.x, 45 * e.def.scale, e.z, `+${e.def.reward}💰`, "#7ee787");
   sfx("die");
   burst(e.x, 22 * e.def.scale, e.z, e.def.color, 12, 90, true);
+
+  // Umfall-Animation: Mesh wandert in die Sterbe-Liste
+  const idx = billboards.indexOf(e.bar);
+  if (idx >= 0) billboards.splice(idx, 1);
+  e.bar.visible = false;
+  e.group.traverse((o) => {
+    if (o.material) {
+      const mats = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of mats) m.transparent = true;
+    }
+  });
+  state.dying.push({ group: e.group, figure: e.figure, t: 0 });
   updateHUD();
 }
 
 function damageEnemy(e, dmg) {
   if (e.dead) return;
   e.hp -= dmg;
+  e.flash = 0.08;
+  e.dmgAccum += dmg;
   if (e.hp <= 0) killEnemy(e);
-  else setHealthBar(e.bar, e.hp / e.maxHp);
+  else {
+    e.bar.visible = true;
+    setHealthBar(e.bar, e.hp / e.maxHp);
+  }
+}
+
+// Gesammelte Schadenszahl über dem Gegner anzeigen (gedrosselt)
+function flushDamageText(e) {
+  const n = Math.round(e.dmgAccum);
+  if (n < 1) return;
+  e.dmgAccum = 0;
+  _projV.set(e.x, 50 * e.def.scale, e.z).project(camera);
+  if (_projV.z > 1) return;
+  const el = document.createElement("div");
+  el.className = "fx-text fx-dmg";
+  el.textContent = "-" + n;
+  el.style.left = ((_projV.x * 0.5 + 0.5) * container.clientWidth + (Math.random() - 0.5) * 18) + "px";
+  el.style.top = ((-_projV.y * 0.5 + 0.5) * container.clientHeight) + "px";
+  fxLayer.appendChild(el);
+  setTimeout(() => el.remove(), 850);
 }
 
 /* ---------------- Schwebende Texte (HTML über der 3D-Szene) ---------------- */
@@ -1022,7 +1218,11 @@ function updateTower(tower, dt) {
   if (tower.flash > 0) tower.flash -= dt;
 
   const target = pickTarget(tower);
-  if (!target) return;
+  if (!target) {
+    // Ohne Ziel langsam umherschauen
+    tower.yaw += dt * 0.4;
+    return;
+  }
 
   // Sanft zum Ziel drehen (nur um die Hochachse)
   const desired = Math.atan2(target.x - tower.x, target.z - tower.z);
@@ -1051,6 +1251,60 @@ function updateTower(tower, dt) {
       spawnTracer(_muzzlePos, targetPos, 0xfde047);
       sfx(tower.type === "sniper" ? "sniper" : tower.type === "minigun" ? "minigun" : "shoot");
     }
+  } else if (def.kind === "flame") {
+    // Trifft bis zu st.targets Gegner in Reichweite und zündet sie an
+    const inRange = state.enemies
+      .filter(e => !e.dead && Math.hypot(e.x - tower.x, e.z - tower.z) <= st.range)
+      .sort((a, b) => Math.hypot(a.x - tower.x, a.z - tower.z) - Math.hypot(b.x - tower.x, b.z - tower.z))
+      .slice(0, st.targets);
+    for (const e of inRange) {
+      damageEnemy(e, st.dmg);
+      if (!e.dead) {
+        e.burnUntil = state.time + st.burnDur;
+        e.burnDps = st.burn;
+      }
+      // Flammenstrahl als Partikel Richtung Ziel
+      const dx = e.x - _muzzlePos.x, dz = e.z - _muzzlePos.z;
+      const dist = Math.hypot(dx, dz) || 1;
+      for (let i = 0; i < 3; i++) {
+        const sp = 120 + Math.random() * 80;
+        spawnParticle(
+          _muzzlePos.x, _muzzlePos.y, _muzzlePos.z,
+          (dx / dist) * sp + (Math.random() - 0.5) * 30,
+          (Math.random() - 0.3) * 25,
+          (dz / dist) * sp + (Math.random() - 0.5) * 30,
+          0.3 + Math.random() * 0.2,
+          3.5 + Math.random() * 3,
+          Math.random() < 0.5 ? "#fb923c" : "#fde047",
+          false
+        );
+      }
+    }
+    sfx("flame");
+  } else if (def.kind === "tesla") {
+    // Kettenblitz: springt vom Ziel zu weiteren Gegnern in der Nähe
+    const chain = [target];
+    const hitSet = new Set([target]);
+    while (chain.length < st.chains) {
+      const last = chain[chain.length - 1];
+      let next = null, bestD = 110;
+      for (const e of state.enemies) {
+        if (e.dead || hitSet.has(e)) continue;
+        const d = Math.hypot(e.x - last.x, e.z - last.z);
+        if (d < bestD) { bestD = d; next = e; }
+      }
+      if (!next) break;
+      chain.push(next);
+      hitSet.add(next);
+    }
+    const points = [{ x: _muzzlePos.x, y: _muzzlePos.y, z: _muzzlePos.z }];
+    for (const e of chain) {
+      points.push({ x: e.x, y: 24 * e.def.scale, z: e.z });
+      burst(e.x, 24, e.z, "#c4b5fd", 4, 60, false);
+      damageEnemy(e, st.dmg);
+    }
+    spawnLightning(points);
+    sfx("zap");
   } else if (def.kind === "rocket") {
     const mesh = new THREE.Group();
     mesh.add(box(5, 5, 12, lambert(0xdc2626), 0, 0, 0));
@@ -1131,13 +1385,25 @@ function buildWave(n) {
   if (n >= 3)  add("fast", Math.floor(n * 0.8), 0.5);
   if (n >= 5)  add("heavy", Math.floor(n / 2) - 1, 1.2);
   if (n >= 12) add("armored", Math.floor(n / 4), 1.6);
+  if (n >= 14) add("healer", Math.floor((n - 8) / 6), 2.5);
   if (n >= 22) add("demon", Math.floor((n - 18) / 3), 2.0);
   if (n >= 15) add("fast", Math.floor(n / 2), 0.3);
   return list;
 }
 
 function hpScale(wave) {
-  return 1 + (wave - 1) * 0.09;
+  return (1 + (wave - 1) * 0.09) * DIFFICULTIES[state.difficulty].hpMult;
+}
+
+// Zusammensetzung einer Welle als Text, z.B. "12× Zombie, 4× Flitzer"
+function waveCompositionText(n) {
+  const counts = {};
+  for (const grp of buildWave(n)) {
+    counts[grp.type] = (counts[grp.type] || 0) + grp.count;
+  }
+  return Object.entries(counts)
+    .map(([type, count]) => `${count}× ${ENEMY_TYPES[type].name}`)
+    .join(", ");
 }
 
 function startWave() {
@@ -1196,21 +1462,56 @@ function finishWave() {
   refreshShop();
 }
 
+/* ---------------- Highscore (localStorage) ---------------- */
+
+function loadHighscore() {
+  try { return JSON.parse(localStorage.getItem("btd_highscore")) || null; }
+  catch (e) { return null; }
+}
+
+function saveHighscore(wave) {
+  const old = loadHighscore();
+  if (!old || wave > old.wave) {
+    localStorage.setItem("btd_highscore", JSON.stringify({ wave, diff: state.difficulty }));
+    return true;
+  }
+  return false;
+}
+
+function refreshHighscoreLine() {
+  const hs = loadHighscore();
+  const el = document.getElementById("highscore-line");
+  const diffName = hs && DIFFICULTIES[hs.diff] ? DIFFICULTIES[hs.diff].name : "";
+  el.textContent = !hs
+    ? "Noch kein Rekord – zeig, was du kannst!"
+    : hs.wave > MAX_WAVE
+      ? `🏆 Rekord: Alle ${MAX_WAVE} Wellen geschafft! (${diffName})`
+      : `🏆 Rekord: Welle ${hs.wave} (${diffName})`;
+}
+
 function gameOver() {
   state.running = false;
   sfx("lose");
   document.getElementById("go-wave").textContent = state.wave;
+  const isNew = saveHighscore(state.wave);
+  document.getElementById("go-highscore").textContent = isNew
+    ? `🏆 NEUER REKORD: Welle ${state.wave}!`
+    : `💀 ${state.kills} Gegner besiegt`;
+  refreshHighscoreLine();
   document.getElementById("gameover-overlay").classList.remove("hidden");
 }
 
 function win() {
   state.running = false;
   sfx("win");
+  saveHighscore(MAX_WAVE + 1);
+  refreshHighscoreLine();
   document.getElementById("win-overlay").classList.remove("hidden");
 }
 
 function clearEntities() {
-  for (const e of state.enemies) removeEnemyMesh(e);
+  for (const e of state.enemies) { if (!e.killed) removeEnemyMesh(e); }
+  for (const d of state.dying) { world.remove(d.group); disposeObject(d.group); }
   for (const t of state.towers) {
     world.remove(t.group);
     disposeObject(t.group);
@@ -1221,20 +1522,27 @@ function clearEntities() {
   for (const p of state.particles) p.mesh.visible = false;
   for (const t of state.tracers) t.line.visible = false;
   for (const r of state.rings) { world.remove(r.mesh); disposeObject(r.mesh); }
+  for (const b of state.bolts) { world.remove(b.line); b.line.geometry.dispose(); b.line.material.dispose(); }
   state.enemies = [];
+  state.dying = [];
   state.towers = [];
   state.projectiles = [];
   state.particles = [];
   state.tracers = [];
   state.rings = [];
+  state.bolts = [];
   fxLayer.innerHTML = "";
 }
 
 function resetGame() {
   clearEntities();
-  state.cash = START_CASH;
-  state.lives = START_LIVES;
+  const diff = DIFFICULTIES[state.difficulty];
+  state.cash = diff.cash;
+  state.lives = diff.lives;
   state.wave = 1;
+  state.kills = 0;
+  state.paused = false;
+  document.getElementById("btn-pause").textContent = "⏸";
   state.phase = "idle";
   state.spawnQueue = [];
   state.placing = null;
@@ -1255,7 +1563,7 @@ function resetGame() {
    ===================================================================== */
 
 function update(dt) {
-  if (!state.running) return;
+  if (!state.running || state.paused) return;
   state.time += dt;
   if (state.shake > 0) state.shake = Math.max(0, state.shake - dt);
 
@@ -1269,13 +1577,67 @@ function update(dt) {
 
   // Gegner
   for (const e of state.enemies) {
-    if (!e.dead) {
-      moveEnemy(e, dt);
-      e.walkPhase += dt * 9 * (state.time < e.slowUntil ? e.slowFactor : 1);
+    if (e.dead) continue;
+    moveEnemy(e, dt);
+    e.walkPhase += dt * 9 * (state.time < e.slowUntil ? e.slowFactor : 1);
+    if (e.flash > 0) e.flash -= dt;
+
+    // Brand-Schaden (Flammenwerfer)
+    if (!e.dead && state.time < e.burnUntil) {
+      damageEnemy(e, e.burnDps * dt);
+    }
+
+    // Heiler: heilt regelmäßig Gegner in der Nähe
+    if (!e.dead && e.def.heals) {
+      e.healTimer -= dt;
+      if (e.healTimer <= 0) {
+        e.healTimer = e.def.heals.interval;
+        let healed = false;
+        for (const o of state.enemies) {
+          if (o.dead || o === e || o.hp >= o.maxHp) continue;
+          if (Math.hypot(o.x - e.x, o.z - e.z) > e.def.heals.radius) continue;
+          o.hp = Math.min(o.maxHp, o.hp + o.maxHp * e.def.heals.frac);
+          setHealthBar(o.bar, o.hp / o.maxHp);
+          spawnParticle(o.x, 38 * o.def.scale, o.z, 0, 24, 0, 0.5, 4, "#4ade80", false);
+          healed = true;
+        }
+        if (healed) {
+          sfx("heal");
+          burst(e.x, 30 * e.def.scale, e.z, "#86efac", 5, 40, false);
+        }
+      }
+    }
+
+    // Gesammelte Schadenszahlen anzeigen (max. alle 0.35s pro Gegner)
+    e.dmgTimer -= dt;
+    if (e.dmgTimer <= 0 && e.dmgAccum >= 1) {
+      e.dmgTimer = 0.35;
+      flushDamageText(e);
     }
   }
-  for (const e of state.enemies) { if (e.dead) removeEnemyMesh(e); }
+  for (const e of state.enemies) { if (e.dead && !e.killed) removeEnemyMesh(e); }
   state.enemies = state.enemies.filter(e => !e.dead);
+
+  // Sterbe-Animation: umfallen, verblassen, dann entfernen
+  for (const d of state.dying) {
+    d.t += dt;
+    d.figure.rotation.x = -Math.min(1, d.t / 0.3) * 1.5;
+    if (d.t > 0.3) {
+      const fade = Math.max(0, 1 - (d.t - 0.3) / 0.4);
+      d.group.traverse((o) => {
+        if (o.material) {
+          const mats = Array.isArray(o.material) ? o.material : [o.material];
+          for (const m of mats) m.opacity = fade;
+        }
+      });
+    }
+    if (d.t >= 0.7) {
+      world.remove(d.group);
+      disposeObject(d.group);
+      d.done = true;
+    }
+  }
+  state.dying = state.dying.filter(d => !d.done);
 
   // Türme
   for (const t of state.towers) updateTower(t, dt);
@@ -1313,6 +1675,19 @@ function update(dt) {
     r.mesh.material.opacity = 1 - a;
   }
   state.rings = state.rings.filter(r => r.life > 0);
+
+  // Tesla-Blitze ausblenden
+  for (const b of state.bolts) {
+    b.life -= dt;
+    if (b.life <= 0) {
+      world.remove(b.line);
+      b.line.geometry.dispose();
+      b.line.material.dispose();
+    } else {
+      b.line.material.opacity = b.life / b.maxLife;
+    }
+  }
+  state.bolts = state.bolts.filter(b => b.life > 0);
 
   // Wellenende prüfen
   if (state.phase === "wave" && state.spawnQueue.length === 0 && state.enemies.length === 0) {
@@ -1355,6 +1730,22 @@ function syncVisuals(dtReal) {
       f.legL.material.color.copy(shadeColor("#" + col.getHexString(), -0.12));
       f.legR.material.color.copy(f.legL.material.color);
     }
+
+    // Weißes Aufblitzen bei Treffern
+    const flashing = e.flash > 0;
+    if (flashing !== e.flashTinted) {
+      e.flashTinted = flashing;
+      f.torso.material.emissive.setHex(flashing ? 0x999999 : 0x000000);
+    }
+
+    // Feuer-Partikel bei brennenden Gegnern
+    if (state.time < e.burnUntil && Math.random() < dtReal * 10) {
+      spawnParticle(
+        e.x + (Math.random() - 0.5) * 12, 20 + Math.random() * 20, e.z + (Math.random() - 0.5) * 12,
+        (Math.random() - 0.5) * 15, 35 + Math.random() * 20, (Math.random() - 0.5) * 15,
+        0.4, 3.5, Math.random() < 0.5 ? "#fb923c" : "#fde047", false
+      );
+    }
   }
 
   // Türme
@@ -1364,6 +1755,8 @@ function syncVisuals(dtReal) {
     if (u.flash) u.flash.visible = t.flash > 0;
     if (u.spinBarrels) u.spinBarrels.rotation.y += dtReal * (t.flash > 0 ? 25 : 3);
     if (u.frostOrb) u.frostOrb.scale.setScalar(1 + Math.sin(state.time * 6) * 0.18);
+    if (u.teslaOrb) u.teslaOrb.scale.setScalar(1 + Math.sin(state.time * 9) * 0.25);
+    if (u.pilotFlame) u.pilotFlame.scale.setScalar(0.8 + Math.random() * 0.5);
     if (u.crops && u.crops.length) {
       for (let i = 0; i < u.crops.length; i++) u.crops[i].rotation.z = Math.sin(state.time * 2 + i) * 0.12;
     }
@@ -1376,6 +1769,9 @@ function syncVisuals(dtReal) {
   // Start-Pfeil hüpfen lassen
   startArrow.position.y = 45 + Math.sin(state.time * 3) * 6;
   startArrow.rotation.y = state.time * 0.8;
+
+  // Wasser leicht schaukeln lassen
+  water.position.y = -44 + Math.sin(state.time * 0.8) * 1.5;
 
   // Wolken treiben lassen
   for (const c of clouds) {
@@ -1447,14 +1843,32 @@ function syncMarkers() {
    ===================================================================== */
 
 function updateHUD() {
-  document.getElementById("cash").textContent = state.cash;
+  document.getElementById("cash").textContent = Math.floor(state.cash);
   document.getElementById("lives").textContent = Math.max(0, state.lives);
   document.getElementById("wave").textContent = state.wave;
   document.getElementById("maxwave").textContent = MAX_WAVE;
+  document.getElementById("kills").textContent = state.kills;
 
   const btn = document.getElementById("btn-start");
   btn.disabled = state.phase !== "idle" || !state.running;
   btn.textContent = state.phase === "wave" ? "🌊 Welle läuft…" : "▶ Welle starten";
+
+  // Wellen-Vorschau (nur bei Änderung neu schreiben)
+  let previewText;
+  if (!state.running) {
+    previewText = "Wähle die Schwierigkeit und drücke SPIELEN!";
+  } else if (state.paused) {
+    previewText = "<b>⏸ PAUSE</b> – Weiter mit ⏸ oder Taste P";
+  } else if (state.phase === "idle") {
+    previewText = `<b>Nächste Welle ${state.wave}:</b> ${waveCompositionText(state.wave)}`;
+  } else {
+    const left = state.spawnQueue.length + state.enemies.length;
+    previewText = `<b>Welle ${state.wave}:</b> noch ${left} Gegner`;
+  }
+  if (previewText !== updateHUD._lastPreview) {
+    updateHUD._lastPreview = previewText;
+    document.getElementById("wave-preview").innerHTML = previewText;
+  }
 
   for (const [key, def] of Object.entries(TOWER_TYPES)) {
     const card = document.getElementById("card-" + key);
@@ -1549,6 +1963,8 @@ function refreshTowerPanel() {
     stats = `⚔️ Schaden: <b>${st.dmg}</b><br>📏 Reichweite: <b>${st.range}</b><br>⏱️ Feuerrate: <b>${st.rate}/s</b>`;
     if (st.slow) stats += `<br>❄️ Verlangsamung: <b>${Math.round(st.slow * 100)}%</b> für ${st.slowDur}s`;
     if (st.splash) stats += `<br>💥 Splash-Radius: <b>${st.splash}</b>`;
+    if (st.burn) stats += `<br>🔥 Brand: <b>${st.burn}/s</b> für ${st.burnDur}s<br>👥 Trifft <b>${st.targets}</b> Gegner`;
+    if (st.chains) stats += `<br>⚡ Kettenblitz: <b>${st.chains}</b> Ziele`;
   }
   document.getElementById("tp-stats").innerHTML = stats;
 
@@ -1641,7 +2057,15 @@ document.addEventListener("keydown", (ev) => {
     ev.preventDefault();
     if (state.phase === "idle") startWave();
   }
+  if ((ev.key === "p" || ev.key === "P") && state.running) togglePause();
 });
+
+function togglePause() {
+  if (!state.running) return;
+  state.paused = !state.paused;
+  document.getElementById("btn-pause").textContent = state.paused ? "▶" : "⏸";
+  updateHUD();
+}
 
 /* ---------------- Buttons ---------------- */
 
@@ -1666,6 +2090,28 @@ document.getElementById("btn-sound").addEventListener("click", (ev) => {
   state.soundOn = !state.soundOn;
   ev.target.textContent = state.soundOn ? "🔊" : "🔇";
 });
+
+document.getElementById("btn-music").addEventListener("click", (ev) => {
+  ensureAudio();
+  state.musicOn = !state.musicOn;
+  ev.target.textContent = state.musicOn ? "🎵" : "🔕";
+});
+
+document.getElementById("btn-pause").addEventListener("click", () => { ensureAudio(); togglePause(); });
+
+// Schwierigkeits-Auswahl im Menü
+for (const btn of document.querySelectorAll(".diff-btn")) {
+  if (btn.dataset.diff === state.difficulty) {
+    document.querySelectorAll(".diff-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+  }
+  btn.addEventListener("click", () => {
+    state.difficulty = btn.dataset.diff;
+    localStorage.setItem("btd_difficulty", state.difficulty);
+    document.querySelectorAll(".diff-btn").forEach(b => b.classList.remove("selected"));
+    btn.classList.add("selected");
+  });
+}
 
 document.getElementById("btn-cam").addEventListener("click", () => {
   camera.position.copy(CAM_HOME.pos);
@@ -1736,5 +2182,6 @@ function loop(now) {
 }
 
 refreshShop();
+refreshHighscoreLine();
 updateHUD();
 requestAnimationFrame(loop);

@@ -40,13 +40,24 @@ und dann `http://localhost:8000` öffnen.
 | 🔫 Schütze | $250 | Günstiger Allrounder |
 | 🎯 Scharfschütze | $400 | Riesige Reichweite, harter Schuss |
 | ❄️ Eismagier | $500 | Verlangsamt Gegner (ab Welle 3) |
+| 🔥 Flammenwerfer | $650 | Trifft Gruppen + Brand-Schaden (ab Welle 6) |
 | 🚀 Raketenwerfer | $800 | Flächenschaden (ab Welle 5) |
 | 💥 Minigunner | $900 | Extrem schnelles Feuer (ab Welle 8) |
+| ⚡ Tesla | $1100 | Kettenblitz auf mehrere Gegner (ab Welle 12) |
 | 🌾 Farm | $600 | Bringt Geld am Ende jeder Welle |
 
 ## 👾 Die Gegner
 
-Zombie 🧟, Flitzer ⚡ (schnell!), Brocken 🪨, Panzer 🛡️, Dämon 😈 und der **BOSS** 👑.
+Zombie 🧟, Flitzer ⚡ (schnell!), Brocken 🪨, Panzer 🛡️, Dämon 😈, **Heiler** ⛑️
+(heilt seine Freunde – zuerst ausschalten!) und der **BOSS** 👑.
 Die Gegner werden mit jeder Welle stärker – baue deine Verteidigung clever aus!
+
+## ✨ Extras
+
+- **3 Schwierigkeitsgrade:** 😊 Leicht / 🙂 Normal / 😈 Schwer (mehr Gegner-HP, weniger Startgeld)
+- **🏆 Highscore** wird automatisch gespeichert
+- **Wellen-Vorschau:** Du siehst vor jeder Welle, welche Gegner kommen
+- **⏸ Pause** (Knopf oder Taste P), 🎵 Hintergrundmusik an/aus
+- **Schadenszahlen**, Todesanimationen, brennende Gegner und Kettenblitze in 3D
 
 Viel Spaß! 🎉

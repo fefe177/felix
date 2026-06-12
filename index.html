@@ -16,15 +16,21 @@
       <div class="stat" id="stat-cash" title="Geld">💰 <span id="cash">0</span></div>
       <div class="stat" id="stat-lives" title="Leben">❤️ <span id="lives">100</span></div>
       <div class="stat" id="stat-wave" title="Welle">🌊 Welle <span id="wave">1</span>/<span id="maxwave">40</span></div>
+      <div class="stat" id="stat-kills" title="Besiegte Gegner">💀 <span id="kills">0</span></div>
     </div>
     <div class="controls">
       <button id="btn-start" class="btn btn-green">▶ Welle starten</button>
       <label class="auto-label"><input type="checkbox" id="chk-auto"> Auto</label>
       <button id="btn-speed" class="btn">⏩ 1x</button>
-      <button id="btn-sound" class="btn">🔊</button>
+      <button id="btn-pause" class="btn" title="Pause">⏸</button>
+      <button id="btn-sound" class="btn" title="Soundeffekte">🔊</button>
+      <button id="btn-music" class="btn" title="Musik">🎵</button>
       <button id="btn-cam" class="btn" title="Kamera zurücksetzen">📷</button>
     </div>
   </div>
+
+  <!-- Wellen-Vorschau -->
+  <div id="wave-preview"></div>
 
   <div id="main-row">
     <!-- 3D-Spielfeld -->
@@ -45,8 +51,14 @@
             🆙 Platzierten Turm anklicken zum Upgraden &amp; Verkaufen<br>
             🎯 Zielmodus pro Turm umschaltbar (Erster / Letzter / Stärkster)<br>
             🎥 Kamera: Linke Maustaste ziehen = drehen, Mausrad = zoomen, Rechte Maustaste = verschieben<br>
-            ⏩ Spielgeschwindigkeit bis 3x &nbsp;|&nbsp; ESC = Abbrechen &nbsp;|&nbsp; Leertaste = Welle starten
+            ⏩ Spielgeschwindigkeit bis 3x &nbsp;|&nbsp; ESC = Abbrechen &nbsp;|&nbsp; Leertaste = Welle starten &nbsp;|&nbsp; P = Pause
           </p>
+          <div class="diff-row">
+            <button class="btn diff-btn" data-diff="easy">😊 Leicht</button>
+            <button class="btn diff-btn selected" data-diff="normal">🙂 Normal</button>
+            <button class="btn diff-btn" data-diff="hard">😈 Schwer</button>
+          </div>
+          <p class="small" id="highscore-line"></p>
           <button id="btn-play" class="btn btn-big btn-green">SPIELEN</button>
         </div>
       </div>
@@ -56,6 +68,7 @@
         <div class="overlay-box">
           <h1>💀 GAME OVER</h1>
           <p>Du hast es bis Welle <span id="go-wave">1</span> geschafft!</p>
+          <p class="small" id="go-highscore"></p>
           <button id="btn-retry" class="btn btn-big btn-green">NOCHMAL</button>
         </div>
       </div>

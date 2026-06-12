@@ -73,6 +73,28 @@ body {
 .btn-big   { font-size: 22px; padding: 14px 40px; margin-top: 16px; }
 .btn-wide  { width: 100%; margin-top: 8px; }
 
+/* ---------- Wellen-Vorschau ---------- */
+#wave-preview {
+  background: #1c2742;
+  border: 2px solid #2c3c63;
+  border-radius: 8px;
+  padding: 5px 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #aebcdc;
+  min-height: 18px;
+}
+#wave-preview b { color: #ffd24a; }
+
+/* ---------- Schwierigkeits-Auswahl ---------- */
+.diff-row { display: flex; gap: 8px; justify-content: center; margin: 14px 0 6px; }
+.diff-btn { opacity: 0.55; }
+.diff-btn.selected {
+  opacity: 1;
+  border: 2px solid #ffd24a;
+  border-bottom: 4px solid #b8941f;
+}
+
 /* ---------- Hauptbereich ---------- */
 #main-row { display: flex; gap: 10px; align-items: flex-start; }
 
@@ -118,6 +140,13 @@ body {
   10%  { opacity: 1; }
   70%  { opacity: 1; }
   100% { opacity: 0; margin-top: -38px; }
+}
+
+/* Kleine Schadenszahlen */
+.fx-dmg {
+  font-size: 12px;
+  color: #ffe8b0;
+  animation-duration: 0.8s;
 }
 
 /* ---------- Seitenleiste ---------- */
