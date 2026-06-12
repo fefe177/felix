@@ -97,6 +97,10 @@ Die Gegner werden mit jeder Welle stärker – baue deine Verteidigung clever au
 - **Wellen-Vorschau:** Du siehst vor jeder Welle, welche Gegner kommen
 - **🖥 Hohe Grafik:** Bis zu 3-fach Supersampling (mehr Pixel!), 4K-Schatten und
   Roblox-Noppen auf allen Kacheln – in den Einstellungen umschaltbar
+- **✨ Ray-Tracing-Wasser:** Die ganze Insel spiegelt sich live im Wasser
+  (echte Spiegel-Reflexion), dazu ein eigener Wellen-Shader mit Sonnen-Glitzern
+  und ein Himmel-Shader mit Farbverlauf und Sonne – auf Volcano Island glüht
+  stattdessen die Lava. In den Einstellungen umschaltbar.
 - **⚙ Einstellungen:** Grafik, Sound, Musik, Schatten und Schadenszahlen umschaltbar
 - **⏸ Pause** (Knopf oder Taste P), 🎵 Hintergrundmusik an/aus
 - **Schadenszahlen**, Todesanimationen, brennende Gegner und Kettenblitze in 3D

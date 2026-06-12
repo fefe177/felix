@@ -174,7 +174,7 @@ const MAPS = {
     name: "Grasslands", icon: "🌲", stars: 1, diffName: "Einfach", hpMult: 1.0,
     desc: "Grüne Wiesen, Holzbrücken, kleine Häuser",
     grass: [0x69b54c, 0x5fa844], path: [0xd4b483, 0xcaa973],
-    sky: 0x87ceeb, water: 0x2f7fd1, earth: 0x8a6437,
+    sky: 0x87ceeb, skyTop: 0x3d7edb, water: 0x2f7fd1, earth: 0x8a6437,
     deco: "grass", clouds: true,
     waypoints: [[-1, 2], [3, 2], [3, 6], [8, 6], [8, 2], [13, 2], [13, 9], [5, 9], [5, 11], [17, 11], [17, 5], [20, 5]],
     hills: [{ c: 0, r: 4, w: 2, h: 2 }, { c: 10, r: 4, w: 2, h: 2 }, { c: 15, r: 0, w: 2, h: 2 }],
@@ -183,7 +183,7 @@ const MAPS = {
     name: "Desert Valley", icon: "🏜", stars: 2, diffName: "Mittel", hpMult: 1.15,
     desc: "Sand, Kakteen und alte Ruinen",
     grass: [0xe3c47f, 0xd8b76d], path: [0xb5916b, 0xa8845f],
-    sky: 0xf0c98c, water: 0x3a98c9, earth: 0xa07840,
+    sky: 0xf0c98c, skyTop: 0x77a9e0, water: 0x3a98c9, earth: 0xa07840,
     deco: "desert", clouds: true,
     waypoints: [[-1, 6], [4, 6], [4, 2], [9, 2], [9, 10], [14, 10], [14, 4], [20, 4]],
     hills: [{ c: 1, r: 2, w: 2, h: 2 }, { c: 6, r: 4, w: 2, h: 2 }, { c: 16, r: 7, w: 2, h: 2 }],
@@ -192,7 +192,7 @@ const MAPS = {
     name: "Frozen Base", icon: "❄", stars: 3, diffName: "Mittel", hpMult: 1.3,
     desc: "Schnee, Eiswege, gefrorene Gebäude",
     grass: [0xeef4f8, 0xdfe9f0], path: [0xa8d8ec, 0x97cce4],
-    sky: 0xbcd8e8, water: 0x6fb1d8, earth: 0x9aa7b5,
+    sky: 0xbcd8e8, skyTop: 0x6f9fc8, water: 0x6fb1d8, earth: 0x9aa7b5,
     deco: "snow", clouds: true,
     waypoints: [[-1, 10], [3, 10], [3, 3], [7, 3], [7, 8], [12, 8], [12, 3], [16, 3], [16, 10], [20, 10]],
     hills: [{ c: 0, r: 0, w: 2, h: 2 }, { c: 9, r: 5, w: 2, h: 2 }, { c: 18, r: 0, w: 2, h: 2 }],
@@ -201,7 +201,7 @@ const MAPS = {
     name: "Volcano Island", icon: "🌋", stars: 4, diffName: "Schwer", hpMult: 1.5,
     desc: "Lava, Vulkane und schwarze Felsen",
     grass: [0x4a4a52, 0x404048], path: [0x705a4a, 0x665142],
-    sky: 0x5a3845, water: 0xe25822, waterGlow: 0x892a0a, earth: 0x332f33,
+    sky: 0x5a3845, skyTop: 0x241420, water: 0xe25822, waterGlow: 0x892a0a, earth: 0x332f33,
     deco: "volcano", clouds: false,
     waypoints: [[-1, 2], [6, 2], [6, 11], [11, 11], [11, 5], [15, 5], [15, 9], [20, 9]],
     hills: [{ c: 2, r: 5, w: 2, h: 2 }, { c: 8, r: 4, w: 2, h: 2 }, { c: 17, r: 2, w: 2, h: 2 }],
@@ -210,7 +210,7 @@ const MAPS = {
     name: "Space Station", icon: "🌌", stars: 5, diffName: "Extrem", hpMult: 1.75,
     desc: "Weltraum, Neonblöcke, schwebende Plattformen",
     grass: [0x2b3052, 0x242a48], path: [0x3a9aa8, 0x32909e],
-    sky: 0x070b1a, water: 0x0a0e22, earth: 0x141831,
+    sky: 0x070b1a, skyTop: 0x01020a, water: 0x0a0e22, earth: 0x141831,
     deco: "space", clouds: false,
     waypoints: [[-1, 6], [2, 6], [2, 2], [6, 2], [6, 10], [10, 10], [10, 2], [14, 2], [14, 10], [18, 10], [18, 6], [20, 6]],
     hills: [{ c: 0, r: 0, w: 2, h: 2 }, { c: 8, r: 4, w: 2, h: 2 }, { c: 16, r: 3, w: 2, h: 2 }],
@@ -276,7 +276,7 @@ const state = {
   hoverPoint: null,      // Punkt unter dem Cursor (freie Platzierung)
   time: 0,
   shake: 0,
-  settings: { sound: true, music: true, shadows: true, dmgNumbers: true, hiRes: true },
+  settings: { sound: true, music: true, shadows: true, dmgNumbers: true, hiRes: true, rt: true },
 };
 
 /* ---------------- Speicherstände (localStorage) ---------------- */
@@ -469,6 +469,46 @@ const fillLight = new THREE.DirectionalLight(0xc9e0ff, 0.28);
 fillLight.position.set(W * 0.85, 320, D * 1.3);
 scene.add(fillLight);
 
+/* ---------------- Himmel-Shader (Farbverlauf + Sonne) ---------------- */
+
+const skyDome = new THREE.Mesh(
+  new THREE.SphereGeometry(4500, 24, 12),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    fog: false,
+    uniforms: {
+      topColor: { value: new THREE.Color(0x3d7edb) },
+      bottomColor: { value: new THREE.Color(0x87ceeb) },
+      sunDir: { value: new THREE.Vector3(-240, 700, -281).normalize() },
+      sunIntensity: { value: 1 },
+    },
+    vertexShader: `
+      varying vec3 vDir;
+      void main() {
+        vDir = normalize(position);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform vec3 topColor;
+      uniform vec3 bottomColor;
+      uniform vec3 sunDir;
+      uniform float sunIntensity;
+      varying vec3 vDir;
+      void main() {
+        float h = clamp(vDir.y, 0.0, 1.0);
+        vec3 col = mix(bottomColor, topColor, pow(h, 0.65));
+        float s = max(dot(normalize(vDir), sunDir), 0.0);
+        col += vec3(1.0, 0.93, 0.75) * (pow(s, 800.0) * 1.2 + pow(s, 40.0) * 0.18) * sunIntensity;
+        gl_FragColor = vec4(col, 1.0);
+      }`,
+  })
+);
+skyDome.position.set(W / 2, 0, D / 2);
+skyDome.renderOrder = -1;
+scene.add(skyDome);
+scene.background = null; // der Dome ist jetzt der Himmel
+
 // Welt-Gruppe (für Kamera-Wackeln bei Treffern)
 const world = new THREE.Group();
 scene.add(world);
@@ -477,7 +517,12 @@ scene.add(world);
 const mapGroup = new THREE.Group();
 world.add(mapGroup);
 
-// Wasser rund um Insel und Lobby (Farbe je nach Karte – auf Volcano: Lava!)
+/* ---------------- Wasser mit "Ray-Tracing"-Spiegelung + Wellen-Shader ----------------
+   Drei Ebenen:
+   1. waterMirror  – echte Spiegelung der Szene (Reflector, wie Ray Tracing)
+   2. water        – einfaches Lambert-Wasser (Fallback / Lava auf Volcano)
+   3. waterFX      – eigener Shader mit animierten Wellen und Sonnen-Glitzern */
+
 const water = new THREE.Mesh(
   new THREE.PlaneGeometry(12000, 12000),
   new THREE.MeshLambertMaterial({ color: 0x2f7fd1, transparent: true, opacity: 0.92 })
@@ -486,6 +531,67 @@ water.rotation.x = -Math.PI / 2;
 water.position.set(W / 2, -44, D / 2);
 water.receiveShadow = true;
 scene.add(water);
+
+// Spiegel-Ebene: rendert die Szene gespiegelt mit (Ray-Tracing-Optik)
+const waterMirror = new THREE.Reflector(new THREE.PlaneGeometry(12000, 12000), {
+  clipBias: 0.003,
+  textureWidth: 1024,
+  textureHeight: 1024,
+  color: 0x99aabb,
+});
+waterMirror.rotation.x = -Math.PI / 2;
+waterMirror.position.set(W / 2, -44, D / 2);
+scene.add(waterMirror);
+
+// Wellen-Shader: Farbton + wandernde Wellen + Glitzer-Highlights
+const waterFX = new THREE.Mesh(
+  new THREE.PlaneGeometry(12000, 12000),
+  new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    uniforms: {
+      time: { value: 0 },
+      color: { value: new THREE.Color(0x2f7fd1) },
+      alpha: { value: 0.4 },
+    },
+    vertexShader: `
+      varying vec2 vPos;
+      void main() {
+        vPos = position.xy;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }`,
+    fragmentShader: `
+      uniform float time;
+      uniform vec3 color;
+      uniform float alpha;
+      varying vec2 vPos;
+      void main() {
+        float w1 = sin(vPos.x * 0.045 + time * 1.4);
+        float w2 = sin(vPos.y * 0.05  - time * 1.1);
+        float w3 = sin((vPos.x + vPos.y) * 0.025 + time * 0.7);
+        float ripple = (w1 + w2 + w3) / 3.0;
+        float glint = smoothstep(0.72, 1.0, ripple);
+        vec3 col = color + vec3(1.0, 1.0, 0.85) * glint * 0.35;
+        float a = alpha * (0.75 + 0.25 * ripple);
+        gl_FragColor = vec4(col, a);
+      }`,
+  })
+);
+waterFX.rotation.x = -Math.PI / 2;
+waterFX.position.set(W / 2, -43.4, D / 2);
+scene.add(waterFX);
+
+// Schaltet je nach Karte/Einstellung zwischen Spiegel-Wasser und Lava/Fallback um
+function updateWaterMode() {
+  const map = MAPS[state.map];
+  const lava = !!map.waterGlow;
+  const rt = state.settings.rt && !lava;
+  waterMirror.visible = rt;
+  water.visible = !rt;
+  waterFX.visible = true;
+  waterFX.material.uniforms.color.value.set(map.water);
+  waterFX.material.uniforms.alpha.value = rt ? 0.35 : (lava ? 0.5 : 0.55);
+}
 
 // Größe an Container anpassen.
 // "Hohe Grafik": mindestens 2x Supersampling (mehr Pixel), max. 3x.
@@ -808,11 +914,14 @@ function buildMap(mapKey) {
   PATH = map.waypoints.map(([c, r]) => ({ x: (c + 0.5) * TILE, z: (r + 0.5) * TILE }));
   pathTiles = computePathTiles(map.waypoints);
 
-  // Himmel, Nebel, Wasser/Lava
-  scene.background.set(map.sky);
+  // Himmel (Shader-Dome), Nebel, Wasser/Lava
+  skyDome.material.uniforms.bottomColor.value.set(map.sky);
+  skyDome.material.uniforms.topColor.value.set(map.skyTop || map.sky);
+  skyDome.material.uniforms.sunIntensity.value = mapKey === "space" ? 0.0 : 1.0;
   scene.fog.color.set(map.sky);
   water.material.color.set(map.water);
   water.material.emissive = new THREE.Color(map.waterGlow || 0x000000);
+  updateWaterMode();
   cloudGroup.visible = map.clouds;
 
   // Boden-Kacheln
@@ -2361,8 +2470,12 @@ function syncVisuals(dtReal) {
     startArrow.rotation.y = syncVisuals._t * 0.8;
   }
 
-  // Wasser leicht schaukeln lassen
-  water.position.y = -44 + Math.sin(syncVisuals._t * 0.8) * 1.5;
+  // Wasser leicht schaukeln lassen + Wellen-Shader animieren
+  const waterY = -44 + Math.sin(syncVisuals._t * 0.8) * 1.5;
+  water.position.y = waterY;
+  waterMirror.position.y = waterY;
+  waterFX.position.y = waterY + 0.6;
+  waterFX.material.uniforms.time.value = syncVisuals._t;
 
   // Wolken treiben lassen
   if (cloudGroup.visible) {
@@ -2759,8 +2872,10 @@ function applySettings() {
     if (sun.shadow.map) { sun.shadow.map.dispose(); sun.shadow.map = null; }
   }
   resize(); // Pixel-Anzahl (Supersampling) neu setzen
+  updateWaterMode(); // Ray-Tracing-Spiegelung an/aus
 
   document.getElementById("set-hires").checked = state.settings.hiRes;
+  document.getElementById("set-rt").checked = state.settings.rt;
   document.getElementById("btn-sound").textContent = state.settings.sound ? "🔊" : "🔇";
   document.getElementById("btn-music").textContent = state.settings.music ? "🎵" : "🔕";
   document.getElementById("set-sound").checked = state.settings.sound;
@@ -3089,6 +3204,7 @@ for (const btn of document.querySelectorAll(".pixel-back")) {
 
 // Einstellungen
 document.getElementById("set-hires").addEventListener("change", (ev) => { state.settings.hiRes = ev.target.checked; saveSettings(); applySettings(); });
+document.getElementById("set-rt").addEventListener("change", (ev) => { state.settings.rt = ev.target.checked; saveSettings(); applySettings(); });
 document.getElementById("set-sound").addEventListener("change", (ev) => { state.settings.sound = ev.target.checked; saveSettings(); applySettings(); });
 document.getElementById("set-music").addEventListener("change", (ev) => { ensureAudio(); state.settings.music = ev.target.checked; saveSettings(); applySettings(); });
 document.getElementById("set-shadows").addEventListener("change", (ev) => { state.settings.shadows = ev.target.checked; saveSettings(); applySettings(); });
