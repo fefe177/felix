@@ -80,7 +80,7 @@
             </div>
             <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Hardcore Modus</div><div class="mode-desc">Bald verfügbar…</div></div></div>
             <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Endlos Modus</div><div class="mode-desc">Bald verfügbar…</div></div></div>
-            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Boss Rush</div><div class="mode-desc">Bald verfügbar…</div></div></div>
+            <div class="mode-card locked" id="mode-bossrush"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Boss Rush</div><div class="mode-desc">Gewinne eine ⭐⭐⭐-Karte zum Freischalten!</div></div></div>
             <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Sandbox</div><div class="mode-desc">Bald verfügbar…</div></div></div>
             <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Koop Modus</div><div class="mode-desc">Bald verfügbar…</div></div></div>
           </div>
@@ -145,7 +145,9 @@
             <label class="setting-row"><span>🖥 Hohe Grafik (mehr Pixel)</span><input type="checkbox" id="set-hires"></label>
             <label class="setting-row"><span>✨ Ray-Tracing-Wasser (Spiegelungen)</span><input type="checkbox" id="set-rt"></label>
             <label class="setting-row"><span>🔊 Soundeffekte</span><input type="checkbox" id="set-sound"></label>
+            <label class="setting-row slider-row"><span>🔊 Effekt-Lautstärke</span><input type="range" id="set-volsfx" min="0" max="100"></label>
             <label class="setting-row"><span>🎵 Musik</span><input type="checkbox" id="set-music"></label>
+            <label class="setting-row slider-row"><span>🎵 Musik-Lautstärke</span><input type="range" id="set-volmusic" min="0" max="100"></label>
             <label class="setting-row"><span>🌗 Schatten</span><input type="checkbox" id="set-shadows"></label>
             <label class="setting-row"><span>🔢 Schadenszahlen</span><input type="checkbox" id="set-dmg"></label>
           </div>
@@ -210,6 +212,7 @@
       <div id="tower-panel" class="hidden">
         <div class="panel-title" id="tp-name">Turm</div>
         <div class="panel-level" id="tp-level">Level 1</div>
+        <canvas id="tp-canvas" width="128" height="128"></canvas>
         <div class="panel-stats" id="tp-stats"></div>
         <button id="btn-upgrade" class="btn btn-green btn-wide">🆙 Upgrade</button>
         <button id="btn-target" class="btn btn-wide">🎯 Ziel: Erster</button>
@@ -217,6 +220,7 @@
       </div>
 
       <div id="hint">Wähle einen Turm aus dem Shop und klicke aufs Gras, um ihn zu platzieren.<br><br>🎥 Linke Maustaste ziehen = Kamera drehen, Mausrad = Zoom.</div>
+      <div id="shop-tooltip"></div>
     </div>
   </div>
 </div>

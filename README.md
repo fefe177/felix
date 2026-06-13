@@ -33,11 +33,34 @@ Spiel im Browser. Die Grafik ist identisch, denn auch dort rechnet die GPU.
 ## 🎮 Das Menüsystem
 
 1. **Hauptmenü:** Großer 🎮 **SPIELEN**-Button, dazu 🏪 Shop, ⚙ Einstellungen und 🏆 Rekorde.
-2. **Modus auswählen:** Aktuell 🛡 **Normaler Modus** (40 Wellen). Hardcore, Endlos,
-   Boss Rush, Sandbox und Koop sind schon sichtbar, aber noch 🔒 gesperrt.
+2. **Modus auswählen:** 🛡 **Normaler Modus** (40 Wellen) und 👹 **Boss Rush**
+   (nach einem Sieg auf einer ⭐⭐⭐-Karte freigeschaltet). Hardcore, Endlos,
+   Sandbox und Koop sind sichtbar, aber noch 🔒 gesperrt.
 3. **Karte auswählen:** 5 Karten mit Vorschaubild, ⭐-Schwierigkeit und deinem Rekord.
 4. **▶ SPIEL STARTEN:** Kurzer Ladebildschirm („Lade Karte…"), dann geht's los –
    mit 500 Startgeld, 100 Leben, Welle 1.
+
+## 👹 Boss Rush
+
+Freigeschaltet, sobald du eine ⭐⭐⭐-Karte (oder schwerer) durchgespielt hast.
+Nur Bosse, alle **60 Sekunden** ein neuer – und jeder wird stärker. Jeder Boss
+hat eine **Spezialfähigkeit**:
+
+- 🟢 **Beschwörer** – ruft regelmäßig flinke Diener herbei
+- 🟣 **Schattenfürst** – blendet alle Türme für 5 Sekunden (sie können nicht schießen)
+- 🔴 **Berserker** – bekommt bei 50 % Leben einen Tempo-Schub
+- ⬛ **Titan** – riesiger Beschwörer mit massig Leben
+
+Mehr Startgeld (1500 💰), da es keine normalen Wellen gibt. Das Spawn-Portal
+**pulsiert 2 Sekunden rot und bebt**, bevor ein neuer Boss erscheint.
+
+## 🛒 Kaufleiste & 3D-Modelle
+
+Jede Turm-Karte zeigt ein **echtes, sich drehendes 3D-Mini-Modell** des Turms
+(statt eines Icons). Beim Drüberfahren rotiert es schneller und ein Tooltip zeigt
+die Werte. Nicht leistbare/gesperrte Türme sind ausgegraut, der gewählte Turm
+leuchtet in seiner Farbe. Im Upgrade-Panel dreht sich das Modell der aktuellen
+Stufe (mit Gold-Noppen und Helm ab Level 3).
 
 ## 🗺 Die 5 Karten
 
@@ -115,6 +138,14 @@ Die Gegner werden mit jeder Welle stärker – baue deine Verteidigung clever au
   (echte Spiegel-Reflexion), dazu ein eigener Wellen-Shader mit Sonnen-Glitzern
   und ein Himmel-Shader mit Farbverlauf und Sonne – auf Volcano Island glüht
   stattdessen die Lava. In den Einstellungen umschaltbar.
+- **🔊 Sound-Upgrade:** Jeder Turm hat einen eigenen Schuss-Sound (Schütze Plopp,
+  Sniper Knall mit Hall, Tesla elektrisches Knistern, Rakete Zisch + Wumms),
+  dazu Boss-Warnungs-Horn, Münz-Klingeln bei der Farm und UI-Klicks – alles per
+  Web Audio API erzeugt, keine externen Dateien
+- **🎚 Lautstärke-Regler** getrennt für Musik und Effekte
+- **🌀 Spawn-Portale:** Jede Karte hat ein eigenes Portal (Höhle, Ruine, Eishöhle,
+  Lavaspalt, Sci-Fi-Teleporter); Gegner treten mit Partikel-Puff aus dem Dunkel.
+  Das Ziel-Tor blitzt rot, wenn ein Gegner durchkommt
 - **⚙ Einstellungen:** Grafik, Sound, Musik, Schatten und Schadenszahlen umschaltbar
 - **⏸ Pause** (Knopf oder Taste P), 🎵 Hintergrundmusik an/aus
 - **Schadenszahlen**, Todesanimationen, brennende Gegner und Kettenblitze in 3D

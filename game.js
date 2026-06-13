@@ -164,7 +164,16 @@ const ENEMY_TYPES = {
   demon:   { name: "Dämon",    hp: 900,  speed: 45,  reward: 70,  dmg: 5,  scale: 1.35, color: "#a855f7", headColor: "#c084fc" },
   healer:  { name: "Heiler",   hp: 260,  speed: 40,  reward: 30,  dmg: 2,  scale: 1.1,  color: "#f8fafc", headColor: "#fde68a", heals: { radius: 95, frac: 0.05, interval: 1 } },
   boss:    { name: "BOSS",     hp: 3500, speed: 26,  reward: 400, dmg: 25, scale: 1.8,  color: "#dc2626", headColor: "#ef4444" },
+
+  // ----- Boss-Rush-Bosse mit Spezialfähigkeiten -----
+  boss_summoner: { name: "Beschwörer", hp: 6000,  speed: 24, reward: 600, dmg: 20, scale: 1.9,  color: "#16a34a", headColor: "#4ade80", ability: "summon",  abilityEvery: 5,  crown: true },
+  boss_blinder:  { name: "Schattenfürst", hp: 7000, speed: 28, reward: 700, dmg: 20, scale: 1.95, color: "#4c1d95", headColor: "#a855f7", ability: "blind",   abilityEvery: 8,  crown: true },
+  boss_rager:    { name: "Berserker", hp: 8000,  speed: 30, reward: 750, dmg: 25, scale: 2.0,  color: "#b91c1c", headColor: "#f87171", ability: "rage",    crown: true },
+  boss_titan:    { name: "Titan",     hp: 14000, speed: 20, reward: 1200, dmg: 40, scale: 2.4,  color: "#1f2937", headColor: "#fbbf24", ability: "summon",  abilityEvery: 4,  crown: true },
 };
+
+// Reihenfolge der Bosse im Boss-Rush (wiederholt sich danach, stärker)
+const BOSS_RUSH_ORDER = ["boss", "boss_summoner", "boss_blinder", "boss_rager", "boss_titan"];
 
 /* ---------------- Die 5 Karten ----------------
    Jede Karte hat eigenen Weg, Farben, Deko-Thema und Schwierigkeit. */
@@ -174,7 +183,7 @@ const MAPS = {
     name: "Grasslands", icon: "🌲", stars: 1, diffName: "Einfach", hpMult: 1.0,
     desc: "Grüne Wiesen, Holzbrücken, kleine Häuser",
     grass: [0x69b54c, 0x5fa844], path: [0xd4b483, 0xcaa973],
-    sky: 0x87ceeb, skyTop: 0x3d7edb, water: 0x2f7fd1, earth: 0x8a6437,
+    sky: 0x87ceeb, skyTop: 0x3d7edb, water: 0x2f7fd1, earth: 0x8a6437, portal: 0x7ee787,
     deco: "grass", clouds: true,
     waypoints: [[-1, 2], [3, 2], [3, 6], [8, 6], [8, 2], [13, 2], [13, 9], [5, 9], [5, 11], [17, 11], [17, 5], [20, 5]],
     hills: [{ c: 0, r: 4, w: 2, h: 2 }, { c: 10, r: 4, w: 2, h: 2 }, { c: 15, r: 0, w: 2, h: 2 }],
@@ -183,7 +192,7 @@ const MAPS = {
     name: "Desert Valley", icon: "🏜", stars: 2, diffName: "Mittel", hpMult: 1.15,
     desc: "Sand, Kakteen und alte Ruinen",
     grass: [0xe3c47f, 0xd8b76d], path: [0xb5916b, 0xa8845f],
-    sky: 0xf0c98c, skyTop: 0x77a9e0, water: 0x3a98c9, earth: 0xa07840,
+    sky: 0xf0c98c, skyTop: 0x77a9e0, water: 0x3a98c9, earth: 0xa07840, portal: 0xf0c060,
     deco: "desert", clouds: true,
     waypoints: [[-1, 6], [4, 6], [4, 2], [9, 2], [9, 10], [14, 10], [14, 4], [20, 4]],
     hills: [{ c: 1, r: 2, w: 2, h: 2 }, { c: 6, r: 4, w: 2, h: 2 }, { c: 16, r: 7, w: 2, h: 2 }],
@@ -192,7 +201,7 @@ const MAPS = {
     name: "Frozen Base", icon: "❄", stars: 3, diffName: "Mittel", hpMult: 1.3,
     desc: "Schnee, Eiswege, gefrorene Gebäude",
     grass: [0xeef4f8, 0xdfe9f0], path: [0xa8d8ec, 0x97cce4],
-    sky: 0xbcd8e8, skyTop: 0x6f9fc8, water: 0x6fb1d8, earth: 0x9aa7b5,
+    sky: 0xbcd8e8, skyTop: 0x6f9fc8, water: 0x6fb1d8, earth: 0x9aa7b5, portal: 0x7dd3fc,
     deco: "snow", clouds: true,
     waypoints: [[-1, 10], [3, 10], [3, 3], [7, 3], [7, 8], [12, 8], [12, 3], [16, 3], [16, 10], [20, 10]],
     hills: [{ c: 0, r: 0, w: 2, h: 2 }, { c: 9, r: 5, w: 2, h: 2 }, { c: 18, r: 0, w: 2, h: 2 }],
@@ -201,7 +210,7 @@ const MAPS = {
     name: "Volcano Island", icon: "🌋", stars: 4, diffName: "Schwer", hpMult: 1.5,
     desc: "Lava, Vulkane und schwarze Felsen",
     grass: [0x4a4a52, 0x404048], path: [0x705a4a, 0x665142],
-    sky: 0x5a3845, skyTop: 0x241420, water: 0xe25822, waterGlow: 0x892a0a, earth: 0x332f33,
+    sky: 0x5a3845, skyTop: 0x241420, water: 0xe25822, waterGlow: 0x892a0a, earth: 0x332f33, portal: 0xff6a2a,
     deco: "volcano", clouds: false,
     waypoints: [[-1, 2], [6, 2], [6, 11], [11, 11], [11, 5], [15, 5], [15, 9], [20, 9]],
     hills: [{ c: 2, r: 5, w: 2, h: 2 }, { c: 8, r: 4, w: 2, h: 2 }, { c: 17, r: 2, w: 2, h: 2 }],
@@ -210,7 +219,7 @@ const MAPS = {
     name: "Space Station", icon: "🌌", stars: 5, diffName: "Extrem", hpMult: 1.75,
     desc: "Weltraum, Neonblöcke, schwebende Plattformen",
     grass: [0x2b3052, 0x242a48], path: [0x3a9aa8, 0x32909e],
-    sky: 0x070b1a, skyTop: 0x01020a, water: 0x0a0e22, earth: 0x141831,
+    sky: 0x070b1a, skyTop: 0x01020a, water: 0x0a0e22, earth: 0x141831, portal: 0x22d3ee,
     deco: "space", clouds: false,
     waypoints: [[-1, 6], [2, 6], [2, 2], [6, 2], [6, 10], [10, 10], [10, 2], [14, 2], [14, 10], [18, 10], [18, 6], [20, 6]],
     hills: [{ c: 0, r: 0, w: 2, h: 2 }, { c: 8, r: 4, w: 2, h: 2 }, { c: 16, r: 3, w: 2, h: 2 }],
@@ -251,6 +260,11 @@ function seededRandom(seed) {
 const state = {
   mode: "menu",          // "menu" | "lobby" | "game"
   map: localStorage.getItem("btd_map") || "grasslands",
+  gameMode: "normal",    // "normal" | "bossrush"
+  bossRush: null,        // { next, num, total } im Boss-Rush-Modus
+  portalAlarm: 0,        // Portal pulsiert rot kurz vor einem Boss
+  gateFlash: 0,          // Ziel-Tor blitzt rot bei Lebensverlust
+  blindUntil: 0,         // Türme können bis hierhin nicht schießen (Boss-Fähigkeit)
   running: false,
   paused: false,
   cash: START_CASH,
@@ -276,7 +290,7 @@ const state = {
   hoverPoint: null,      // Punkt unter dem Cursor (freie Platzierung)
   time: 0,
   shake: 0,
-  settings: { sound: true, music: true, shadows: true, dmgNumbers: true, hiRes: true, rt: true },
+  settings: { sound: true, music: true, shadows: true, dmgNumbers: true, hiRes: true, rt: true, volSfx: 70, volMusic: 60 },
 };
 
 /* ---------------- Speicherstände (localStorage) ---------------- */
@@ -302,6 +316,22 @@ function recordText(mapKey) {
   if (!rec) return "Noch kein Rekord";
   if (rec > MAX_WAVE) return "✅ Geschafft!";
   return `Rekord: Welle ${rec}`;
+}
+
+// Boss Rush: freigeschaltet, sobald eine ⭐⭐⭐-Karte (oder schwerer) gewonnen wurde
+function isBossRushUnlocked() {
+  if (loadJSON("btd_bossrush", false)) return true;
+  const rec = loadRecords();
+  for (const key of MAP_ORDER) {
+    if (MAPS[key].stars >= 3 && rec[key] && rec[key] > MAX_WAVE) return true;
+  }
+  return false;
+}
+function unlockBossRush() { localStorage.setItem("btd_bossrush", "true"); }
+function bossRushBest() { return loadJSON("btd_bossrush_best", 0); }
+function saveBossRushBest(n) {
+  if (n > bossRushBest()) { localStorage.setItem("btd_bossrush_best", JSON.stringify(n)); return true; }
+  return false;
 }
 
 // Münzen (Meta-Währung für Skins)
@@ -339,40 +369,120 @@ function ensureAudio() {
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
   }
 }
-function sfx(type) {
-  if (!state.settings.sound || !audioCtx) return;
-  const t = audioCtx.currentTime;
-  const gain = audioCtx.createGain();
-  gain.connect(audioCtx.destination);
+// Weißes Rauschen für Knall-/Zisch-Sounds (einmal erzeugt, dann wiederverwendet)
+let noiseBuffer = null;
+function getNoiseBuffer() {
+  if (!noiseBuffer) {
+    noiseBuffer = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.5, audioCtx.sampleRate);
+    const d = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  }
+  return noiseBuffer;
+}
 
-  function tone(freq, dur, vol, shape, slideTo) {
+function sfxVolume() { return state.settings.volSfx / 70; } // 70 = alte Lautstärke
+
+function sfx(type) {
+  if (!state.settings.sound || !audioCtx || state.settings.volSfx === 0) return;
+  const now = audioCtx.currentTime;
+  const V = sfxVolume();
+
+  // Ein Ton, optional mit Gleiten und Verzögerung (für Echos/Knistern)
+  function tone(freq, dur, vol, shape, slideTo, delay) {
+    const t = now + (delay || 0);
     const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
     o.type = shape || "square";
     o.frequency.setValueAtTime(freq, t);
     if (slideTo) o.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
-    gain.gain.setValueAtTime(vol, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
-    o.connect(gain);
+    g.gain.setValueAtTime(vol * V, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination);
     o.start(t); o.stop(t + dur);
   }
 
+  // Rausch-Stoß durch einen Bandpass-Filter (Knall, Zischen, Wumms)
+  function noise(dur, vol, fromFreq, toFreq, delay) {
+    const t = now + (delay || 0);
+    const src = audioCtx.createBufferSource();
+    src.buffer = getNoiseBuffer();
+    src.loop = true;
+    const f = audioCtx.createBiquadFilter();
+    f.type = "bandpass";
+    f.frequency.setValueAtTime(fromFreq, t);
+    f.frequency.exponentialRampToValueAtTime(Math.max(20, toFreq), t + dur);
+    f.Q.value = 0.9;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(vol * V, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+    src.start(t); src.stop(t + dur);
+  }
+
   switch (type) {
-    case "shoot":   tone(380, 0.07, 0.05, "square", 180); break;
-    case "minigun": tone(300, 0.04, 0.03, "sawtooth", 200); break;
-    case "sniper":  tone(150, 0.18, 0.09, "sawtooth", 60); break;
-    case "frost":   tone(900, 0.15, 0.05, "sine", 1400); break;
-    case "boom":    tone(90, 0.35, 0.18, "sawtooth", 30); break;
+    // ----- Turm-Schüsse: jeder Turm klingt anders -----
+    case "shoot":   // Schütze: kurzer Plopp
+      tone(620, 0.06, 0.06, "sine", 240); break;
+    case "minigun": // Minigunner: schnelles Rattern
+      tone(280 + Math.random() * 60, 0.035, 0.03, "sawtooth", 180);
+      noise(0.03, 0.025, 2500, 1200); break;
+    case "sniper":  // Scharfschütze: lauter Knall mit Hall
+      noise(0.16, 0.16, 2200, 300);
+      tone(130, 0.28, 0.11, "sawtooth", 45);
+      noise(0.22, 0.05, 900, 200, 0.14);   // Echo 1
+      noise(0.28, 0.022, 600, 150, 0.30);  // Echo 2 (Hall)
+      break;
+    case "frost":   // Eismagier: glitzerndes Klingen
+      tone(900, 0.15, 0.05, "sine", 1500);
+      tone(1350, 0.12, 0.03, "sine", 1800, 0.05); break;
+    case "zap":     // Tesla: elektrisches Knistern
+      for (let i = 0; i < 5; i++) {
+        tone(700 + Math.random() * 1600, 0.03, 0.05, "sawtooth", 200 + Math.random() * 400, i * 0.022);
+      }
+      noise(0.12, 0.04, 4000, 1500); break;
+    case "flame":   // Flammenwerfer: Fauchen
+      noise(0.16, 0.05, 500, 200);
+      tone(95, 0.13, 0.03, "sawtooth", 55); break;
+    case "rocketlaunch": // Rakete: Zisch beim Abschuss
+      noise(0.3, 0.08, 500, 2800);
+      tone(220, 0.18, 0.04, "sawtooth", 90); break;
+    case "boom":    // Explosion: Wumms
+      noise(0.4, 0.22, 500, 50);
+      tone(85, 0.4, 0.16, "sawtooth", 28); break;
+
+    // ----- Gegner & Spiel -----
+    case "die":     // Gegner-Tod
+      tone(330, 0.1, 0.05, "square", 110);
+      noise(0.1, 0.04, 1200, 300); break;
+    case "bosshorn": { // Boss-Warnung: tiefes Horn
+      const t = now;
+      for (const f of [65, 98]) {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sawtooth";
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.001, t);
+        g.gain.exponentialRampToValueAtTime(0.16 * V, t + 0.25);
+        g.gain.setValueAtTime(0.16 * V, t + 0.7);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 1.4);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(t); o.stop(t + 1.4);
+      }
+      break;
+    }
+    case "leak":    tone(220, 0.30, 0.12, "sawtooth", 80); break;
+    case "heal":    tone(660, 0.12, 0.05, "sine", 990); break;
+    case "wave":    tone(330, 0.25, 0.10, "triangle", 660); break;
+
+    // ----- Geld & UI -----
+    case "coin":    // Münz-Klingeln (Farm)
+      tone(988, 0.08, 0.06, "sine", 988);
+      tone(1319, 0.14, 0.06, "sine", 1319, 0.07); break;
+    case "cash":    tone(880, 0.09, 0.06, "sine", 1320); break;
     case "place":   tone(500, 0.12, 0.08, "triangle", 700); break;
     case "upgrade": tone(440, 0.10, 0.08, "triangle", 880); break;
     case "sell":    tone(600, 0.15, 0.08, "triangle", 300); break;
-    case "cash":    tone(880, 0.09, 0.06, "sine", 1320); break;
-    case "leak":    tone(220, 0.30, 0.12, "sawtooth", 80); break;
-    case "wave":    tone(330, 0.25, 0.10, "triangle", 660); break;
-    case "die":     tone(200, 0.12, 0.05, "square", 80); break;
-    case "zap":     tone(1400, 0.10, 0.07, "sawtooth", 250); break;
-    case "flame":   tone(110, 0.12, 0.035, "sawtooth", 55); break;
-    case "heal":    tone(660, 0.12, 0.05, "sine", 990); break;
-    case "click":   tone(700, 0.06, 0.05, "triangle", 500); break;
+    case "click":   tone(700, 0.05, 0.05, "triangle", 500); break;
     case "win":     tone(523, 0.5, 0.12, "triangle", 1046); break;
     case "lose":    tone(300, 0.8, 0.14, "sawtooth", 50); break;
   }
@@ -390,7 +500,9 @@ let musicStep = 0;
 function musicTick() {
   const active = state.running || state.mode === "lobby";
   if (!state.settings.music || !audioCtx || !active || state.paused) return;
+  if (state.settings.volMusic === 0) return;
   const t = audioCtx.currentTime;
+  const VM = state.settings.volMusic / 60; // 60 = alte Lautstärke
 
   const note = MELODY[musicStep % MELODY.length];
   if (note) {
@@ -398,7 +510,7 @@ function musicTick() {
     const g = audioCtx.createGain();
     o.type = "triangle";
     o.frequency.value = note;
-    g.gain.setValueAtTime(0.030, t);
+    g.gain.setValueAtTime(0.030 * VM, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
     o.connect(g); g.connect(audioCtx.destination);
     o.start(t); o.stop(t + 0.22);
@@ -409,7 +521,7 @@ function musicTick() {
     const g = audioCtx.createGain();
     o.type = "square";
     o.frequency.value = bass;
-    g.gain.setValueAtTime(0.022, t);
+    g.gain.setValueAtTime(0.022 * VM, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
     o.connect(g); g.connect(audioCtx.destination);
     o.start(t); o.stop(t + 0.3);
@@ -651,7 +763,8 @@ function approachAngle(current, target, k) {
    KARTEN-AUFBAU – baut die Spiel-Insel je nach Thema neu
    ===================================================================== */
 
-let startArrow = null;
+let spawnPortal = null;   // { group, glow, ring?, baseColor, baseOpacity, x, z, theme }
+let endGate = null;       // { group, door, baseColor }
 let decoByTile = new Map();
 
 // Anhöhen der aktiven Karte: { minX, maxX, minZ, maxZ, y }
@@ -899,6 +1012,143 @@ function buildMapExtras(mapKey, registerDeco) {
   return extras;
 }
 
+/* ---------------- Spawn-Portal: hier betreten die Gegner den Weg ----------------
+   Jede Karte hat ein eigenes Portal passend zum Thema. Innen ist es dunkel
+   mit einem Glühen in Karten-Farbe – Gegner treten "aus dem Dunkel". */
+
+function buildSpawnPortal(mapKey, map) {
+  const g = new THREE.Group();
+  const pos = PATH[0]; // liegt knapp außerhalb des Felds, Gegner laufen in +X
+
+  // Dunkler Innenraum (verdeckt das Aufploppen der Gegner)
+  const dark = new THREE.Mesh(new THREE.PlaneGeometry(42, 46), new THREE.MeshBasicMaterial({ color: 0x05060a }));
+  dark.position.set(16, 23, 0);
+  dark.rotation.y = Math.PI / 2;
+  g.add(dark);
+
+  // Glühen in Karten-Farbe
+  const glow = new THREE.Mesh(
+    new THREE.PlaneGeometry(34, 38),
+    new THREE.MeshBasicMaterial({ color: map.portal, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  glow.position.set(16.6, 22, 0);
+  glow.rotation.y = Math.PI / 2;
+  g.add(glow);
+
+  let ring = null;
+
+  if (mapKey === "grasslands") {
+    // Höhleneingang im Felshügel mit Ranken
+    const rock = lambert(0x6b7280);
+    g.add(box(34, 60, 70, rock, -8, 28, 0));
+    g.add(box(22, 18, 78, lambert(0x5d6672), 4, 56, 0));
+    g.add(box(20, 64, 18, rock, 8, 30, -38));
+    g.add(box(20, 64, 18, rock, 8, 30, 38));
+    g.add(box(30, 26, 30, lambert(0x3e8e41), -6, 70, -20)); // Gras oben
+    g.add(box(24, 20, 24, lambert(0x4caf50), 0, 66, 24));
+    for (const vz of [-16, -5, 7, 16]) { // Ranken vor dem Eingang
+      g.add(box(2.2, 12 + Math.abs(vz), 2.2, lambert(0x3e8e41), 17, 48 - (12 + Math.abs(vz)) / 2, vz));
+    }
+  } else if (mapKey === "desert") {
+    // Zerfallener Ruinen-Torbogen
+    const sand = lambert(0xd9bd92);
+    g.add(box(16, 56, 16, sand, 10, 28, -28));
+    g.add(box(16, 44, 16, lambert(0xcdb088), 10, 22, 28));
+    const lintel = box(16, 12, 42, sand, 10, 58, -10);
+    lintel.rotation.x = 0.12;
+    g.add(lintel);
+    g.add(box(12, 8, 12, lambert(0xc4a06a), 16, 4, 42)); // Trümmer
+    g.add(box(8, 6, 8, lambert(0xc4a06a), 20, 3, -44));
+  } else if (mapKey === "frozen") {
+    // Eishöhle mit Eiszapfen
+    const ice = new THREE.MeshLambertMaterial({ color: 0xcfe9f5, transparent: true, opacity: 0.95 });
+    g.add(box(34, 62, 72, ice, -8, 29, 0));
+    g.add(box(24, 18, 80, lambert(0xffffff), 2, 58, 0));
+    g.add(box(20, 60, 16, ice, 8, 28, -38));
+    g.add(box(20, 60, 16, ice, 8, 28, 38));
+    for (const vz of [-14, -4, 6, 15]) { // Eiszapfen
+      const icicle = new THREE.Mesh(new THREE.ConeGeometry(2.6, 10 + Math.abs(vz) * 0.5, 5), lambert(0xe8f6fc));
+      icicle.rotation.x = Math.PI;
+      icicle.position.set(17, 44 - (10 + Math.abs(vz) * 0.5) / 2, vz);
+      icicle.castShadow = true;
+      g.add(icicle);
+    }
+  } else if (mapKey === "volcano") {
+    // Glühender Lavaspalt
+    const rockMat = lambert(0x26262c);
+    const r1 = box(30, 64, 34, rockMat, -4, 30, -28); r1.rotation.z = 0.1; g.add(r1);
+    const r2 = box(30, 58, 34, rockMat, -4, 27, 28); r2.rotation.z = -0.08; g.add(r2);
+    const r3 = box(26, 22, 70, lambert(0x33333a), 0, 62, 0); r3.rotation.x = 0.06; g.add(r3);
+    // Leuchtende Risse
+    for (const [rx, rz, rh] of [[14, -24, 26], [15, 26, 20], [12, 0, 14]]) {
+      g.add(box(1.5, rh, 3.5, new THREE.MeshBasicMaterial({ color: 0xff9a4d }), rx, 52 - rh / 2, rz));
+    }
+  } else if (mapKey === "space") {
+    // Sci-Fi-Teleporter mit Energie-Ring
+    const frame = lambert(0x2a3158);
+    g.add(box(14, 60, 14, frame, 6, 30, -32));
+    g.add(box(14, 60, 14, frame, 6, 30, 32));
+    g.add(box(14, 12, 78, frame, 6, 64, 0));
+    g.add(box(14, 6, 78, frame, 6, 2, 0));
+    ring = new THREE.Mesh(
+      new THREE.TorusGeometry(25, 2.5, 8, 28),
+      new THREE.MeshLambertMaterial({ color: 0x67e8f9, emissive: 0x22d3ee, emissiveIntensity: 0.9 })
+    );
+    ring.rotation.y = Math.PI / 2;
+    ring.position.set(14, 26, 0);
+    g.add(ring);
+    g.add(box(4, 4, 4, new THREE.MeshBasicMaterial({ color: 0xff5b7f }), 6, 70, -32));
+    g.add(box(4, 4, 4, new THREE.MeshBasicMaterial({ color: 0x7ee787 }), 6, 70, 32));
+  }
+
+  g.position.set(pos.x - 14, 0, pos.z);
+  mapGroup.add(g);
+  spawnPortal = {
+    group: g, glow, ring,
+    baseColor: map.portal, baseOpacity: 0.35,
+    x: pos.x, z: pos.z, theme: mapKey, baseX: pos.x - 14,
+  };
+}
+
+/* ---------------- Ziel-Tor: hier kommen die Gegner an ----------------
+   Blitzt rot auf, wenn ein Gegner durchkommt. */
+
+function buildEndGate(mapKey, map) {
+  const g = new THREE.Group();
+  const endRow = map.waypoints[map.waypoints.length - 1][1];
+  const z = (endRow + 0.5) * TILE;
+
+  const frameCol = mapKey === "frozen" ? 0xdfe9f0 : mapKey === "space" ? 0x2a3158 : mapKey === "volcano" ? 0x33333a : mapKey === "desert" ? 0xcdb088 : 0x8a6437;
+  const frame = lambert(frameCol);
+  g.add(box(12, 52, 12, frame, 0, 26, -26));
+  g.add(box(12, 52, 12, frame, 0, 26, 26));
+  g.add(box(12, 12, 60, frame, 0, 56, 0));
+  // Zinnen oben
+  for (const dz of [-22, 0, 22]) g.add(box(8, 8, 8, frame, 0, 66, dz));
+
+  // Dunkles Tor, das bei Lebensverlust rot aufblitzt
+  const door = new THREE.Mesh(
+    new THREE.PlaneGeometry(40, 42),
+    new THREE.MeshBasicMaterial({ color: 0x0a0c14 })
+  );
+  door.position.set(-2, 21, 0);
+  door.rotation.y = -Math.PI / 2;
+  g.add(door);
+
+  // Glüh-Rahmen in Karten-Farbe
+  const edge = new THREE.Mesh(
+    new THREE.PlaneGeometry(46, 48),
+    new THREE.MeshBasicMaterial({ color: map.portal, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  edge.position.set(-2.6, 22, 0);
+  edge.rotation.y = -Math.PI / 2;
+  g.add(edge);
+
+  g.position.set(W + 10, 0, z);
+  mapGroup.add(g);
+  endGate = { group: g, door, baseColor: 0x0a0c14 };
+}
+
 function buildMap(mapKey) {
   const map = MAPS[mapKey];
 
@@ -1052,14 +1302,9 @@ function buildMap(mapKey) {
     mapGroup.add(castle);
   }
 
-  // Start-Pfeil am Weganfang
-  startArrow = new THREE.Group();
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(14, 30, 4), new THREE.MeshLambertMaterial({ color: 0x22c55e, emissive: 0x14532d }));
-  cone.rotation.z = -Math.PI / 2;
-  cone.rotation.y = Math.PI / 4;
-  startArrow.add(cone);
-  startArrow.position.set(PATH[0].x - 20, 45, PATH[0].z);
-  mapGroup.add(startArrow);
+  // Spawn-Portal am Weganfang + Ziel-Tor am Wegende
+  buildSpawnPortal(mapKey, map);
+  buildEndGate(mapKey, map);
 }
 
 /* =====================================================================
@@ -1647,11 +1892,13 @@ function refreshTowerStuds(tower) {
    GEGNER
    ===================================================================== */
 
-function spawnEnemy(typeKey) {
+function spawnEnemy(typeKey, hpMultOverride) {
   const def = ENEMY_TYPES[typeKey];
-  const hp = Math.round(def.hp * hpScale(state.wave));
+  const mult = hpMultOverride != null ? hpMultOverride : hpScale(state.wave);
+  const hp = Math.round(def.hp * mult);
+  const isBoss = typeKey === "boss" || !!def.ability;
 
-  const fig = makeMinifig(def.color, def.headColor, { angry: typeKey !== "healer", crown: typeKey === "boss" });
+  const fig = makeMinifig(def.color, def.headColor, { angry: typeKey !== "healer", crown: isBoss });
   fig.scale.setScalar(def.scale);
 
   if (def.heals) {
@@ -1662,13 +1909,17 @@ function spawnEnemy(typeKey) {
 
   const bar = makeHealthBar(30 * def.scale);
   bar.position.y = 52 * def.scale;
-  bar.visible = false;
+  bar.visible = isBoss; // Bosse zeigen ihren Balken sofort
   setHealthBar(bar, 1);
 
   const g = new THREE.Group();
   g.add(fig, bar);
   g.position.set(PATH[0].x, 0, PATH[0].z);
   world.add(g);
+
+  // Spawn-Effekt: Gegner tritt "aus dem Dunkel" – kurzer Partikel-Puff in Karten-Farbe
+  const pColor = MAPS[state.map].portal;
+  burst(PATH[0].x, 18 * def.scale, PATH[0].z, "#" + new THREE.Color(pColor).getHexString(), isBoss ? 18 : 8, isBoss ? 90 : 55, false);
 
   state.enemies.push({
     type: typeKey,
@@ -1690,6 +1941,75 @@ function spawnEnemy(typeKey) {
     figure: fig,
     bar,
     tinted: false,
+    // Boss-Fähigkeiten
+    isBoss,
+    ability: def.ability || null,
+    abilityTimer: def.abilityEvery || 0,
+    raged: false,
+  });
+}
+
+// Eine Boss-Fähigkeit auslösen
+function triggerBossAbility(e, dt) {
+  if (!e.ability) return;
+
+  if (e.ability === "summon") {
+    e.abilityTimer -= dt;
+    if (e.abilityTimer <= 0) {
+      e.abilityTimer = e.def.abilityEvery;
+      const count = e.type === "boss_titan" ? 4 : 2;
+      for (let i = 0; i < count; i++) {
+        // Kleinen Zombie direkt hinter dem Boss auf dem Weg einschleusen
+        spawnMinionAt(e);
+      }
+      burst(e.x, 30 * e.def.scale, e.z, "#4ade80", 14, 110, false);
+      sfx("heal");
+      addText(e.x, 60 * e.def.scale, e.z, "Beschwörung!", "#4ade80");
+    }
+  } else if (e.ability === "blind") {
+    e.abilityTimer -= dt;
+    if (e.abilityTimer <= 0) {
+      e.abilityTimer = e.def.abilityEvery;
+      state.blindUntil = state.time + 5; // Türme 5s blind
+      state.shake = Math.max(state.shake, 0.25);
+      burst(e.x, 30 * e.def.scale, e.z, "#4c1d95", 20, 130, false);
+      sfx("zap");
+      centerText("🌑 Türme geblendet!", "#a855f7");
+    }
+  } else if (e.ability === "rage") {
+    if (!e.raged && e.hp <= e.maxHp * 0.5) {
+      e.raged = true;
+      e.def = Object.assign({}, e.def, { speed: e.def.speed * 1.8 });
+      burst(e.x, 30 * e.def.scale, e.z, "#ef4444", 24, 150, false);
+      sfx("bosshorn");
+      addText(e.x, 60 * e.def.scale, e.z, "WUTAUSBRUCH!", "#ef4444");
+    }
+  }
+}
+
+// Beschwört einen schwachen Diener am Spawn-Portal
+function spawnMinionAt(boss) {
+  const def = ENEMY_TYPES.fast;
+  const hp = Math.round(def.hp * MAPS[state.map].hpMult * 1.5);
+  const fig = makeMinifig(def.color, def.headColor, { angry: true });
+  fig.scale.setScalar(def.scale);
+  const bar = makeHealthBar(30 * def.scale);
+  bar.position.y = 52 * def.scale;
+  bar.visible = false;
+  setHealthBar(bar, 1);
+  const g = new THREE.Group();
+  g.add(fig, bar);
+  g.position.set(PATH[0].x, 0, PATH[0].z);
+  world.add(g);
+  burst(PATH[0].x, 16, PATH[0].z, "#4ade80", 6, 50, false);
+  state.enemies.push({
+    type: "fast", def, hp, maxHp: hp,
+    x: PATH[0].x, z: PATH[0].z, seg: 0, dist: 0,
+    slowUntil: 0, slowFactor: 1, burnUntil: 0, burnDps: 0,
+    flash: 0, flashTinted: false, dmgAccum: 0, dmgTimer: 0, healTimer: 1,
+    walkPhase: Math.random() * Math.PI * 2, yaw: Math.PI / 2,
+    dead: false, killed: false, group: g, figure: fig, bar, tinted: false,
+    isBoss: false, ability: null, abilityTimer: 0, raged: false,
   });
 }
 
@@ -1725,6 +2045,7 @@ function moveEnemy(e, dt) {
     e.dead = true;
     state.lives -= e.def.dmg;
     state.shake = Math.min(0.35, 0.12 + e.def.dmg * 0.01);
+    state.gateFlash = 0.5; // Ziel-Tor blitzt rot
     sfx("leak");
     addText(PATH[PATH.length - 1].x - 40, 40, PATH[PATH.length - 1].z, `-${e.def.dmg} ❤️`, "#ff6b6b");
     if (state.lives <= 0) gameOver();
@@ -1939,6 +2260,12 @@ function updateTower(tower, dt) {
   tower.cooldown -= dt;
   if (tower.flash > 0) tower.flash -= dt;
 
+  // Geblendet durch Schattenfürst-Boss: Türme können nicht zielen/schießen
+  if (state.time < state.blindUntil) {
+    tower.yaw += dt * 0.4;
+    return;
+  }
+
   const target = pickTarget(tower);
   if (!target) {
     tower.yaw += dt * 0.4;
@@ -2038,7 +2365,7 @@ function updateTower(tower, dt) {
       splash: st.splash,
       mesh,
     });
-    sfx("shoot");
+    sfx("rocketlaunch");
   }
 }
 
@@ -2121,8 +2448,16 @@ function waveCompositionText(n) {
     .join(", ");
 }
 
+const BOSS_RUSH_INTERVAL = 60; // Sekunden zwischen den Bossen
+
 function startWave() {
   if (state.phase !== "idle" || !state.running) return;
+
+  if (state.gameMode === "bossrush") {
+    startBossRush();
+    return;
+  }
+
   state.phase = "wave";
   state.waveTime = 0;
   state.spawnQueue = [];
@@ -2138,6 +2473,34 @@ function startWave() {
 
   showBanner(state.wave % 10 === 0 ? `⚠️ BOSS-WELLE ${state.wave} ⚠️` : `WELLE ${state.wave}`);
   sfx("wave");
+  updateHUD();
+}
+
+// Boss Rush: nur Bosse, alle 60s ein neuer, immer stärker
+function startBossRush() {
+  state.phase = "wave";
+  state.bossRush = { num: 0, timer: 1.5, alarmed: false };
+  showBanner("👹 BOSS RUSH 👹");
+  sfx("wave");
+  updateHUD();
+}
+
+function bossRushHpMult(num) {
+  // Jede Runde der 5er-Bosse wird deutlich härter
+  const cycle = Math.floor((num - 1) / BOSS_RUSH_ORDER.length);
+  return MAPS[state.map].hpMult * (1 + (num - 1) * 0.12) * (1 + cycle * 0.6);
+}
+
+function spawnBossRushBoss() {
+  const br = state.bossRush;
+  br.num++;
+  const type = BOSS_RUSH_ORDER[(br.num - 1) % BOSS_RUSH_ORDER.length];
+  spawnEnemy(type, bossRushHpMult(br.num));
+  const def = ENEMY_TYPES[type];
+  showBanner(`👹 BOSS ${br.num}: ${def.name}`);
+  sfx("bosshorn");
+  state.portalAlarm = 0;
+  br.alarmed = false;
   updateHUD();
 }
 
@@ -2164,13 +2527,16 @@ function finishWave() {
   sfx("cash");
   addCoins(3); // Münzen für den Skin-Shop
 
+  let hadFarm = false;
   for (const t of state.towers) {
     if (t.type === "farm") {
       const inc = towerStats(t).income;
       state.cash += inc;
+      hadFarm = true;
       addText(t.x, 40, t.z, `+${inc}💰`, "#bef264");
     }
   }
+  if (hadFarm) sfx("coin");
 
   if (state.wave >= MAX_WAVE) {
     win();
@@ -2186,6 +2552,19 @@ function finishWave() {
 function gameOver() {
   state.running = false;
   sfx("lose");
+
+  if (state.gameMode === "bossrush") {
+    const bossesBeaten = Math.max(0, state.bossRush.num - 1);
+    const coins = 30 + bossesBeaten * 40;
+    addCoins(coins);
+    const isNew = saveBossRushBest(bossesBeaten);
+    document.getElementById("go-wave").textContent = bossesBeaten + " Bosse";
+    document.getElementById("go-highscore").textContent =
+      (isNew ? `🏆 NEUER BOSS-RUSH-REKORD: ${bossesBeaten} Bosse! ` : `👹 ${bossesBeaten} Bosse besiegt. `) + `🪙 +${coins} Münzen`;
+    document.getElementById("gameover-overlay").classList.remove("hidden");
+    return;
+  }
+
   const coins = state.wave * 2;
   addCoins(coins);
   const isNew = saveRecord(state.map, state.wave);
@@ -2201,8 +2580,15 @@ function win() {
   const coins = 150 + state.wave * 2;
   addCoins(coins);
   saveRecord(state.map, MAX_WAVE + 1);
+
+  // Boss Rush freischalten, wenn eine ⭐⭐⭐-Karte (oder schwerer) gemeistert wurde
+  let unlockMsg = "";
+  if (MAPS[state.map].stars >= 3 && !loadJSON("btd_bossrush", false)) {
+    unlockBossRush();
+    unlockMsg = " 🔓 BOSS RUSH freigeschaltet!";
+  }
   document.getElementById("win-info").textContent =
-    `${MAPS[state.map].name} gemeistert! 💀 ${state.kills} Kills · 🪙 +${coins} Münzen`;
+    `${MAPS[state.map].name} gemeistert! 💀 ${state.kills} Kills · 🪙 +${coins} Münzen${unlockMsg}`;
   document.getElementById("win-overlay").classList.remove("hidden");
 }
 
@@ -2235,10 +2621,15 @@ function clearEntities() {
 
 function resetGame() {
   clearEntities();
-  state.cash = START_CASH;
+  // Boss Rush startet mit mehr Geld, da keine normalen Wellen
+  state.cash = state.gameMode === "bossrush" ? 1500 : START_CASH;
   state.lives = START_LIVES;
   state.wave = 1;
   state.kills = 0;
+  state.bossRush = null;
+  state.portalAlarm = 0;
+  state.gateFlash = 0;
+  state.blindUntil = 0;
   state.paused = false;
   document.getElementById("btn-pause").textContent = "⏸";
   state.phase = "idle";
@@ -2309,10 +2700,26 @@ function update(dt) {
   if (state.shake > 0) state.shake = Math.max(0, state.shake - dt);
 
   // Spawnen
-  if (state.phase === "wave") {
+  if (state.phase === "wave" && state.gameMode === "normal") {
     state.waveTime += dt;
     while (state.spawnQueue.length && state.spawnQueue[0].time <= state.waveTime) {
       spawnEnemy(state.spawnQueue.shift().type);
+    }
+  }
+
+  // Boss Rush: alle 60s ein neuer Boss, Portal warnt 2s vorher rot
+  if (state.phase === "wave" && state.gameMode === "bossrush") {
+    const br = state.bossRush;
+    br.timer -= dt;
+    if (!br.alarmed && br.num > 0 && br.timer <= 2) {
+      br.alarmed = true;
+      state.portalAlarm = 2;
+      sfx("bosshorn");
+    }
+    if (state.portalAlarm > 0) state.portalAlarm = Math.max(0, state.portalAlarm - dt);
+    if (br.timer <= 0) {
+      spawnBossRushBoss();
+      br.timer = BOSS_RUSH_INTERVAL;
     }
   }
 
@@ -2348,6 +2755,9 @@ function update(dt) {
         }
       }
     }
+
+    // Boss-Spezialfähigkeiten
+    if (!e.dead && e.ability) triggerBossAbility(e, dt);
 
     // Gesammelte Schadenszahlen anzeigen
     e.dmgTimer -= dt;
@@ -2389,14 +2799,14 @@ function update(dt) {
   // Partikel, Tracer, Ringe, Blitze
   updateEffects(dt);
 
-  // Wellenende prüfen
-  if (state.phase === "wave" && state.spawnQueue.length === 0 && state.enemies.length === 0) {
+  // Wellenende prüfen (nur Normaler Modus)
+  if (state.gameMode === "normal" && state.phase === "wave" && state.spawnQueue.length === 0 && state.enemies.length === 0) {
     state.phase = "idle";
     finishWave();
   }
 
   // Auto-Start
-  if (state.phase === "idle" && state.autoStart && state.running) {
+  if (state.gameMode === "normal" && state.phase === "idle" && state.autoStart && state.running) {
     state.autoTimer -= dt;
     if (state.autoTimer <= 0) startWave();
   }
@@ -2463,11 +2873,44 @@ function syncVisuals(dtReal) {
   camera.getWorldQuaternion(_camQuat);
   for (const b of billboards) b.quaternion.copy(_camQuat);
 
-  // Start-Pfeil hüpfen lassen
+  // Spawn-Portal animieren
   syncVisuals._t = (syncVisuals._t || 0) + dtReal;
-  if (startArrow) {
-    startArrow.position.y = 45 + Math.sin(syncVisuals._t * 3) * 6;
-    startArrow.rotation.y = syncVisuals._t * 0.8;
+  if (spawnPortal) {
+    const p = spawnPortal;
+    if (state.portalAlarm > 0) {
+      // Boss kommt: rot pulsieren + leicht beben
+      p.glow.material.color.set(0xff3030);
+      p.glow.material.opacity = 0.5 + Math.sin(syncVisuals._t * 18) * 0.3;
+      p.group.position.x = p.baseX + (Math.random() - 0.5) * 3;
+      p.group.position.z = p.z + (Math.random() - 0.5) * 3;
+    } else {
+      p.glow.material.color.set(p.baseColor);
+      p.glow.material.opacity = p.baseOpacity + Math.sin(syncVisuals._t * 2) * 0.12;
+      p.group.position.x = p.baseX;
+      p.group.position.z = p.z;
+    }
+    if (p.ring) p.ring.rotation.z += dtReal * 1.5; // Teleporter-Ring dreht sich
+    // Themen-Partikel am Portal
+    if (state.running && Math.random() < dtReal * 3) {
+      if (p.theme === "volcano") {
+        spawnParticle(p.x + 6, 8, p.z + (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 12, 45 + Math.random() * 30, (Math.random() - 0.5) * 12, 0.6, 3, "#ff9a4d", false);
+      } else if (p.theme === "desert") {
+        spawnParticle(p.x + 14, 4, p.z + (Math.random() - 0.5) * 36, 22 + Math.random() * 18, 6, (Math.random() - 0.5) * 25, 0.7, 3.5, "#e3c47f", false);
+      } else if (p.theme === "space") {
+        spawnParticle(p.x + 12, 6 + Math.random() * 40, p.z + (Math.random() - 0.5) * 36, 8, 0, 0, 0.5, 2.5, "#67e8f9", false);
+      }
+    }
+  }
+
+  // Ziel-Tor: rot aufblitzen bei Lebensverlust
+  if (endGate) {
+    if (state.gateFlash > 0) {
+      state.gateFlash = Math.max(0, state.gateFlash - dtReal);
+      const f = state.gateFlash / 0.5;
+      endGate.door.material.color.setRGB(0.04 + f * 0.85, 0.05, 0.08);
+    } else {
+      endGate.door.material.color.set(endGate.baseColor);
+    }
   }
 
   // Wasser leicht schaukeln lassen + Wellen-Shader animieren
@@ -2552,9 +2995,12 @@ function updateHUD() {
   document.getElementById("maxwave").textContent = MAX_WAVE;
   document.getElementById("kills").textContent = state.kills;
 
+  const br = state.gameMode === "bossrush";
   const btn = document.getElementById("btn-start");
   btn.disabled = state.phase !== "idle" || !state.running;
-  btn.textContent = state.phase === "wave" ? "🌊 Welle läuft…" : "▶ Welle starten";
+  btn.textContent = state.phase === "wave"
+    ? (br ? "👹 Boss Rush läuft…" : "🌊 Welle läuft…")
+    : (br ? "👹 Boss Rush starten" : "▶ Welle starten");
 
   let previewText;
   if (state.mode === "lobby") {
@@ -2565,6 +3011,13 @@ function updateHUD() {
     previewText = "";
   } else if (state.paused) {
     previewText = "<b>⏸ PAUSE</b> – Weiter mit ⏸ oder Taste P";
+  } else if (br) {
+    if (state.phase === "idle") {
+      previewText = "<b>👹 BOSS RUSH:</b> Nur Bosse – jeder mit Spezialfähigkeit. Drücke Start!";
+    } else {
+      const next = Math.max(0, Math.ceil(state.bossRush.timer));
+      previewText = `<b>👹 Boss ${state.bossRush.num}</b> · nächster in ${next}s · ${state.enemies.filter(e => e.isBoss).length} Boss(e) aktiv`;
+    }
   } else if (state.phase === "idle") {
     previewText = `<b>${MAPS[state.map].name} – Nächste Welle ${state.wave}:</b> ${waveCompositionText(state.wave)}`;
   } else {
@@ -2588,6 +3041,76 @@ function updateHUD() {
   if (state.selected) refreshTowerPanel();
 }
 
+/* ---------------- Rotierende 3D-Mini-Modelle für die Kaufleiste ----------------
+   Eine eigene kleine Off-Screen-Szene rendert nacheinander jedes Turm-Modell;
+   das Bild wird auf die jeweilige Shop-Canvas kopiert. Spart Performance, weil
+   nur ein zusätzlicher Renderer existiert (nicht einer pro Karte). */
+
+const miniModels = {};          // key -> { canvas, ctx, mesh, hover }
+let miniRenderer = null, miniScene = null, miniCam = null;
+
+function initMiniRenderer() {
+  if (miniRenderer) return;
+  miniRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  miniRenderer.setSize(96, 96);
+  miniRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  miniRenderer.outputEncoding = THREE.sRGBEncoding;
+  miniScene = new THREE.Scene();
+  miniScene.add(new THREE.HemisphereLight(0xffffff, 0x445566, 1.0));
+  const dl = new THREE.DirectionalLight(0xffffff, 0.9);
+  dl.position.set(40, 80, 60);
+  miniScene.add(dl);
+  miniCam = new THREE.PerspectiveCamera(40, 1, 1, 1000);
+  miniCam.position.set(0, 58, 95);
+  miniCam.lookAt(0, 22, 0);
+}
+
+function registerMiniModel(key, canvas) {
+  initMiniRenderer();
+  const mesh = makeTowerMesh(key, 0);
+  miniModels[key] = { canvas, ctx: canvas.getContext("2d"), mesh, hover: false };
+}
+
+// Wird pro Frame aufgerufen: dreht alle Modelle und rendert sie auf ihre Canvas
+let miniRenderIdx = 0;
+function updateMiniModels(dtReal) {
+  const sidebarVisible = document.getElementById("sidebar").offsetParent !== null;
+  if (!sidebarVisible || !miniRenderer) return;
+  const keys = Object.keys(miniModels);
+  if (keys.length === 0) return;
+
+  // Alle Modelle drehen (1 Umdrehung / 6s, beim Hover schneller)
+  for (const k of keys) {
+    const m = miniModels[k];
+    const speed = m.hover ? (Math.PI * 2) / 1.5 : (Math.PI * 2) / 6;
+    m.mesh.rotation.y += speed * dtReal;
+  }
+
+  // Pro Frame nur 2 Canvas neu rendern (reihum) – schont die FPS
+  for (let n = 0; n < 2; n++) {
+    const key = keys[miniRenderIdx % keys.length];
+    miniRenderIdx++;
+    const m = miniModels[key];
+    miniScene.add(m.mesh);
+    miniRenderer.render(miniScene, miniCam);
+    miniScene.remove(m.mesh);
+    m.ctx.clearRect(0, 0, 96, 96);
+    m.ctx.drawImage(miniRenderer.domElement, 0, 0, 96, 96);
+  }
+}
+
+function towerStatTooltip(def) {
+  const st = def.levels[0];
+  if (def.kind === "farm") return `💰 Einkommen: <b>${st.income}</b>/Welle`;
+  let s = `⚔️ Schaden <b>${st.dmg}</b> · 📏 Reichw. <b>${st.range}</b> · ⏱️ <b>${st.rate}/s</b>`;
+  if (st.slow) s += `<br>❄️ −${Math.round(st.slow * 100)}% Tempo`;
+  if (st.splash) s += `<br>💥 Splash ${st.splash}`;
+  if (st.burn) s += `<br>🔥 Brand, trifft ${st.targets}`;
+  if (st.chains) s += `<br>⚡ Kette ${st.chains} Ziele`;
+  if (def.cliff) s += `<br>⛰ nur auf Anhöhen`;
+  return s;
+}
+
 function refreshShop() {
   const shop = document.getElementById("shop");
   if (!shop.dataset.built) {
@@ -2596,8 +3119,10 @@ function refreshShop() {
       const card = document.createElement("div");
       card.className = "shop-card";
       card.id = "card-" + key;
+      card.style.borderColor = def.color;
       card.innerHTML = `
-        <div class="shop-icon" style="background:${def.color}">${def.icon}</div>
+        <canvas class="shop-3d" width="96" height="96"></canvas>
+        <div class="shop-lock">🔒</div>
         <div class="shop-info">
           <div class="shop-name">${def.name}</div>
           <div class="shop-desc">${def.desc}</div>
@@ -2617,7 +3142,10 @@ function refreshShop() {
         state.placing = state.placing === key ? null : key;
         refreshShopSelection();
       });
+      card.addEventListener("mouseenter", () => showShopTooltip(card, def));
+      card.addEventListener("mouseleave", hideShopTooltip);
       shop.appendChild(card);
+      registerMiniModel(key, card.querySelector(".shop-3d"));
     }
   }
   for (const [key, def] of Object.entries(TOWER_TYPES)) {
@@ -2629,10 +3157,36 @@ function refreshShop() {
   updateHUD();
 }
 
+function showShopTooltip(card, def) {
+  const tip = document.getElementById("shop-tooltip");
+  tip.innerHTML = `<b>${def.name}</b><br>${towerStatTooltip(def)}`;
+  tip.style.display = "block";
+  const rect = card.getBoundingClientRect();
+  const wrapRect = document.getElementById("sidebar").getBoundingClientRect();
+  tip.style.top = (rect.top - wrapRect.top + 4) + "px";
+  if (miniModels[card.id?.slice(5)]) miniModels[card.id.slice(5)].hover = true;
+}
+function hideShopTooltip() {
+  document.getElementById("shop-tooltip").style.display = "none";
+  for (const k in miniModels) miniModels[k].hover = false;
+}
+
 function refreshShopSelection() {
-  for (const key of Object.keys(TOWER_TYPES)) {
+  for (const [key, def] of Object.entries(TOWER_TYPES)) {
     const card = document.getElementById("card-" + key);
-    if (card) card.classList.toggle("selected", state.placing === key);
+    if (!card) continue;
+    const selected = state.placing === key;
+    card.classList.toggle("selected", selected);
+    card.style.borderColor = selected ? def.color : "#41598f";
+    if (selected) card.style.boxShadow = `0 0 12px ${def.color}`;
+    else card.style.boxShadow = "";
+    // Nicht leistbar / gesperrt ausgrauen
+    const locked = state.wave < def.unlockWave;
+    const poor = state.cash < def.cost;
+    card.classList.toggle("locked", locked);
+    card.classList.toggle("poor", poor && !locked);
+    const costEl = card.querySelector(".shop-cost");
+    if (costEl) costEl.style.color = (!locked && !poor) ? "#7ee787" : "#f87171";
   }
 }
 
@@ -2650,6 +3204,37 @@ function selectTower(tower) {
 
 function hideTowerPanel() {
   document.getElementById("tower-panel").classList.add("hidden");
+  panelModel.mesh = null;
+}
+
+// Rotierendes Modell im Upgrade-Panel (eigener kleiner Renderzustand)
+const panelModel = { mesh: null, type: null, level: -1, canvas: null, ctx: null };
+function setPanelModel(type, level) {
+  initMiniRenderer();
+  if (!panelModel.canvas) {
+    panelModel.canvas = document.getElementById("tp-canvas");
+    panelModel.ctx = panelModel.canvas.getContext("2d");
+  }
+  if (panelModel.type !== type || panelModel.level !== level) {
+    if (panelModel.mesh) disposeObject(panelModel.mesh);
+    panelModel.mesh = makeTowerMesh(type, level);
+    // Noppen/Sterne wie im Spiel anzeigen
+    const studs = panelModel.mesh.userData.studs;
+    const gold = lambert(0xfacc15);
+    for (let i = 0; i < level; i++) studs.add(box(4, 4, 4, gold, (i - (level - 1) / 2) * 6.5, 8, 19));
+    panelModel.type = type;
+    panelModel.level = level;
+  }
+}
+function updatePanelModel(dtReal) {
+  if (!panelModel.mesh || !miniRenderer) return;
+  if (document.getElementById("tower-panel").classList.contains("hidden")) return;
+  panelModel.mesh.rotation.y += dtReal * (Math.PI * 2) / 5;
+  miniScene.add(panelModel.mesh);
+  miniRenderer.render(miniScene, miniCam);
+  miniScene.remove(panelModel.mesh);
+  panelModel.ctx.clearRect(0, 0, 128, 128);
+  panelModel.ctx.drawImage(miniRenderer.domElement, 0, 0, 128, 128);
 }
 
 function refreshTowerPanel() {
@@ -2661,6 +3246,9 @@ function refreshTowerPanel() {
   document.getElementById("tp-name").textContent = `${def.icon} ${def.name}`;
   document.getElementById("tp-level").textContent =
     `Level ${t.level + 1}/5 ${"★".repeat(t.level)}`;
+
+  // Rotierendes 3D-Modell der aktuellen Stufe (mit Gold-Noppen/Helm ab Lvl 3)
+  setPanelModel(t.type, t.level);
 
   let stats = "";
   if (def.kind === "farm") {
@@ -2882,12 +3470,15 @@ function applySettings() {
   document.getElementById("set-music").checked = state.settings.music;
   document.getElementById("set-shadows").checked = state.settings.shadows;
   document.getElementById("set-dmg").checked = state.settings.dmgNumbers;
+  document.getElementById("set-volsfx").value = state.settings.volSfx;
+  document.getElementById("set-volmusic").value = state.settings.volMusic;
 }
 
 /* ---------------- Ladebildschirm & Spielstart ---------------- */
 
-function startGameOnMap(mapKey) {
+function startGameOnMap(mapKey, gameMode) {
   state.map = mapKey;
+  state.gameMode = gameMode || "normal";
   localStorage.setItem("btd_map", mapKey);
   closeAllWindows();
   document.getElementById("menu-overlay").classList.add("hidden");
@@ -2980,7 +3571,7 @@ function enterGame() {
   controls.target.copy(CAM_HOME.target);
   controls.update();
   resetGame();
-  showBanner(`🗺 ${MAPS[state.map].name}`);
+  showBanner(state.gameMode === "bossrush" ? `👹 BOSS RUSH – ${MAPS[state.map].name}` : `🗺 ${MAPS[state.map].name}`);
 }
 
 /* =====================================================================
@@ -3032,6 +3623,7 @@ function updateLobby(dt) {
       player.portalLatch = true;
       burst(player.x, 25, player.z, "#ffd24a", 12, 90, false);
       sfx("upgrade");
+      refreshModeWindow();
       openWindow("mode-overlay");
     }
   } else if (distToPortal > PORTAL_RADIUS + 25) {
@@ -3161,21 +3753,60 @@ function togglePause() {
 /* ---------------- Buttons ---------------- */
 
 // Hauptmenü
-document.getElementById("btn-spielen").addEventListener("click", () => { ensureAudio(); openWindow("mode-overlay"); });
+// Boss-Rush-Modus-Karte aktualisieren (freigeschaltet?)
+function refreshModeWindow() {
+  const card = document.getElementById("mode-bossrush");
+  const unlocked = isBossRushUnlocked();
+  card.classList.toggle("locked", !unlocked);
+  card.classList.toggle("unlocked", unlocked);
+  card.querySelector(".mode-icon").textContent = unlocked ? "👹" : "🔒";
+  const best = bossRushBest();
+  card.querySelector(".mode-desc").textContent = unlocked
+    ? (best > 0 ? `Nur Bosse! Bester Lauf: ${best} Bosse besiegt` : "Nur Bosse, alle 60s ein neuer – jeder mit Spezialfähigkeit!")
+    : "Gewinne eine ⭐⭐⭐-Karte zum Freischalten!";
+  card.querySelector(".mode-arrow")?.remove();
+  if (unlocked) {
+    const arrow = document.createElement("div");
+    arrow.className = "mode-arrow";
+    arrow.textContent = "▶";
+    card.appendChild(arrow);
+  }
+}
+
+document.getElementById("btn-spielen").addEventListener("click", () => { ensureAudio(); refreshModeWindow(); openWindow("mode-overlay"); });
 document.getElementById("btn-shop-open").addEventListener("click", () => { ensureAudio(); buildSkinGrid(); openWindow("shopwin-overlay"); });
 document.getElementById("btn-settings-open").addEventListener("click", () => { ensureAudio(); applySettings(); openWindow("settings-overlay"); });
 document.getElementById("btn-records-open").addEventListener("click", () => { ensureAudio(); buildRecordsList(); openWindow("records-overlay"); });
 document.getElementById("btn-lobby").addEventListener("click", () => { ensureAudio(); enterLobby(); });
 document.getElementById("btn-menu-from-lobby").addEventListener("click", () => { ensureAudio(); showMainMenu(); });
 
+// Welcher Modus wird gerade in der Kartenauswahl gewählt?
+let pendingMode = "normal";
+
 // Modus-Fenster
 document.getElementById("mode-normal").addEventListener("click", () => {
   ensureAudio();
+  pendingMode = "normal";
+  buildMapGrid();
+  closeWindow("mode-overlay");
+  openWindow("map-overlay");
+});
+document.getElementById("mode-bossrush").addEventListener("click", () => {
+  ensureAudio();
+  const card = document.getElementById("mode-bossrush");
+  if (!isBossRushUnlocked()) {
+    sfx("lose");
+    card.classList.add("shake");
+    setTimeout(() => card.classList.remove("shake"), 350);
+    return;
+  }
+  pendingMode = "bossrush";
   buildMapGrid();
   closeWindow("mode-overlay");
   openWindow("map-overlay");
 });
 for (const card of document.querySelectorAll(".mode-card.locked")) {
+  if (card.id === "mode-bossrush") continue; // hat eigenen Handler
   card.addEventListener("click", () => {
     sfx("lose");
     card.classList.add("shake");
@@ -3186,7 +3817,7 @@ for (const card of document.querySelectorAll(".mode-card.locked")) {
 // Karten-Detail
 document.getElementById("btn-start-map").addEventListener("click", () => {
   ensureAudio();
-  if (infoMapKey) startGameOnMap(infoMapKey);
+  if (infoMapKey) startGameOnMap(infoMapKey, pendingMode);
 });
 document.getElementById("btn-back-map").addEventListener("click", () => closeWindow("mapinfo-overlay"));
 
@@ -3207,12 +3838,15 @@ document.getElementById("set-hires").addEventListener("change", (ev) => { state.
 document.getElementById("set-rt").addEventListener("change", (ev) => { state.settings.rt = ev.target.checked; saveSettings(); applySettings(); });
 document.getElementById("set-sound").addEventListener("change", (ev) => { state.settings.sound = ev.target.checked; saveSettings(); applySettings(); });
 document.getElementById("set-music").addEventListener("change", (ev) => { ensureAudio(); state.settings.music = ev.target.checked; saveSettings(); applySettings(); });
+document.getElementById("set-volsfx").addEventListener("input", (ev) => { ensureAudio(); state.settings.volSfx = +ev.target.value; saveSettings(); });
+document.getElementById("set-volsfx").addEventListener("change", () => sfx("shoot"));
+document.getElementById("set-volmusic").addEventListener("input", (ev) => { state.settings.volMusic = +ev.target.value; saveSettings(); });
 document.getElementById("set-shadows").addEventListener("change", (ev) => { state.settings.shadows = ev.target.checked; saveSettings(); applySettings(); });
 document.getElementById("set-dmg").addEventListener("change", (ev) => { state.settings.dmgNumbers = ev.target.checked; saveSettings(); });
 
 // Game Over / Sieg
-document.getElementById("btn-retry").addEventListener("click", () => { ensureAudio(); startGameOnMap(state.map); });
-document.getElementById("btn-again").addEventListener("click", () => { ensureAudio(); startGameOnMap(state.map); });
+document.getElementById("btn-retry").addEventListener("click", () => { ensureAudio(); startGameOnMap(state.map, state.gameMode); });
+document.getElementById("btn-again").addEventListener("click", () => { ensureAudio(); startGameOnMap(state.map, state.gameMode); });
 document.getElementById("btn-menu-go").addEventListener("click", () => { ensureAudio(); showMainMenu(); });
 document.getElementById("btn-menu-win").addEventListener("click", () => { ensureAudio(); showMainMenu(); });
 
@@ -3320,6 +3954,11 @@ function loop(now) {
   syncVisuals(dt);
   if (state.mode !== "lobby") controls.update();
   renderer.render(scene, camera);
+
+  // Mini-3D-Modelle der Kaufleiste + Upgrade-Panel drehen/rendern
+  updateMiniModels(dt);
+  updatePanelModel(dt);
+
   requestAnimationFrame(loop);
 }
 

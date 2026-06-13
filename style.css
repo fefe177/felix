@@ -167,35 +167,67 @@ body {
   letter-spacing: 1px;
 }
 
+#sidebar { position: relative; }
 #shop { display: flex; flex-direction: column; gap: 6px; }
 
+/* Kaufleiste mit rotierenden 3D-Mini-Modellen */
 .shop-card {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: #2c3c63;
+  gap: 8px;
+  background: linear-gradient(160deg, #1d2747, #11172d);
   border: 2px solid #41598f;
   border-radius: 10px;
-  padding: 7px 9px;
+  padding: 3px 9px 3px 4px;
   cursor: pointer;
-  transition: 0.1s;
+  transition: 0.12s;
+  position: relative;
 }
-.shop-card:hover { background: #38507f; transform: translateX(2px); }
-.shop-card.selected { border-color: #ffd24a; background: #3d5587; }
-.shop-card.locked { opacity: 0.45; cursor: not-allowed; }
+.shop-card:hover { transform: translateY(-2px); border-color: #7ea0e0; }
+.shop-card.selected { background: linear-gradient(160deg, #27345e, #18203c); }
+.shop-card.locked { opacity: 0.55; }
+.shop-card.locked .shop-3d, .shop-card.poor .shop-3d { filter: grayscale(1) opacity(0.55); }
 
-.shop-icon {
-  width: 38px; height: 38px;
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 22px;
-  flex-shrink: 0;
+.shop-3d { width: 52px; height: 52px; flex-shrink: 0; }
+
+.shop-lock {
+  position: absolute;
+  left: 16px; top: 14px;
+  font-size: 20px;
+  display: none;
+  text-shadow: 0 0 6px #000;
 }
+.shop-card.locked .shop-lock { display: block; }
 
 .shop-info { flex: 1; min-width: 0; }
 .shop-name { font-weight: 800; font-size: 14px; }
 .shop-desc { font-size: 11px; color: #aebcdc; }
 .shop-cost { font-weight: 800; font-size: 14px; color: #7ee787; }
+
+/* Stats-Tooltip beim Hover */
+#shop-tooltip {
+  position: absolute;
+  right: 102%;
+  width: 190px;
+  background: #0f1528;
+  border: 2px solid #ffd24a;
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.6;
+  z-index: 30;
+  pointer-events: none;
+  display: none;
+  box-shadow: 0 6px 18px #000a;
+}
+#shop-tooltip b { color: #ffd24a; }
+
+/* Rotierendes 3D-Modell im Upgrade-Panel */
+#tp-canvas {
+  display: block;
+  width: 96px; height: 96px;
+  margin: 2px auto 6px;
+}
 
 /* ---------- Turm-Panel ---------- */
 #tower-panel {
@@ -416,7 +448,9 @@ body {
   font-weight: 700;
   cursor: pointer;
 }
-.setting-row input { width: 22px; height: 22px; cursor: pointer; }
+.setting-row input[type="checkbox"] { width: 22px; height: 22px; cursor: pointer; }
+.slider-row { padding: 8px 16px; font-size: 13px; }
+.slider-row input[type="range"] { width: 150px; accent-color: #ffd24a; cursor: pointer; }
 
 /* ---------- Rekorde ---------- */
 .record-row {
