@@ -23,16 +23,21 @@ Ab dann startet jeder Doppelklick die App direkt.
 
 `npm install` einmalig, danach `npm start`.
 
-### 📦 Echte EXE bauen (zum Weitergeben)
+### 📦 Einzelne EXE bauen (zum Weitergeben)
+
+**Windows, am einfachsten:** doppelklick auf **`EXE_BAUEN_WINDOWS.bat`**.
+Nach ein paar Minuten liegt im Ordner `dist` eine einzelne, portable
+**`Blox Tower Defense 3D.exe`**. Diese eine Datei kannst du an andere
+weitergeben – sie läuft per Doppelklick, ganz ohne Node.js oder Browser.
+
+Per Terminal alternativ:
 
 ```bash
-npm run build:win     # Windows  → dist/Blox Tower Defense 3D-win32-x64/
-npm run build:mac     # macOS
-npm run build:linux   # Linux
+npm run build:win            # portable Einzel-EXE  → dist/Blox Tower Defense 3D.exe
+npm run build:win-installer  # klassischer Installer (Setup.exe + Startmenü-Eintrag)
+npm run build:mac            # macOS  (.dmg)
+npm run build:linux          # Linux  (.AppImage)
 ```
-
-Danach liegt im `dist/`-Ordner eine **Blox Tower Defense 3D.exe**, die auf
-jedem PC per Doppelklick läuft – ganz ohne Node.js oder Browser.
 
 ### Alternative (ohne Installation)
 
