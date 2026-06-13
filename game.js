@@ -152,6 +152,27 @@ const TOWER_TYPES = {
       { income: 1500, upgradeCost: null },
     ],
   },
+  nest: {
+    name: "Minigun Nest",
+    icon: "🪖",
+    color: "#3f6212",
+    desc: "Selbst steuern! Nur 1× pro Spiel (ab Welle 4)",
+    cost: 1500,
+    unlockWave: 4,
+    kind: "nest",
+    unique: true,           // nur ein Exemplar gleichzeitig auf der Karte
+    manual: true,           // schießt nur, wenn ein Spieler ihn bedient
+    levels: [
+      // dmg = Schaden/Schuss, rate = max. Schüsse/s, spinUp = Sek. bis Vollgeschwindigkeit
+      // pierce = Gegner pro Kugel, heatRate = Hitze/s beim Feuern (100 = Überhitzung),
+      // coolRate = Abkühlung/s wenn nicht gefeuert, overheatLock = Zwangspause in Sek.
+      { dmg: 9,   range: 190, rate: 12, spinUp: 1.3, pierce: 1, heatRate: 22, coolRate: 30, overheatLock: 3.0, upgradeCost: 900 },
+      { dmg: 15,  range: 205, rate: 14, spinUp: 1.1, pierce: 2, heatRate: 20, coolRate: 34, overheatLock: 2.6, upgradeCost: 2000 },
+      { dmg: 24,  range: 220, rate: 16, spinUp: 0.9, pierce: 2, heatRate: 18, coolRate: 40, overheatLock: 2.2, upgradeCost: 4200 },
+      { dmg: 40,  range: 240, rate: 19, spinUp: 0.7, pierce: 3, heatRate: 15, coolRate: 48, overheatLock: 1.6, upgradeCost: 8500 },
+      { dmg: 68,  range: 265, rate: 23, spinUp: 0.5, pierce: 4, heatRate: 11, coolRate: 60, overheatLock: 1.0, splash: 36, upgradeCost: null },
+    ],
+  },
 };
 
 /* ---------------- Gegner-Definitionen ---------------- */
@@ -1737,6 +1758,23 @@ function makeRangeRing(colorHex) {
 const placeRing = makeRangeRing(0xffffff);
 const selectRing = makeRangeRing(0xffd24a);
 
+// Fadenkreuz am Boden, wenn die Minigun bedient wird
+const nestAimMarker = new THREE.Group();
+{
+  const ringMat = new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.9, side: THREE.DoubleSide });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(9, 12, 24), ringMat);
+  ring.rotation.x = -Math.PI / 2;
+  nestAimMarker.add(ring);
+  for (let i = 0; i < 4; i++) {
+    const tick = box(3, 1, 9, new THREE.MeshBasicMaterial({ color: 0xff4444 }), 0, 0, 16);
+    tick.rotation.y = i * Math.PI / 2;
+    nestAimMarker.add(tick);
+  }
+  nestAimMarker.position.y = 1.5;
+  nestAimMarker.visible = false;
+  world.add(nestAimMarker);
+}
+
 function setRingColor(ring, colorHex) {
   ring.userData.disc.material.color.set(colorHex);
   ring.userData.edge.material.color.set(colorHex);
@@ -1750,6 +1788,11 @@ function getGhost(typeKey) {
   if (def.kind === "farm") {
     g = new THREE.Group();
     g.add(box(36, 6, 30, lambert(0x854d0e), 0, 3, 0));
+  } else if (def.kind === "nest") {
+    g = new THREE.Group();
+    g.add(box(54, 10, 54, lambert(0x3f6212), 0, 5, 0));
+    g.add(box(14, 14, 16, lambert(0x4b5563), 0, 30, 4));
+    g.add(box(4, 4, 30, lambert(0x1f2937), 0, 30, 22));
   } else {
     g = makeMinifig(def.color, "#fbbf24", {});
   }
@@ -1790,7 +1833,60 @@ function makeTowerMesh(typeKey, level) {
 
   let muzzle = null, flash = null, figure = null, cropTips = [];
 
-  if (def.kind === "farm") {
+  if (def.kind === "nest") {
+    // Großes, schweres Militär-Nest mit gepanzerter Deckung + riesiger Minigun
+    plate.scale.set(1.6, 1, 1.6);
+    const olive = lambert(0x3f6212), oliveDark = lambert(0x2c440d), steel = lambert(0x4b5563);
+    // Sandsäcke / Panzerwall rundherum
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const sb = box(13, 9, 9, i % 2 ? oliveDark : olive, Math.cos(a) * 26, 6, Math.sin(a) * 26);
+      sb.rotation.y = a;
+      staticG.add(sb);
+    }
+    // Gepanzerte Frontschilde
+    staticG.add(box(40, 22, 6, steel, 0, 17, 24));
+    staticG.add(box(6, 22, 40, steel, 24, 17, 0));
+    staticG.add(box(6, 22, 40, steel, -24, 17, 0));
+    // Schütze (geschützt hinter Deckung) – wird beim Bedienen sichtbar
+    const gunner = makeMinifig(0x3f6212, "#caa472", { hat: "#2c440d" });
+    gunner.position.set(0, 8, -8);
+    gunner.scale.setScalar(0.85);
+    gunner.visible = false;
+    rotG.add(gunner);
+    group.userData.gunner = gunner;
+    // Dreh-Lafette + riesige Minigun
+    const mount = box(20, 14, 20, oliveDark, 0, 24, 0);
+    rotG.add(mount);
+    const gun = new THREE.Group();
+    gun.position.set(0, 30, 4);
+    rotG.add(gun);
+    gun.add(box(13, 13, 16, steel, 0, 0, 2));            // Gehäuse
+    // 6 rotierende Läufe
+    const barrels = new THREE.Group();
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      const b = box(3, 3, 34, lambert(0x1f2937), Math.cos(a) * 4.5, Math.sin(a) * 4.5, 22);
+      barrels.add(b);
+    }
+    gun.add(barrels);
+    group.userData.spinBarrels = barrels;
+    group.userData.gunPivot = gun;     // hebt/senkt sich für Zielhöhe (nur Optik)
+    // Mündung + Feuer
+    muzzle = new THREE.Object3D();
+    muzzle.position.set(0, 30, 44);
+    rotG.add(muzzle);
+    flash = new THREE.Mesh(new THREE.ConeGeometry(7, 16, 8), new THREE.MeshBasicMaterial({ color: 0xfde047 }));
+    flash.rotation.x = Math.PI / 2;
+    flash.visible = false;
+    muzzle.add(flash);
+    group.userData.rotG = rotG;
+    group.userData.muzzle = muzzle;
+    group.userData.flash = flash;
+    group.userData.figure = null;
+    group.userData.crops = [];
+    return group;
+  } else if (def.kind === "farm") {
     const soil = box(38, 8, 32, lambert(0x854d0e), 0, 8, 0);
     rotG.add(soil);
     for (let i = 0; i < 4; i++) {
@@ -2166,17 +2262,23 @@ function circleTouchesPath(x, z, radius) {
 // Prüft, ob Turmtyp an Punkt (x,z) stehen darf. Liefert {ok, reason, y}
 function canPlaceTowerAt(typeKey, x, z) {
   const def = TOWER_TYPES[typeKey];
-  if (x < TOWER_RADIUS || x > W - TOWER_RADIUS || z < TOWER_RADIUS || z > D - TOWER_RADIUS) {
+  // Nur ein Exemplar gleichzeitig (Minigun Nest)
+  if (def.unique && state.towers.some(t => t.type === typeKey)) {
+    return { ok: false, reason: "Nur 1× erlaubt!", y: 0 };
+  }
+  const radius = def.kind === "nest" ? 30 : TOWER_RADIUS;  // Nest braucht mehr Platz
+  if (x < radius || x > W - radius || z < radius || z > D - radius) {
     return { ok: false, reason: "Außerhalb des Felds!", y: 0 };
   }
   const hill = hillAt(x, z);
   if (def.cliff && !hill) return { ok: false, reason: "Nur auf ⛰ Anhöhen!", y: 0 };
   if (!def.cliff && hill) return { ok: false, reason: "Nicht auf Anhöhen!", y: hill.y };
-  if (!hill && circleTouchesPath(x, z, TOWER_RADIUS)) {
+  if (!hill && circleTouchesPath(x, z, radius)) {
     return { ok: false, reason: "Zu nah am Weg!", y: 0 };
   }
+  const minDist = def.kind === "nest" ? 48 : TOWER_MIN_DIST;
   for (const t of state.towers) {
-    if (Math.hypot(t.x - x, t.z - z) < TOWER_MIN_DIST) {
+    if (Math.hypot(t.x - x, t.z - z) < minDist) {
       return { ok: false, reason: "Zu nah an anderem Turm!", y: hill ? hill.y : 0 };
     }
   }
@@ -2206,6 +2308,12 @@ function placeTower(typeKey, x, z) {
     flash: 0,
     group,
     hiddenDeco: [],
+    // Minigun-Nest-Zustand
+    operated: false,    // bedient ein Spieler den Turm?
+    spin: 0,            // 0..1 Hochlauf der Läufe
+    heat: 0,            // 0..100 Überhitzung
+    overheatUntil: 0,   // Zwangspause bis zu dieser Zeit
+    fireAcc: 0,         // Akkumulator für die Feuerrate
   };
   state.towers.push(tower);
 
@@ -2220,6 +2328,7 @@ function placeTower(typeKey, x, z) {
 
   sfx("place");
   burst(x, check.y + 10, z, "#ffd24a", 10, 70, false);
+  refreshShopSelection();  // ggf. unique-Turm im Shop ausgrauen
   updateHUD();
   return true;
 }
@@ -2256,6 +2365,7 @@ const _muzzlePos = new THREE.Vector3();
 function updateTower(tower, dt) {
   const def = TOWER_TYPES[tower.type];
   if (def.kind === "farm") return;
+  if (def.kind === "nest") { updateNest(tower, dt); return; } // eigene manuelle Logik
 
   tower.cooldown -= dt;
   if (tower.flash > 0) tower.flash -= dt;
@@ -2367,6 +2477,136 @@ function updateTower(tower, dt) {
     });
     sfx("rocketlaunch");
   }
+}
+
+/* =====================================================================
+   MINIGUN NEST – manuelle Steuerung durch den Spieler
+   ===================================================================== */
+
+state.nest = null;          // aktuell bedienter Nest-Turm (oder null)
+state.nestBullets = [];     // frei fliegende Kugeln der Minigun
+state.nestAim = new THREE.Vector3(); // Zielpunkt am Boden
+
+function nestStats(t) { return TOWER_TYPES.nest.levels[t.level]; }
+
+function enterNest(tower) {
+  if (state.nest) return;
+  state.nest = tower;
+  tower.operated = true;
+  if (tower.group.userData.gunner) tower.group.userData.gunner.visible = true;
+  controls.enabled = false;          // Maus zielt jetzt, statt die Kamera zu drehen
+  state.placing = null;
+  selectTower(tower);                // Panel bleibt sichtbar → Upgrade auch währenddessen
+  document.getElementById("nest-hud").classList.remove("hidden");
+  centerText("🪖 Minigun übernommen! Maus = zielen, Halten = feuern, E = aussteigen", "#facc15");
+  sfx("place");
+}
+
+function exitNest() {
+  const t = state.nest;
+  if (!t) return;
+  t.operated = false;
+  t.firing = false;
+  if (t.group.userData.gunner) t.group.userData.gunner.visible = false;
+  state.nest = null;
+  controls.enabled = (state.mode === "game");
+  document.getElementById("nest-hud").classList.add("hidden");
+}
+
+function updateNest(tower, dt) {
+  const st = nestStats(tower);
+  if (tower.flash > 0) tower.flash -= dt;
+  const operating = tower.operated;
+  const locked = state.time < tower.overheatUntil; // Zwangspause nach Überhitzung
+  const wantFire = operating && tower.firing && !locked;
+
+  // Läufe hoch-/runterfahren (Aufwärmeffekt)
+  if (wantFire) tower.spin = Math.min(1, tower.spin + dt / Math.max(0.05, st.spinUp));
+  else tower.spin = Math.max(0, tower.spin - dt / 0.6);
+
+  // Zielen: Lafette dreht zum Mauspunkt (nur wenn bedient)
+  if (operating) {
+    const aim = state.nestAim;
+    const desired = Math.atan2(aim.x - tower.x, aim.z - tower.z);
+    tower.yaw = approachAngle(tower.yaw, desired, dt * 10);
+    tower.group.userData.rotG.rotation.y = tower.yaw;
+  }
+
+  // Feuern, sobald die Läufe genug Schwung haben
+  if (wantFire && tower.spin > 0.35) {
+    const rate = st.rate * tower.spin;          // Feuerrate skaliert mit Hochlauf
+    tower.fireAcc += dt * rate;
+    while (tower.fireAcc >= 1) {
+      tower.fireAcc -= 1;
+      fireNestBullet(tower, st);
+      tower.heat = Math.min(100, tower.heat + st.heatRate / rate); // Hitze pro Schuss
+      if (tower.heat >= 100) {                  // Überhitzt → Zwangspause
+        tower.overheatUntil = state.time + st.overheatLock;
+        tower.firing = false;
+        sfx("leak");
+        centerText("🔥 ÜBERHITZT!", "#f87171");
+        break;
+      }
+    }
+  } else {
+    tower.fireAcc = 0;
+  }
+
+  // Abkühlen, wenn nicht gefeuert wird
+  if (!wantFire) tower.heat = Math.max(0, tower.heat - st.coolRate * dt);
+}
+
+const _nestMuzzle = new THREE.Vector3();
+function fireNestBullet(tower, st) {
+  tower.flash = 0.05;
+  tower.group.userData.muzzle.getWorldPosition(_nestMuzzle);
+  const dir = new THREE.Vector3(Math.sin(tower.yaw), 0, Math.cos(tower.yaw));
+  // leichte Streuung
+  const spread = 0.05;
+  dir.x += (Math.random() - 0.5) * spread;
+  dir.z += (Math.random() - 0.5) * spread;
+  dir.normalize();
+
+  const mesh = box(2.5, 2.5, 14, new THREE.MeshBasicMaterial({ color: 0xfff1a8 }), 0, 0, 0);
+  mesh.castShadow = false;
+  mesh.position.copy(_nestMuzzle);
+  mesh.lookAt(_nestMuzzle.x + dir.x, _nestMuzzle.y, _nestMuzzle.z + dir.z);
+  world.add(mesh);
+
+  state.nestBullets.push({
+    x: _nestMuzzle.x, y: 22, z: _nestMuzzle.z,
+    dx: dir.x, dz: dir.z,
+    dist: 0, maxDist: st.range,
+    dmg: st.dmg, pierce: st.pierce, splash: st.splash || 0,
+    hit: new Set(), mesh,
+  });
+  sfx("minigun");
+}
+
+function updateNestBullets(dt) {
+  const SPEED = 620, R = 16;
+  for (const b of state.nestBullets) {
+    const step = SPEED * dt;
+    // Treffer entlang der Flugstrecke prüfen
+    for (const e of state.enemies) {
+      if (e.dead || b.hit.has(e)) continue;
+      // Abstand des Gegners zur Kugel-Front
+      if (Math.hypot(e.x - b.x, e.z - b.z) <= R + 10 * e.def.scale) {
+        b.hit.add(e);
+        damageEnemy(e, b.dmg);
+        if (b.splash) explode(e.x, e.z, Math.round(b.dmg * 0.5), b.splash);
+        b.pierce--;
+        if (b.pierce <= 0) { b.dead = true; break; }
+      }
+    }
+    b.x += b.dx * step; b.z += b.dz * step; b.dist += step;
+    b.mesh.position.set(b.x, b.y, b.z);
+    if (b.dist >= b.maxDist) b.dead = true;
+  }
+  for (const b of state.nestBullets) {
+    if (b.dead) { world.remove(b.mesh); disposeObject(b.mesh); }
+  }
+  state.nestBullets = state.nestBullets.filter(b => !b.dead);
 }
 
 function updateProjectile(p, dt) {
@@ -2608,6 +2848,8 @@ function clearEntities() {
   for (const t of state.tracers) t.line.visible = false;
   for (const r of state.rings) { world.remove(r.mesh); disposeObject(r.mesh); }
   for (const b of state.bolts) { world.remove(b.line); b.line.geometry.dispose(); b.line.material.dispose(); }
+  if (state.nest) exitNest();
+  for (const b of state.nestBullets) { world.remove(b.mesh); disposeObject(b.mesh); }
   state.enemies = [];
   state.dying = [];
   state.towers = [];
@@ -2616,6 +2858,7 @@ function clearEntities() {
   state.tracers = [];
   state.rings = [];
   state.bolts = [];
+  state.nestBullets = [];
   fxLayer.innerHTML = "";
 }
 
@@ -2795,6 +3038,7 @@ function update(dt) {
 
   // Projektile
   state.projectiles = state.projectiles.filter(p => !updateProjectile(p, dt));
+  updateNestBullets(dt);   // manuelle Minigun-Kugeln
 
   // Partikel, Tracer, Ringe, Blitze
   updateEffects(dt);
@@ -2860,7 +3104,13 @@ function syncVisuals(dtReal) {
     const u = t.group.userData;
     u.rotG.rotation.y = t.yaw;
     if (u.flash) u.flash.visible = t.flash > 0;
-    if (u.spinBarrels) u.spinBarrels.rotation.y += dtReal * (t.flash > 0 ? 25 : 3);
+    if (t.type === "nest") {
+      // Läufe drehen mit dem Hochlauf, Mündungsfeuer flackert
+      if (u.spinBarrels) u.spinBarrels.rotation.z += dtReal * (3 + (t.spin || 0) * 60);
+      if (u.flash) u.flash.visible = t.flash > 0;
+    } else if (u.spinBarrels) {
+      u.spinBarrels.rotation.y += dtReal * (t.flash > 0 ? 25 : 3);
+    }
     if (u.frostOrb) u.frostOrb.scale.setScalar(1 + Math.sin(state.time * 6) * 0.18);
     if (u.teslaOrb) u.teslaOrb.scale.setScalar(1 + Math.sin(state.time * 9) * 0.25);
     if (u.pilotFlame) u.pilotFlame.scale.setScalar(0.8 + Math.random() * 0.5);
@@ -2938,6 +3188,23 @@ function syncVisuals(dtReal) {
   }
 
   syncMarkers();
+  syncNestHud();
+}
+
+// Fadenkreuz + Hitze-Anzeige beim Bedienen der Minigun
+function syncNestHud() {
+  const t = state.nest;
+  nestAimMarker.visible = !!t;
+  if (!t) return;
+  nestAimMarker.position.set(state.nestAim.x, 1.5, state.nestAim.z);
+  const st = nestStats(t);
+  const overheated = state.time < t.overheatUntil;
+  const fill = document.getElementById("nest-heat-fill");
+  const txt = document.getElementById("nest-heat-txt");
+  const wrap = document.querySelector(".nest-heat-wrap");
+  if (fill) fill.style.width = Math.round(t.heat) + "%";
+  if (txt) txt.textContent = overheated ? "ÜBERHITZT!" : Math.round(t.heat) + "%";
+  if (wrap) wrap.classList.toggle("overheated", overheated);
 }
 
 /* ---------------- Platzierungs-Vorschau & Auswahl-Markierung ---------------- */
@@ -3134,6 +3401,10 @@ function refreshShop() {
           centerText(`${def.name} ab Welle ${def.unlockWave}!`, "#f87171");
           return;
         }
+        if (def.unique && state.towers.some(tt => tt.type === key)) {
+          centerText(`${def.name}: nur 1× pro Spiel!`, "#f87171");
+          return;
+        }
         if (state.cash < def.cost) {
           centerText("Nicht genug Geld!", "#f87171");
           return;
@@ -3181,12 +3452,16 @@ function refreshShopSelection() {
     if (selected) card.style.boxShadow = `0 0 12px ${def.color}`;
     else card.style.boxShadow = "";
     // Nicht leistbar / gesperrt ausgrauen
-    const locked = state.wave < def.unlockWave;
+    const placed = def.unique && state.towers.some(t => t.type === key); // schon gebaut?
+    const locked = state.wave < def.unlockWave || placed;
     const poor = state.cash < def.cost;
     card.classList.toggle("locked", locked);
     card.classList.toggle("poor", poor && !locked);
     const costEl = card.querySelector(".shop-cost");
-    if (costEl) costEl.style.color = (!locked && !poor) ? "#7ee787" : "#f87171";
+    if (costEl) {
+      costEl.textContent = placed ? "✔ gebaut" : "$" + def.cost;
+      costEl.style.color = placed ? "#7ee787" : (!locked && !poor) ? "#7ee787" : "#f87171";
+    }
   }
 }
 
@@ -3253,6 +3528,10 @@ function refreshTowerPanel() {
   let stats = "";
   if (def.kind === "farm") {
     stats = `💰 Einkommen: <b>${st.income}</b> / Welle`;
+  } else if (def.kind === "nest") {
+    stats = `⚔️ Schaden: <b>${st.dmg}</b>/Schuss<br>📏 Reichweite: <b>${st.range}</b><br>⏱️ Feuerrate: <b>${st.rate}/s</b> (max)<br>🎯 Durchschlag: <b>${st.pierce}</b> Gegner<br>🌀 Hochlauf: <b>${st.spinUp}s</b><br>🔥 Überhitzung: <b>${st.overheatLock}s</b> Pause`;
+    if (st.splash) stats += `<br>💥 Splash: <b>${st.splash}</b>`;
+    stats += `<br><span style="color:#facc15">🪖 Klick/E = einsteigen</span>`;
   } else {
     stats = `⚔️ Schaden: <b>${st.dmg}</b><br>📏 Reichweite: <b>${st.range}</b><br>⏱️ Feuerrate: <b>${st.rate}/s</b>`;
     if (st.slow) stats += `<br>❄️ Verlangsamung: <b>${Math.round(st.slow * 100)}%</b> für ${st.slowDur}s`;
@@ -3272,8 +3551,14 @@ function refreshTowerPanel() {
   }
 
   const tgtBtn = document.getElementById("btn-target");
-  tgtBtn.style.display = def.kind === "farm" ? "none" : "";
-  tgtBtn.textContent = `🎯 Ziel: ${TARGET_MODES[t.targetMode]}`;
+  // Minigun Nest hat keinen Zielmodus (manuell), dafür "Einsteigen"
+  if (def.kind === "nest") {
+    tgtBtn.style.display = "";
+    tgtBtn.textContent = "🪖 Einsteigen (E)";
+  } else {
+    tgtBtn.style.display = def.kind === "farm" ? "none" : "";
+    tgtBtn.textContent = `🎯 Ziel: ${TARGET_MODES[t.targetMode]}`;
+  }
 
   document.getElementById("btn-sell").textContent =
     `💸 Verkaufen ($${Math.floor(t.invested * 0.7)})`;
@@ -3680,15 +3965,25 @@ function pointFromEvent(ev) {
 }
 
 renderer.domElement.addEventListener("pointermove", (ev) => {
-  state.hoverPoint = pointFromEvent(ev);
+  const p = pointFromEvent(ev);
+  state.hoverPoint = p;
+  if (state.nest && p) state.nestAim.set(p.x, 0, p.z); // Minigun zielt zum Mauspunkt
 });
 renderer.domElement.addEventListener("pointerleave", () => { state.hoverPoint = null; });
+renderer.domElement.addEventListener("contextmenu", (ev) => { if (state.nest) ev.preventDefault(); });
 
 let downPos = null;
 renderer.domElement.addEventListener("pointerdown", (ev) => {
+  // Minigun bedienen: links = feuern, rechts = aussteigen
+  if (state.nest) {
+    if (ev.button === 0) { ensureAudio(); state.nest.firing = true; }
+    else if (ev.button === 2) exitNest();
+    return;
+  }
   if (ev.button === 0) downPos = { x: ev.clientX, y: ev.clientY };
 });
 renderer.domElement.addEventListener("pointerup", (ev) => {
+  if (state.nest) { if (ev.button === 0) state.nest.firing = false; return; }
   if (ev.button !== 0 || !downPos) return;
   const moved = Math.hypot(ev.clientX - downPos.x, ev.clientY - downPos.y);
   downPos = null;
@@ -3723,11 +4018,12 @@ function handleClick(ev) {
     const d = raycaster.ray.distanceToPoint(center.set(t.x, t.baseY + 22, t.z));
     if (d < bestD) { bestD = d; hit = t; }
   }
-  selectTower(hit);
+  selectTower(hit); // Nest: auswählen → Panel zeigt "Einsteigen (E)"
 }
 
 document.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") {
+    if (state.nest) { exitNest(); return; }
     if (modalStack.length > 0) {
       closeWindow(modalStack[modalStack.length - 1]);
       return;
@@ -3735,6 +4031,13 @@ document.addEventListener("keydown", (ev) => {
     state.placing = null;
     selectTower(null);
     refreshShopSelection();
+  }
+  // E = Minigun Nest betreten/verlassen
+  if ((ev.key === "e" || ev.key === "E") && state.running) {
+    if (state.nest) { exitNest(); return; }
+    ensureAudio();
+    const nest = state.towers.find(t => t.type === "nest");
+    if (nest) enterNest(nest);
   }
   if (ev.key === " " && state.running) {
     ev.preventDefault();
@@ -3905,7 +4208,7 @@ document.getElementById("btn-upgrade").addEventListener("click", () => {
   burst(t.x, t.baseY + 30, t.z, "#ffd24a", 12, 80, false);
   refreshTowerStuds(t);
 
-  if (t.level === 2 && TOWER_TYPES[t.type].kind !== "farm") {
+  if (t.level === 2 && TOWER_TYPES[t.type].kind !== "farm" && t.type !== "nest") {
     const yaw = t.yaw;
     world.remove(t.group);
     disposeObject(t.group);
@@ -3915,12 +4218,14 @@ document.getElementById("btn-upgrade").addEventListener("click", () => {
     world.add(t.group);
     refreshTowerStuds(t);
   }
+  if (t.type === "nest") refreshTowerPanel(); // Stats im Panel aktualisieren
   updateHUD();
 });
 
 document.getElementById("btn-target").addEventListener("click", () => {
   const t = state.selected;
   if (!t) return;
+  if (t.type === "nest") { enterNest(t); return; } // Minigun bedienen
   t.targetMode = (t.targetMode + 1) % TARGET_MODES.length;
   refreshTowerPanel();
 });
@@ -3928,9 +4233,11 @@ document.getElementById("btn-target").addEventListener("click", () => {
 document.getElementById("btn-sell").addEventListener("click", () => {
   const t = state.selected;
   if (!t) return;
+  if (state.nest === t) exitNest();   // Minigun erst verlassen
   state.cash += Math.floor(t.invested * 0.7);
   removeTower(t);
   selectTower(null);
+  refreshShopSelection();  // unique-Turm im Shop wieder freigeben
   sfx("sell");
   updateHUD();
 });

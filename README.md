@@ -135,6 +135,24 @@ die Lobby-Insel – mit deinem gekauften Skin! Das goldene **SPIELEN-Portal**
 | 💥 Minigunner | $900 | Extrem schnelles Feuer (ab Welle 8) |
 | ⚡ Tesla | $1100 | Kettenblitz auf mehrere Gegner (ab Welle 12) |
 | 🌾 Farm | $600 | Bringt Geld am Ende jeder Welle |
+| 🪖 Minigun Nest | $1500 | **Selbst gesteuert!** Nur 1× pro Spiel (ab Welle 4) |
+
+### 🪖 Minigun Nest – der spielergesteuerte Turm
+
+Ein großes, militärisches Geschütznest mit riesiger rotierender Minigun. Es
+**zielt nicht automatisch** – du steuerst es selbst:
+
+- **Einsteigen:** Nest auswählen und Taste **E** (oder Knopf „Einsteigen") drücken
+- **Zielen:** mit der **Maus** über das Feld
+- **Feuern:** **linke Maustaste halten** – die Läufe laufen erst hoch (Aufwärmeffekt),
+  dann volle Feuerrate
+- **Aussteigen:** **E**, Rechtsklick oder **Esc**
+- Schießt **nur**, wenn ein Spieler es bedient; der Schütze sitzt geschützt hinter
+  gepanzerter Deckung. Es darf **nur eines** gleichzeitig existieren.
+- **Überhitzung:** Dauerfeuer füllt die Hitze-Anzeige – bei 100 % gibt's eine
+  Zwangspause. Kurze Feuerstöße vermeiden das.
+- **5 Stufen** verbessern Schaden, Reichweite, **Durchschlag** (Kugeln durchbohren
+  mehrere Gegner), Feuerrate und Überhitzungskontrolle; Stufe 5 fügt Splash hinzu.
 
 ## 👾 Die Gegner
 
