@@ -46,13 +46,29 @@ Spiel im Browser. Die Grafik ist identisch, denn auch dort rechnet die GPU.
 
 ## 🎮 Das Menüsystem
 
-1. **Hauptmenü:** Großer 🎮 **SPIELEN**-Button, dazu 🏪 Shop, ⚙ Einstellungen und 🏆 Rekorde.
-2. **Modus auswählen:** 🛡 **Normaler Modus** (40 Wellen) und 👹 **Boss Rush**
-   (nach einem Sieg auf einer ⭐⭐⭐-Karte freigeschaltet). Hardcore, Endlos,
-   Sandbox und Koop sind sichtbar, aber noch 🔒 gesperrt.
-3. **Karte auswählen:** 5 Karten mit Vorschaubild, ⭐-Schwierigkeit und deinem Rekord.
-4. **▶ SPIEL STARTEN:** Kurzer Ladebildschirm („Lade Karte…"), dann geht's los –
-   mit 500 Startgeld, 100 Leben, Welle 1.
+Der Ablauf ist wie bei Tower Defense Simulator aufgebaut:
+
+1. **Hauptmenü / Lobby:** Großer 🎮 **SPIELEN**-Button, dazu 🏪 Shop, ⚙ Einstellungen, 🏆 Rekorde.
+2. **Wähle einen Spielmodus:** horizontale Karten – 🛡 Überleben (40 Wellen) und
+   👹 Boss Rush (nach Sieg auf ⭐⭐⭐-Karte frei); Hardcore, PVP, Spezielle Modi,
+   Sandkiste sind sichtbar, aber 🔒 gesperrt.
+3. **Karte auswählen:** 5 Karten mit Vorschaubild und Rekord.
+4. **Wähle eine Schwierigkeit:** horizontale Karten – 😊 Einfach, 🙂 Lässig,
+   😎 Mittelstufe, 🌋 Geschmolzen, 💀 Fallen. Jede Stufe ändert Gegner-Leben,
+   deine Startleben und die Münz-Belohnung.
+5. **Ladebildschirm** („Lade Karte…"), dann geht's los.
+
+### Schwierigkeitsgrade
+
+| Stufe | Gegner-HP | Startleben | Münz-Bonus |
+|---|---|---|---|
+| 😊 Einfach | 80 % | 130 | ×1,0 |
+| 🙂 Lässig | 100 % | 100 | ×1,15 |
+| 😎 Mittelstufe | 130 % | 100 | ×1,35 |
+| 🌋 Geschmolzen | 170 % | 80 | ×1,7 |
+| 💀 Fallen | 230 % | 60 | ×2,2 |
+
+(Die Werte stapeln sich mit der Karten-Schwierigkeit aus den ⭐-Sternen.)
 
 ## 👹 Boss Rush
 

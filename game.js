@@ -248,6 +248,29 @@ const MAPS = {
 };
 const MAP_ORDER = ["grasslands", "desert", "frozen", "volcano", "space"];
 
+/* ---------------- Schwierigkeitsgrade (TDS-Stil) ----------------
+   Werden NACH der Karte gewählt und multiplizieren auf die Karten-Werte. */
+const DIFFICULTIES = [
+  { id: "einfach",     name: "Einfach",     icon: "😊", sub: "Für den Einstieg",          hpMult: 0.8, lives: 130, rewardMult: 1.0, color: "#22c55e" },
+  { id: "laessig",     name: "Lässig",      icon: "🙂", sub: "Etwas mehr Gegner",         hpMult: 1.0, lives: 100, rewardMult: 1.15, color: "#3b82f6" },
+  { id: "mittelstufe", name: "Mittelstufe", icon: "😎", sub: "Für erfahrene Spieler",     hpMult: 1.3, lives: 100, rewardMult: 1.35, color: "#f59e0b" },
+  { id: "geschmolzen", name: "Geschmolzen", icon: "🌋", sub: "Heiße Hölle – harte Gegner", hpMult: 1.7, lives: 80,  rewardMult: 1.7, color: "#ef4444" },
+  { id: "fallen",      name: "Fallen",      icon: "💀", sub: "Nur für Profis!",            hpMult: 2.3, lives: 60,  rewardMult: 2.2, color: "#a855f7" },
+];
+function curDiff() {
+  return DIFFICULTIES.find(d => d.id === state.difficulty) || DIFFICULTIES[1];
+}
+
+/* ---------------- Spielmodi (horizontale Auswahl wie TDS) ---------------- */
+const GAME_MODES = [
+  { id: "normal",   name: "Überleben",     icon: "🛡", sub: "40 Wellen verteidigen" },
+  { id: "bossrush", name: "Boss Rush",     icon: "👹", sub: "Nur Bosse, alle 60s einer", lockedFn: () => !isBossRushUnlocked(), lockedSub: "Gewinne eine ⭐⭐⭐-Karte!" },
+  { id: "hardcore", name: "Hardcore",      icon: "🔥", sub: "Bald verfügbar", locked: true },
+  { id: "pvp",      name: "PVP",           icon: "⚔️", sub: "Bald verfügbar", locked: true },
+  { id: "special",  name: "Spezielle Modi", icon: "✨", sub: "Bald verfügbar", locked: true },
+  { id: "sandbox",  name: "Sandkiste",     icon: "🧰", sub: "Bald verfügbar", locked: true },
+];
+
 // Pfad-Kacheln aus Wegpunkten berechnen
 function computePathTiles(waypoints) {
   const tiles = new Set();
@@ -282,6 +305,7 @@ const state = {
   mode: "menu",          // "menu" | "lobby" | "game"
   map: localStorage.getItem("btd_map") || "grasslands",
   gameMode: "normal",    // "normal" | "bossrush"
+  difficulty: localStorage.getItem("btd_diff") || "laessig",  // gewählte Schwierigkeit
   bossRush: null,        // { next, num, total } im Boss-Rush-Modus
   portalAlarm: 0,        // Portal pulsiert rot kurz vor einem Boss
   gateFlash: 0,          // Ziel-Tor blitzt rot bei Lebensverlust
@@ -2698,7 +2722,7 @@ function buildWave(n) {
 }
 
 function hpScale(wave) {
-  return (1 + (wave - 1) * 0.09) * MAPS[state.map].hpMult;
+  return (1 + (wave - 1) * 0.09) * MAPS[state.map].hpMult * curDiff().hpMult;
 }
 
 function waveCompositionText(n) {
@@ -2788,7 +2812,7 @@ function finishWave() {
   state.cash += bonus;
   centerText(`Welle ${state.wave} geschafft! +${bonus}💰`, "#ffd24a");
   sfx("cash");
-  addCoins(3); // Münzen für den Skin-Shop
+  addCoins(Math.round(3 * curDiff().rewardMult)); // Münzen (mehr bei höherer Schwierigkeit)
 
   let hadFarm = false;
   for (const t of state.towers) {
@@ -2828,7 +2852,7 @@ function gameOver() {
     return;
   }
 
-  const coins = state.wave * 2;
+  const coins = Math.round(state.wave * 2 * curDiff().rewardMult);
   addCoins(coins);
   const isNew = saveRecord(state.map, state.wave);
   document.getElementById("go-wave").textContent = state.wave;
@@ -2840,7 +2864,7 @@ function gameOver() {
 function win() {
   state.running = false;
   sfx("win");
-  const coins = 150 + state.wave * 2;
+  const coins = Math.round((150 + state.wave * 2) * curDiff().rewardMult);
   addCoins(coins);
   saveRecord(state.map, MAX_WAVE + 1);
 
@@ -2889,7 +2913,7 @@ function resetGame() {
   clearEntities();
   // Boss Rush startet mit mehr Geld, da keine normalen Wellen
   state.cash = state.gameMode === "bossrush" ? 1500 : START_CASH;
-  state.lives = START_LIVES;
+  state.lives = curDiff().lives;   // Leben hängen von der Schwierigkeit ab
   state.wave = 1;
   state.kills = 0;
   state.bossRush = null;
@@ -3796,7 +3820,8 @@ function startGameOnMap(mapKey, gameMode) {
 
   // Ladebildschirm
   const loading = document.getElementById("loading-overlay");
-  document.getElementById("loading-map").textContent = `${MAPS[mapKey].icon} ${MAPS[mapKey].name}`;
+  const d = curDiff();
+  document.getElementById("loading-map").innerHTML = `${MAPS[mapKey].icon} ${MAPS[mapKey].name}<br><span style="font-size:15px;color:${d.color}">${d.icon} ${d.name}</span>`;
   const fill = document.getElementById("loading-fill");
   fill.classList.remove("animate");
   void fill.offsetWidth;
@@ -3881,7 +3906,7 @@ function enterGame() {
   controls.target.copy(CAM_HOME.target);
   controls.update();
   resetGame();
-  showBanner(state.gameMode === "bossrush" ? `👹 BOSS RUSH – ${MAPS[state.map].name}` : `🗺 ${MAPS[state.map].name}`);
+  showBanner(state.gameMode === "bossrush" ? `👹 BOSS RUSH – ${MAPS[state.map].name}` : `🗺 ${MAPS[state.map].name} · ${curDiff().icon} ${curDiff().name}`);
 }
 
 /* =====================================================================
@@ -3933,7 +3958,7 @@ function updateLobby(dt) {
       player.portalLatch = true;
       burst(player.x, 25, player.z, "#ffd24a", 12, 90, false);
       sfx("upgrade");
-      refreshModeWindow();
+      buildModeRow();
       openWindow("mode-overlay");
     }
   } else if (distToPortal > PORTAL_RADIUS + 25) {
@@ -4080,72 +4105,76 @@ function togglePause() {
 
 /* ---------------- Buttons ---------------- */
 
-// Hauptmenü
-// Boss-Rush-Modus-Karte aktualisieren (freigeschaltet?)
-function refreshModeWindow() {
-  const card = document.getElementById("mode-bossrush");
-  const unlocked = isBossRushUnlocked();
-  card.classList.toggle("locked", !unlocked);
-  card.classList.toggle("unlocked", unlocked);
-  card.querySelector(".mode-icon").textContent = unlocked ? "👹" : "🔒";
-  const best = bossRushBest();
-  card.querySelector(".mode-desc").textContent = unlocked
-    ? (best > 0 ? `Nur Bosse! Bester Lauf: ${best} Bosse besiegt` : "Nur Bosse, alle 60s ein neuer – jeder mit Spezialfähigkeit!")
-    : "Gewinne eine ⭐⭐⭐-Karte zum Freischalten!";
-  card.querySelector(".mode-arrow")?.remove();
-  if (unlocked) {
-    const arrow = document.createElement("div");
-    arrow.className = "mode-arrow";
-    arrow.textContent = "▶";
-    card.appendChild(arrow);
+// Horizontale Spielmodus-Karten (TDS-Stil) bauen
+function buildModeRow() {
+  const row = document.getElementById("mode-row");
+  row.innerHTML = "";
+  for (const m of GAME_MODES) {
+    const locked = m.locked || (m.lockedFn && m.lockedFn());
+    const card = document.createElement("div");
+    card.className = "sel-card" + (locked ? " locked" : "");
+    const sub = locked ? (m.lockedSub || "🔒 Bald verfügbar") : m.sub;
+    card.innerHTML = `
+      <div class="sel-card-top" style="background:#11183020">${locked ? "🔒" : m.icon}</div>
+      <div class="sel-card-body">
+        <div class="sel-card-name">${m.name}</div>
+        <div class="sel-card-sub">${sub}</div>
+      </div>`;
+    card.addEventListener("click", () => {
+      ensureAudio();
+      if (locked) { sfx("lose"); card.classList.add("shake"); setTimeout(() => card.classList.remove("shake"), 350); return; }
+      pendingMode = m.id;
+      buildMapGrid();
+      closeWindow("mode-overlay");
+      openWindow("map-overlay");
+    });
+    row.appendChild(card);
   }
 }
 
-document.getElementById("btn-spielen").addEventListener("click", () => { ensureAudio(); refreshModeWindow(); openWindow("mode-overlay"); });
+// Horizontale Schwierigkeits-Karten (TDS-Stil) bauen
+function buildDiffRow() {
+  const row = document.getElementById("diff-row");
+  row.innerHTML = "";
+  for (const d of DIFFICULTIES) {
+    const card = document.createElement("div");
+    card.className = "sel-card";
+    card.style.borderColor = d.color;
+    card.innerHTML = `
+      <div class="sel-card-top" style="background:${d.color}22">${d.icon}</div>
+      <div class="sel-card-body">
+        <div class="sel-card-name" style="color:${d.color}">${d.name}</div>
+        <div class="sel-card-sub">${d.sub}</div>
+        <div class="sel-card-tag">❤️ ${d.lives} · 💪 ${Math.round(d.hpMult*100)}% · 💰 ${Math.round(d.rewardMult*100)}%</div>
+      </div>`;
+    card.addEventListener("click", () => {
+      ensureAudio();
+      state.difficulty = d.id;
+      localStorage.setItem("btd_diff", d.id);
+      closeWindow("diff-overlay");
+      startGameOnMap(infoMapKey, pendingMode);
+    });
+    row.appendChild(card);
+  }
+}
+
+document.getElementById("btn-spielen").addEventListener("click", () => { ensureAudio(); buildModeRow(); openWindow("mode-overlay"); });
 document.getElementById("btn-shop-open").addEventListener("click", () => { ensureAudio(); buildSkinGrid(); openWindow("shopwin-overlay"); });
 document.getElementById("btn-settings-open").addEventListener("click", () => { ensureAudio(); applySettings(); openWindow("settings-overlay"); });
 document.getElementById("btn-records-open").addEventListener("click", () => { ensureAudio(); buildRecordsList(); openWindow("records-overlay"); });
 document.getElementById("btn-lobby").addEventListener("click", () => { ensureAudio(); enterLobby(); });
 document.getElementById("btn-menu-from-lobby").addEventListener("click", () => { ensureAudio(); showMainMenu(); });
 
-// Welcher Modus wird gerade in der Kartenauswahl gewählt?
+// Welcher Modus/Karte wird gerade gewählt?
 let pendingMode = "normal";
 
-// Modus-Fenster
-document.getElementById("mode-normal").addEventListener("click", () => {
-  ensureAudio();
-  pendingMode = "normal";
-  buildMapGrid();
-  closeWindow("mode-overlay");
-  openWindow("map-overlay");
-});
-document.getElementById("mode-bossrush").addEventListener("click", () => {
-  ensureAudio();
-  const card = document.getElementById("mode-bossrush");
-  if (!isBossRushUnlocked()) {
-    sfx("lose");
-    card.classList.add("shake");
-    setTimeout(() => card.classList.remove("shake"), 350);
-    return;
-  }
-  pendingMode = "bossrush";
-  buildMapGrid();
-  closeWindow("mode-overlay");
-  openWindow("map-overlay");
-});
-for (const card of document.querySelectorAll(".mode-card.locked")) {
-  if (card.id === "mode-bossrush") continue; // hat eigenen Handler
-  card.addEventListener("click", () => {
-    sfx("lose");
-    card.classList.add("shake");
-    setTimeout(() => card.classList.remove("shake"), 350);
-  });
-}
-
-// Karten-Detail
+// Karten-Detail → weiter zur Schwierigkeitsauswahl
 document.getElementById("btn-start-map").addEventListener("click", () => {
   ensureAudio();
-  if (infoMapKey) startGameOnMap(infoMapKey, pendingMode);
+  if (!infoMapKey) return;
+  buildDiffRow();
+  closeWindow("mapinfo-overlay");
+  openWindow("diff-overlay");
 });
 document.getElementById("btn-back-map").addEventListener("click", () => closeWindow("mapinfo-overlay"));
 
@@ -4156,8 +4185,9 @@ for (const btn of document.querySelectorAll(".pixel-close")) {
 for (const btn of document.querySelectorAll(".pixel-back")) {
   btn.addEventListener("click", () => {
     closeWindow(btn.dataset.back);
-    // Zurück führt eine Ebene hoch: Karte -> Modus
+    // Zurück führt eine Ebene hoch im Ablauf
     if (btn.dataset.back === "map-overlay") openWindow("mode-overlay");
+    else if (btn.dataset.back === "diff-overlay") openWindow("mapinfo-overlay");
   });
 }
 

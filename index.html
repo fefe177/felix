@@ -68,27 +68,15 @@
         </div>
       </div>
 
-      <!-- ========== MODUS AUSWÄHLEN ========== -->
+      <!-- ========== SPIELMODUS AUSWÄHLEN ========== -->
       <div id="mode-overlay" class="overlay pixel-overlay hidden">
-        <div class="pixel-window">
+        <div class="pixel-window pixel-wide">
           <div class="pixel-title">
-            <span>MODUS AUSWÄHLEN</span>
+            <span>WÄHLE EINEN SPIELMODUS</span>
             <button class="pixel-close" data-close="mode-overlay">✕</button>
           </div>
           <div class="pixel-body">
-            <div class="mode-card unlocked" id="mode-normal">
-              <div class="mode-icon">🛡</div>
-              <div class="mode-info">
-                <div class="mode-name">Normaler Modus</div>
-                <div class="mode-desc">Verteidige deine Basis gegen 40 Wellen von Gegnern.</div>
-              </div>
-              <div class="mode-arrow">▶</div>
-            </div>
-            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Hardcore Modus</div><div class="mode-desc">Bald verfügbar…</div></div></div>
-            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Endlos Modus</div><div class="mode-desc">Bald verfügbar…</div></div></div>
-            <div class="mode-card locked" id="mode-bossrush"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Boss Rush</div><div class="mode-desc">Gewinne eine ⭐⭐⭐-Karte zum Freischalten!</div></div></div>
-            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Sandbox</div><div class="mode-desc">Bald verfügbar…</div></div></div>
-            <div class="mode-card locked"><div class="mode-icon">🔒</div><div class="mode-info"><div class="mode-name">Koop Modus</div><div class="mode-desc">Bald verfügbar…</div></div></div>
+            <div id="mode-row" class="card-row"></div>
           </div>
         </div>
       </div>
@@ -119,9 +107,23 @@
             <canvas id="mi-preview" width="400" height="260"></canvas>
             <div id="mi-stats"></div>
             <div class="btn-row">
-              <button id="btn-start-map" class="btn btn-big btn-green">▶ SPIEL STARTEN</button>
+              <button id="btn-start-map" class="btn btn-big btn-green">WEITER ▶</button>
               <button id="btn-back-map" class="btn btn-big">⬅ ZURÜCK</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== SCHWIERIGKEIT AUSWÄHLEN ========== -->
+      <div id="diff-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window pixel-wide">
+          <div class="pixel-title">
+            <button class="pixel-back" data-back="diff-overlay">⬅</button>
+            <span>WÄHLE EINE SCHWIERIGKEIT</span>
+            <button class="pixel-close" data-close="diff-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div id="diff-row" class="card-row"></div>
           </div>
         </div>
       </div>
