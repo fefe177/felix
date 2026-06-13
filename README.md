@@ -8,11 +8,20 @@ Das Spiel läuft als **echte App** mit eigenem Fenster und Icon (Electron –
 damit sind auch Discord und viele Steam-Spiele gebaut). Shader und
 Ray-Tracing-Wasser laufen darin direkt auf deiner Grafikkarte.
 
-1. Einmalig [Node.js](https://nodejs.org) installieren (LTS-Version)
-2. Im Spielordner ein Terminal öffnen und einmalig: `npm install`
-3. Spiel starten: `npm start`
+### Am einfachsten (nur doppelklicken)
 
-→ Eigenes Spielfenster, keine Browserleisten, `F11` = Vollbild.
+1. Einmalig [Node.js](https://nodejs.org) installieren (grüner **LTS**-Knopf)
+2. Dann **doppelklicken**:
+   - **Windows:** `START_WINDOWS.bat`
+   - **macOS / Linux:** `START_MAC_LINUX.command`
+
+Beim allerersten Start richtet sich das Spiel kurz selbst ein, danach öffnet
+sich sofort das **App-Fenster** (keine Browserleisten, `F11` = Vollbild).
+Ab dann startet jeder Doppelklick die App direkt.
+
+### Für Profis (Terminal)
+
+`npm install` einmalig, danach `npm start`.
 
 ### 📦 Echte EXE bauen (zum Weitergeben)
 
