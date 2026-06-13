@@ -1790,9 +1790,11 @@ function getGhost(typeKey) {
     g.add(box(36, 6, 30, lambert(0x854d0e), 0, 3, 0));
   } else if (def.kind === "nest") {
     g = new THREE.Group();
-    g.add(box(54, 10, 54, lambert(0x3f6212), 0, 5, 0));
-    g.add(box(14, 14, 16, lambert(0x4b5563), 0, 30, 4));
-    g.add(box(4, 4, 30, lambert(0x1f2937), 0, 30, 22));
+    g.add(box(46, 8, 46, lambert(0x4b5563), 0, 5, 0));     // Fußplatte
+    g.add(box(40, 52, 40, lambert(0x2c440d), 0, 31, 0));   // hoher Bunker
+    g.add(box(50, 6, 50, lambert(0x4b5563), 0, 58, 0));    // Deck
+    g.add(box(14, 14, 16, lambert(0x4b5563), 0, 87, 4));   // Geschütz
+    g.add(box(4, 4, 30, lambert(0x1f2937), 0, 87, 22));    // Lauf
   } else {
     g = makeMinifig(def.color, "#fbbf24", {});
   }
@@ -1834,32 +1836,48 @@ function makeTowerMesh(typeKey, level) {
   let muzzle = null, flash = null, figure = null, cropTips = [];
 
   if (def.kind === "nest") {
-    // Großes, schweres Militär-Nest mit gepanzerter Deckung + riesiger Minigun
-    plate.scale.set(1.6, 1, 1.6);
-    const olive = lambert(0x3f6212), oliveDark = lambert(0x2c440d), steel = lambert(0x4b5563);
-    // Sandsäcke / Panzerwall rundherum
+    // Großes, schweres, HOHES Militär-Nest auf erhöhtem Bunker-Sockel
+    plate.scale.set(2.0, 1, 2.0);
+    const olive = lambert(0x3f6212), oliveDark = lambert(0x2c440d), steel = lambert(0x4b5563), darkSteel = lambert(0x374151);
+    const BH = 52;   // Höhe des Bunker-Sockels – hier sitzt die Plattform
+
+    // Bunker-Turm (massiver, hoher Sockel mit Streben)
+    staticG.add(box(40, BH, 40, oliveDark, 0, BH / 2, 0));
+    staticG.add(box(46, 8, 46, steel, 0, 6, 0));            // breite Fußplatte
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {   // Eckstreben
+      const leg = box(7, BH, 7, darkSteel, sx * 19, BH / 2, sz * 19);
+      staticG.add(leg);
+    }
+    // Leiter an der Rückseite
+    for (let i = 0; i < 6; i++) staticG.add(box(12, 2, 2, darkSteel, 0, 8 + i * 8, -21));
+    // Plattform-Deck oben
+    staticG.add(box(50, 6, 50, steel, 0, BH + 3, 0));
+
+    // Sandsäcke / Panzerwall auf dem Deck
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      const sb = box(13, 9, 9, i % 2 ? oliveDark : olive, Math.cos(a) * 26, 6, Math.sin(a) * 26);
+      const sb = box(13, 9, 9, i % 2 ? oliveDark : olive, Math.cos(a) * 26, BH + 11, Math.sin(a) * 26);
       sb.rotation.y = a;
       staticG.add(sb);
     }
-    // Gepanzerte Frontschilde
-    staticG.add(box(40, 22, 6, steel, 0, 17, 24));
-    staticG.add(box(6, 22, 40, steel, 24, 17, 0));
-    staticG.add(box(6, 22, 40, steel, -24, 17, 0));
+    // Gepanzerte Frontschilde auf dem Deck
+    staticG.add(box(40, 22, 6, steel, 0, BH + 22, 24));
+    staticG.add(box(6, 22, 40, steel, 24, BH + 22, 0));
+    staticG.add(box(6, 22, 40, steel, -24, BH + 22, 0));
+
     // Schütze (geschützt hinter Deckung) – wird beim Bedienen sichtbar
     const gunner = makeMinifig(0x3f6212, "#caa472", { hat: "#2c440d" });
-    gunner.position.set(0, 8, -8);
+    gunner.position.set(0, BH + 13, -8);
     gunner.scale.setScalar(0.85);
     gunner.visible = false;
     rotG.add(gunner);
     group.userData.gunner = gunner;
-    // Dreh-Lafette + riesige Minigun
-    const mount = box(20, 14, 20, oliveDark, 0, 24, 0);
+
+    // Dreh-Lafette + riesige Minigun (oben auf dem Deck)
+    const mount = box(20, 14, 20, oliveDark, 0, BH + 29, 0);
     rotG.add(mount);
     const gun = new THREE.Group();
-    gun.position.set(0, 30, 4);
+    gun.position.set(0, BH + 35, 4);
     rotG.add(gun);
     gun.add(box(13, 13, 16, steel, 0, 0, 2));            // Gehäuse
     // 6 rotierende Läufe
@@ -1871,10 +1889,10 @@ function makeTowerMesh(typeKey, level) {
     }
     gun.add(barrels);
     group.userData.spinBarrels = barrels;
-    group.userData.gunPivot = gun;     // hebt/senkt sich für Zielhöhe (nur Optik)
+    group.userData.gunPivot = gun;
     // Mündung + Feuer
     muzzle = new THREE.Object3D();
-    muzzle.position.set(0, 30, 44);
+    muzzle.position.set(0, BH + 35, 44);
     rotG.add(muzzle);
     flash = new THREE.Mesh(new THREE.ConeGeometry(7, 16, 8), new THREE.MeshBasicMaterial({ color: 0xfde047 }));
     flash.rotation.x = Math.PI / 2;
@@ -2567,14 +2585,18 @@ function fireNestBullet(tower, st) {
   dir.z += (Math.random() - 0.5) * spread;
   dir.normalize();
 
+  // Vom hohen Geschütz nach unten zu den Gegnern: leichte Sinkrate
+  const startY = _nestMuzzle.y;
+  const vy = (20 - startY) / st.range; // y-Änderung pro zurückgelegter Strecke
+
   const mesh = box(2.5, 2.5, 14, new THREE.MeshBasicMaterial({ color: 0xfff1a8 }), 0, 0, 0);
   mesh.castShadow = false;
   mesh.position.copy(_nestMuzzle);
-  mesh.lookAt(_nestMuzzle.x + dir.x, _nestMuzzle.y, _nestMuzzle.z + dir.z);
+  mesh.lookAt(_nestMuzzle.x + dir.x, _nestMuzzle.y + vy * 30, _nestMuzzle.z + dir.z);
   world.add(mesh);
 
   state.nestBullets.push({
-    x: _nestMuzzle.x, y: 22, z: _nestMuzzle.z,
+    x: _nestMuzzle.x, y: startY, z: _nestMuzzle.z, vy,
     dx: dir.x, dz: dir.z,
     dist: 0, maxDist: st.range,
     dmg: st.dmg, pierce: st.pierce, splash: st.splash || 0,
@@ -2600,6 +2622,7 @@ function updateNestBullets(dt) {
       }
     }
     b.x += b.dx * step; b.z += b.dz * step; b.dist += step;
+    b.y = Math.max(14, b.y + (b.vy || 0) * step);   // sinkt zum Gegner-Niveau
     b.mesh.position.set(b.x, b.y, b.z);
     if (b.dist >= b.maxDist) b.dead = true;
   }
@@ -3335,6 +3358,7 @@ function initMiniRenderer() {
 function registerMiniModel(key, canvas) {
   initMiniRenderer();
   const mesh = makeTowerMesh(key, 0);
+  if (key === "nest") mesh.scale.setScalar(0.5);   // hohes Nest klein genug fürs Icon
   miniModels[key] = { canvas, ctx: canvas.getContext("2d"), mesh, hover: false };
 }
 
@@ -3493,6 +3517,7 @@ function setPanelModel(type, level) {
   if (panelModel.type !== type || panelModel.level !== level) {
     if (panelModel.mesh) disposeObject(panelModel.mesh);
     panelModel.mesh = makeTowerMesh(type, level);
+    if (type === "nest") panelModel.mesh.scale.setScalar(0.5);  // hohes Nest einpassen
     // Noppen/Sterne wie im Spiel anzeigen
     const studs = panelModel.mesh.userData.studs;
     const gold = lambert(0xfacc15);
