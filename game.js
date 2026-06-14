@@ -1619,6 +1619,12 @@ function makeMinifig(bodyHex, headHex, opts = {}) {
 /* ---------------- Lebensbalken (Billboard aus 2 Flächen) ---------------- */
 
 const billboards = [];
+function fmtHP(n) {
+  n = Math.max(0, Math.ceil(n));
+  if (n >= 1000) return (n / 1000).toFixed(n >= 10000 ? 0 : 1) + "k";
+  return "" + n;
+}
+
 function makeHealthBar(width) {
   const g = new THREE.Group();
   const bg = new THREE.Mesh(
@@ -1630,18 +1636,49 @@ function makeHealthBar(width) {
     new THREE.MeshBasicMaterial({ color: 0x4ade80 })
   );
   fill.position.z = 0.5;
-  g.add(bg, fill);
-  g.userData = { fill, width };
+
+  // HP-Zahl als Canvas-Textur über dem Balken (immer sichtbar)
+  const cv = document.createElement("canvas");
+  cv.width = 128; cv.height = 36;
+  const tex = new THREE.CanvasTexture(cv);
+  tex.encoding = THREE.sRGBEncoding;
+  const numMesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(width + 14, (width + 14) * 36 / 128),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthTest: false })
+  );
+  numMesh.position.y = 7;
+  numMesh.renderOrder = 999;
+  g.add(bg, fill, numMesh);
+
+  g.userData = { fill, width, numCanvas: cv, numCtx: cv.getContext("2d"), numTex: tex, lastHp: -1 };
   billboards.push(g);
   return g;
 }
 
-function setHealthBar(bar, frac) {
-  const { fill, width } = bar.userData;
-  frac = Math.max(0, Math.min(1, frac));
-  fill.scale.x = Math.max(frac, 0.001);
-  fill.position.x = -width * (1 - frac) / 2;
-  fill.material.color.set(frac > 0.5 ? 0x4ade80 : frac > 0.25 ? 0xfacc15 : 0xef4444);
+function setHealthBar(bar, hp, maxHp) {
+  const u = bar.userData;
+  const frac = Math.max(0, Math.min(1, hp / maxHp));
+  u.fill.scale.x = Math.max(frac, 0.001);
+  u.fill.position.x = -u.width * (1 - frac) / 2;
+  const col = frac > 0.5 ? 0x4ade80 : frac > 0.25 ? 0xfacc15 : 0xef4444;
+  u.fill.material.color.set(col);
+
+  // HP-Zahl nur neu zeichnen, wenn sie sich geändert hat
+  const shown = Math.ceil(hp);
+  if (shown !== u.lastHp) {
+    u.lastHp = shown;
+    const g = u.numCtx;
+    g.clearRect(0, 0, 128, 36);
+    g.font = "bold 26px Arial";
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.lineWidth = 5;
+    g.strokeStyle = "rgba(0,0,0,0.9)";
+    g.strokeText(fmtHP(hp), 64, 19);
+    g.fillStyle = "#ffffff";
+    g.fillText(fmtHP(hp), 64, 19);
+    u.numTex.needsUpdate = true;
+  }
 }
 
 /* ---------------- Partikel-Pool ---------------- */
@@ -1841,6 +1878,55 @@ function getGhost(typeKey) {
    TURM-MODELLE
    ===================================================================== */
 
+// Magier-Figur (Robe + Spitzhut) für Eismagier & Tesla
+function makeMageFigure(robeHex, headHex, level) {
+  const g = new THREE.Group();
+  const robe = new THREE.Color(robeHex);
+  // Robe als Kegelstumpf statt Beine
+  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(7, 12, 22, 8), lambert(robe));
+  skirt.position.y = 11; skirt.castShadow = true;
+  g.add(skirt);
+  g.add(box(15, 12, 9, lambert(robe), 0, 26, 0));                       // Oberkörper
+  g.add(box(5, 13, 6, lambert(shadeColor(robeHex, -0.08)), -10, 27, 0)); // Arme
+  g.add(box(5, 13, 6, lambert(shadeColor(robeHex, -0.08)), 10, 27, 0));
+  // Kopf
+  const head = new THREE.Mesh(new THREE.BoxGeometry(11, 11, 11), lambert(new THREE.Color(headHex)));
+  head.position.y = 38; head.castShadow = true; g.add(head);
+  // Spitzhut – höher mit Level
+  const hat = new THREE.Mesh(new THREE.ConeGeometry(8 + level * 0.5, 14 + level * 3, 8), lambert(shadeColor(robeHex, -0.2)));
+  hat.position.y = 50 + level * 1.5; g.add(hat);
+  if (level >= 3) { // goldener Hutrand
+    const brim = new THREE.Mesh(new THREE.TorusGeometry(8, 1.6, 6, 12), lambert(0xfacc15));
+    brim.rotation.x = Math.PI / 2; brim.position.y = 44; g.add(brim);
+  }
+  if (level >= 4) { // Sterne auf der Robe
+    g.add(box(2.5, 2.5, 1, lambert(0xfacc15), 0, 24, 4.6));
+  }
+  g.userData = { head, torso: g.children[1], legL: skirt, legR: skirt, armL: g.children[2], armR: g.children[3] };
+  return g;
+}
+
+// Rang-Ausrüstung für Soldaten-Türme: höheres Level = mehr Ausrüstung
+function applyRank(fig, level, accentHex) {
+  const accent = new THREE.Color(accentHex);
+  if (level >= 1) { // Helm
+    fig.add(box(13, 4, 13, lambert(accent), 0, 43, 0));
+    fig.add(box(9, 4, 9, lambert(accent), 0, 46, 0));
+  }
+  if (level >= 2) { // Schulterpanzer
+    fig.add(box(6, 4, 11, lambert(accent), -10, 31, 0));
+    fig.add(box(6, 4, 11, lambert(accent), 10, 31, 0));
+  }
+  if (level >= 3) { // Brustpanzer
+    fig.add(box(17, 9, 3, lambert(shadeColor(accentHex, 0.05)), 0, 24, 5.2));
+  }
+  if (level >= 4) { // goldene Verzierung + Rückentank/Cape
+    fig.add(box(15, 3, 3, lambert(0xfacc15), 0, 30, 5.4));
+    const cape = box(14, 18, 2, lambert(0xb45309), 0, 24, -6);
+    fig.add(cape);
+  }
+}
+
 function makeTowerMesh(typeKey, level) {
   const def = TOWER_TYPES[typeKey];
   const group = new THREE.Group();
@@ -1939,67 +2025,114 @@ function makeTowerMesh(typeKey, level) {
       cropTips.push(stem);
     }
   } else {
-    const hat = level >= 2 ? "#" + shadeColor(def.color, -0.25).getHexString() : null;
-    figure = makeMinifig(def.color, "#fbbf24", { hat });
-    figure.position.y = 6;
-    rotG.add(figure);
+    // ---- Eigenständiges Aussehen je nach Turmtyp + Level ----
+    const accent = "#" + shadeColor(def.color, -0.28).getHexString();
 
-    const gun = new THREE.Group();
-    const gunMat = lambert(0x374151);
     if (typeKey === "sniper") {
-      gun.add(box(3.5, 3.5, 30, gunMat, 0, 0, 13));
-      gun.add(box(5, 5, 8, lambert(0x1f2937), 0, 1, 2));
-    } else if (typeKey === "minigun") {
-      const barrels = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 18, 8), lambert(0x4b5563));
-      barrels.rotation.x = Math.PI / 2;
-      barrels.position.z = 10;
-      barrels.castShadow = true;
-      gun.add(barrels);
-      gun.add(box(7, 7, 8, gunMat, 0, 0, 1));
-      group.userData.spinBarrels = barrels;
-    } else if (typeKey === "rocket") {
-      gun.add(box(8, 8, 24, lambert(0x7f1d1d), 0, 2, 8));
-      gun.add(box(9.5, 9.5, 4, lambert(0x450a0a), 0, 2, 20));
-    } else if (typeKey === "frost") {
-      gun.add(box(2.5, 2.5, 22, lambert(0x7dd3fc), 0, 0, 9));
-      const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(5, 0), new THREE.MeshLambertMaterial({ color: 0xaee9ff, emissive: 0x38bdf8, emissiveIntensity: 0.45 }));
-      orb.position.z = 21;
-      gun.add(orb);
-      group.userData.frostOrb = orb;
-    } else if (typeKey === "flame") {
-      gun.add(box(6, 6, 14, lambert(0xb91c1c), 0, 0, 6));
-      gun.add(box(8.5, 8.5, 4, lambert(0x7f1d1d), 0, 0, 13));
-      const pilot = new THREE.Mesh(new THREE.SphereGeometry(2.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xfb923c }));
-      pilot.position.z = 16;
-      gun.add(pilot);
-      group.userData.pilotFlame = pilot;
-      const tank = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 14, 10), lambert(0xdc2626));
-      tank.position.set(-6, 26, -8);
-      tank.castShadow = true;
-      rotG.add(tank);
-    } else if (typeKey === "tesla") {
-      gun.add(box(2.5, 2.5, 20, lambert(0x6d28d9), 0, 0, 8));
-      const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(5.5, 0), new THREE.MeshLambertMaterial({ color: 0xddd6fe, emissive: 0x8b5cf6, emissiveIntensity: 0.7 }));
-      orb.position.z = 20;
-      gun.add(orb);
-      group.userData.teslaOrb = orb;
-      const rod = box(1.5, 12, 1.5, lambert(0x4c1d95), 0, 50, 0);
-      const tip = new THREE.Mesh(new THREE.SphereGeometry(2.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xc4b5fd }));
-      tip.position.set(0, 57, 0);
-      rotG.add(rod, tip);
-    } else {
-      gun.add(box(3.5, 3.5, 18, gunMat, 0, 0, 8));
-    }
-    gun.position.set(6, 28, 6);
-    rotG.add(gun);
+      // Scharfschütze: LIEGT auf dem Bauch (Bauchschuss-Pose) mit Gewehr + Zweibein
+      figure = new THREE.Group();
+      const skin = "#caa472";
+      const body = lambert(new THREE.Color(def.color));
+      // flacher Körper, der Länge nach (+Z)
+      figure.add(box(11, 7, 20, body, 0, 6, 2));                 // Rumpf liegend
+      figure.add(box(11, 5, 4, lambert(new THREE.Color(skin)), 0, 7, 13)); // Kopf vorn
+      figure.add(box(4, 4, 12, lambert(shadeColor(def.color, -0.1)), -6, 5, -6)); // Beine
+      figure.add(box(4, 4, 12, lambert(shadeColor(def.color, -0.1)), 6, 5, -6));
+      // Mütze/Helm nach Level
+      if (level >= 1) figure.add(box(12, 3, 5, lambert(new THREE.Color(accent)), 0, 10, 12));
+      if (level >= 3) { // Tarnnetz/Aufsatz
+        figure.add(box(13, 2, 22, lambert(0x3f5d34), 0, 10, 0));
+      }
+      figure.position.y = 1;
+      rotG.add(figure);
 
-    muzzle = new THREE.Object3D();
-    muzzle.position.set(6, 28, 28);
-    rotG.add(muzzle);
-    flash = new THREE.Mesh(
-      new THREE.SphereGeometry(4.5, 8, 8),
-      new THREE.MeshBasicMaterial({ color: 0xfde047 })
-    );
+      const gun = new THREE.Group();
+      const gunMat = lambert(0x1f2937);
+      const barrelLen = 30 + level * 4;
+      gun.add(box(3.5, 3.5, barrelLen, gunMat, 0, 0, barrelLen / 2));      // langer Lauf
+      gun.add(box(6, 6, 9, lambert(0x111827), 0, 0, 2));                   // Verschluss
+      if (level >= 2) { const scope = box(3, 3, 7, lambert(0x0ea5e9), 0, 4, 4); gun.add(scope); } // Zielfernrohr
+      // Zweibein
+      gun.add(box(1.5, 7, 1.5, gunMat, -4, -3, barrelLen * 0.7));
+      gun.add(box(1.5, 7, 1.5, gunMat, 4, -3, barrelLen * 0.7));
+      if (level >= 4) gun.add(box(5, 5, 5, lambert(0xfacc15), 0, 0, 2));   // goldener Verschluss
+      gun.position.set(0, 11, 8);
+      rotG.add(gun);
+      muzzle = new THREE.Object3D(); muzzle.position.set(0, 11, 10 + barrelLen);
+      rotG.add(muzzle);
+
+    } else if (typeKey === "frost") {
+      // Eismagier: Robe + Spitzhut + Stab (kein Soldat)
+      figure = makeMageFigure(def.color, "#bae6fd", level);
+      figure.position.y = 6; rotG.add(figure);
+      const gun = new THREE.Group();
+      gun.add(box(2.5, 2.5, 24, lambert(0x60564b), 0, 0, 10));   // Stab
+      const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(4 + level, 0),
+        new THREE.MeshLambertMaterial({ color: 0xaee9ff, emissive: 0x38bdf8, emissiveIntensity: 0.5 }));
+      orb.position.z = 22; gun.add(orb);
+      group.userData.frostOrb = orb;
+      gun.position.set(7, 26, 4); rotG.add(gun);
+      muzzle = new THREE.Object3D(); muzzle.position.set(7, 26, 28); rotG.add(muzzle);
+
+    } else if (typeKey === "tesla") {
+      // Tesla: Wissenschaftler mit Spulen-Antenne
+      figure = makeMageFigure(def.color, "#ddd6fe", level);
+      figure.position.y = 6; rotG.add(figure);
+      const gun = new THREE.Group();
+      gun.add(box(2.5, 2.5, 20, lambert(0x4c1d95), 0, 0, 8));
+      const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(4.5 + level * 0.6, 0),
+        new THREE.MeshLambertMaterial({ color: 0xddd6fe, emissive: 0x8b5cf6, emissiveIntensity: 0.7 }));
+      orb.position.z = 20; gun.add(orb);
+      group.userData.teslaOrb = orb;
+      gun.position.set(6, 26, 4); rotG.add(gun);
+      // Tesla-Spule auf dem Kopf (wächst mit Level)
+      const rod = box(1.5, 10 + level * 2, 1.5, lambert(0x4c1d95), 0, 48, 0);
+      const tip = new THREE.Mesh(new THREE.SphereGeometry(2.5 + level * 0.4, 8, 8), new THREE.MeshBasicMaterial({ color: 0xc4b5fd }));
+      tip.position.set(0, 54 + level * 2, 0);
+      rotG.add(rod, tip);
+      muzzle = new THREE.Object3D(); muzzle.position.set(6, 26, 26); rotG.add(muzzle);
+
+    } else {
+      // Soldaten-Türme: Schütze, Flammenwerfer, Raketenwerfer, Minigunner
+      const bulky = (typeKey === "flame" || typeKey === "minigun");
+      figure = makeMinifig(def.color, typeKey === "flame" ? "#3a3a3a" : "#caa472", {});
+      if (bulky) figure.scale.set(1.15, 1, 1.15);
+      figure.position.y = 6;
+      applyRank(figure, level, accent);     // Helm/Panzerung/Gold je nach Level
+      rotG.add(figure);
+
+      const gun = new THREE.Group();
+      const gunMat = lambert(0x374151);
+      if (typeKey === "minigun") {
+        const barrels = new THREE.Mesh(new THREE.CylinderGeometry(4.5 + level * 0.5, 4.5 + level * 0.5, 18 + level * 2, 8), lambert(0x4b5563));
+        barrels.rotation.x = Math.PI / 2; barrels.position.z = 10; barrels.castShadow = true;
+        gun.add(barrels);
+        gun.add(box(7, 7, 8, gunMat, 0, 0, 1));
+        group.userData.spinBarrels = barrels;
+      } else if (typeKey === "rocket") {
+        // Werfer auf der Schulter
+        gun.add(box(8 + level, 8 + level, 24 + level * 2, lambert(0x7f1d1d), 0, 4, 8));
+        gun.add(box(9.5, 9.5, 4, lambert(0x450a0a), 0, 4, 20));
+        if (level >= 3) gun.add(box(10, 3, 8, lambert(0xfacc15), 0, 9, 6)); // Visier
+      } else if (typeKey === "flame") {
+        gun.add(box(6, 6, 14, lambert(0xb91c1c), 0, 0, 6));
+        gun.add(box(8.5, 8.5, 4, lambert(0x7f1d1d), 0, 0, 13));
+        const pilot = new THREE.Mesh(new THREE.SphereGeometry(2.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xfb923c }));
+        pilot.position.z = 16; gun.add(pilot);
+        group.userData.pilotFlame = pilot;
+        const tank = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 14 + level, 10), lambert(0xdc2626));
+        tank.position.set(-6, 26, -8); tank.castShadow = true; rotG.add(tank);
+      } else {
+        // Schütze: Gewehr wird mit Level größer
+        gun.add(box(3.5, 3.5, 16 + level * 2, gunMat, 0, 0, 8));
+        if (level >= 2) gun.add(box(5, 5, 6, lambert(0x1f2937), 0, 1, 2));
+        if (level >= 4) gun.add(box(4, 4, 5, lambert(0xfacc15), 0, 0, 14)); // goldene Mündung
+      }
+      gun.position.set(6, 28, 6); rotG.add(gun);
+      muzzle = new THREE.Object3D(); muzzle.position.set(6, 28, 28); rotG.add(muzzle);
+    }
+
+    flash = new THREE.Mesh(new THREE.SphereGeometry(4.5, 8, 8), new THREE.MeshBasicMaterial({ color: 0xfde047 }));
     flash.visible = false;
     muzzle.add(flash);
   }
@@ -2046,9 +2179,9 @@ function spawnEnemy(typeKey, hpMultOverride) {
   }
 
   const bar = makeHealthBar(30 * def.scale);
-  bar.position.y = 52 * def.scale;
-  bar.visible = isBoss; // Bosse zeigen ihren Balken sofort
-  setHealthBar(bar, 1);
+  bar.position.y = 54 * def.scale;
+  bar.visible = true; // HP-Balken + Zahl immer sichtbar
+  setHealthBar(bar, hp, hp);
 
   const g = new THREE.Group();
   g.add(fig, bar);
@@ -2132,9 +2265,9 @@ function spawnMinionAt(boss) {
   const fig = makeMinifig(def.color, def.headColor, { angry: true });
   fig.scale.setScalar(def.scale);
   const bar = makeHealthBar(30 * def.scale);
-  bar.position.y = 52 * def.scale;
-  bar.visible = false;
-  setHealthBar(bar, 1);
+  bar.position.y = 54 * def.scale;
+  bar.visible = true;
+  setHealthBar(bar, hp, hp);
   const g = new THREE.Group();
   g.add(fig, bar);
   g.position.set(PATH[0].x, 0, PATH[0].z);
@@ -2218,10 +2351,7 @@ function damageEnemy(e, dmg) {
   e.flash = 0.08;
   e.dmgAccum += dmg;
   if (e.hp <= 0) killEnemy(e);
-  else {
-    e.bar.visible = true;
-    setHealthBar(e.bar, e.hp / e.maxHp);
-  }
+  else setHealthBar(e.bar, e.hp, e.maxHp);
 }
 
 function flushDamageText(e) {
@@ -3036,7 +3166,7 @@ function update(dt) {
           if (o.dead || o === e || o.hp >= o.maxHp) continue;
           if (Math.hypot(o.x - e.x, o.z - e.z) > e.def.heals.radius) continue;
           o.hp = Math.min(o.maxHp, o.hp + o.maxHp * e.def.heals.frac);
-          setHealthBar(o.bar, o.hp / o.maxHp);
+          setHealthBar(o.bar, o.hp, o.maxHp);
           spawnParticle(o.x, 38 * o.def.scale, o.z, 0, 24, 0, 0.5, 4, "#4ade80", false);
           healed = true;
         }
@@ -4279,7 +4409,8 @@ document.getElementById("btn-upgrade").addEventListener("click", () => {
   burst(t.x, t.baseY + 30, t.z, "#ffd24a", 12, 80, false);
   refreshTowerStuds(t);
 
-  if (t.level === 2 && TOWER_TYPES[t.type].kind !== "farm" && t.type !== "nest") {
+  // Aussehen bei JEDEM Level neu aufbauen (höheres Level = besseres Aussehen)
+  if (TOWER_TYPES[t.type].kind !== "farm" && t.type !== "nest") {
     const yaw = t.yaw;
     world.remove(t.group);
     disposeObject(t.group);
