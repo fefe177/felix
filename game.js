@@ -787,6 +787,37 @@ function box(wd, ht, dp, material, x, y, z) {
   return m;
 }
 
+/* ---- Block-Helfer: alles aus Würfeln, kein Rund (Minecraft-Stil) ---- */
+
+// Stufen-Pyramide aus Blöcken (ersetzt Kegel: Hüte, Dächer, Vulkan, Eiszapfen)
+function pyramid(baseW, height, mat, x, y, z, layers, taperToBase) {
+  const g = new THREE.Group();
+  layers = layers || 5;
+  for (let i = 0; i < layers; i++) {
+    const f = i / layers;                  // 0 unten .. fast 1 oben
+    const w = baseW * (1 - f * 0.85);
+    const h = height / layers;
+    const blk = box(w, h, w, mat, 0, h / 2 + i * h, 0);
+    g.add(blk);
+  }
+  g.position.set(x || 0, y || 0, z || 0);
+  return g;
+}
+
+// Block-"Edelstein" (ersetzt Kugeln/Ikosaeder: Orbs, Spitzen) – kleine Würfel
+function gem(size, material, x, y, z) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), material);
+  m.position.set(x || 0, y || 0, z || 0);
+  m.rotation.set(0.4, 0.785, 0);   // gedreht für Kristall-Look (bleibt ein Würfel)
+  m.castShadow = true;
+  return m;
+}
+
+// Säule mit quadratischem Querschnitt (ersetzt Zylinder)
+function pillar(w, ht, material, x, y, z) {
+  return box(w, ht, w, material, x, y, z);
+}
+
 function disposeObject(obj) {
   obj.traverse((o) => {
     if (o.geometry) o.geometry.dispose();
@@ -900,16 +931,12 @@ function makeThemeDeco(theme, v, off) {
       const nose = box(2.5, 2.5, 7, lambert(0xf97316), 0, 21, 8);
       g.add(nose);
     } else if (v < 0.17) {
-      // Eiskristall
+      // Eiskristall (aus Blöcken gestapelt)
       g = new THREE.Group();
-      const ice = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(7 + off * 4, 0),
-        new THREE.MeshLambertMaterial({ color: 0xbfeaff, emissive: 0x2a6e96, emissiveIntensity: 0.35 })
-      );
-      ice.position.y = 7;
-      ice.rotation.set(off, off * 2, 0);
-      ice.castShadow = true;
-      g.add(ice);
+      const iceMat = new THREE.MeshLambertMaterial({ color: 0xbfeaff, emissive: 0x2a6e96, emissiveIntensity: 0.35 });
+      const c1 = box(7, 7, 7, iceMat, 0, 5, 0); c1.rotation.y = 0.785;
+      const c2 = box(5, 9, 5, iceMat, 0, 12, 0); c2.rotation.y = 0.785;
+      g.add(c1, c2);
     }
   } else if (theme === "volcano") {
     if (v < 0.08) {
@@ -920,14 +947,11 @@ function makeThemeDeco(theme, v, off) {
       g.add(rock);
       g.add(box(9, 8, 8, lambert(0x33333a), 6, 18, 2));
     } else if (v < 0.13) {
-      // Lava-Pfütze
+      // Lava-Pfütze (flacher Block)
       g = new THREE.Group();
-      const pool = new THREE.Mesh(
-        new THREE.CircleGeometry(9 + off * 5, 10),
-        new THREE.MeshLambertMaterial({ color: 0xff7a33, emissive: 0xd64018, emissiveIntensity: 0.8 })
-      );
-      pool.rotation.x = -Math.PI / 2;
-      pool.position.y = 0.6;
+      const s = 16 + off * 8;
+      const pool = box(s, 1.5, s, new THREE.MeshLambertMaterial({ color: 0xff7a33, emissive: 0xd64018, emissiveIntensity: 0.8 }), 0, 0.8, 0);
+      pool.castShadow = false;
       g.add(pool);
     } else if (v < 0.18) {
       // Glut-Stein
@@ -965,8 +989,7 @@ function buildMapExtras(mapKey, registerDeco) {
     for (const [c, r] of [[1, 11], [18, 1]]) {
       const h = new THREE.Group();
       h.add(box(32, 24, 28, lambert(0xd9c089), 0, 12, 0));
-      const roof = new THREE.Mesh(new THREE.ConeGeometry(26, 18, 4), lambert(0xb33939));
-      roof.position.y = 32; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
+      const roof = pyramid(38, 18, lambert(0xb33939), 0, 24, 0, 5);
       h.add(roof);
       h.add(box(9, 13, 3, lambert(0x5b3a1e), 0, 6.5, 14.5));
       h.add(box(7, 7, 2, lambert(0x9cc8e8), 10, 15, 14));
@@ -976,9 +999,8 @@ function buildMapExtras(mapKey, registerDeco) {
     }
     // Teich mit Holzbrücke
     const pondG = new THREE.Group();
-    const pond = new THREE.Mesh(new THREE.CircleGeometry(34, 18), lambert(0x4aa3df));
-    pond.rotation.x = -Math.PI / 2;
-    pond.position.y = 0.7;
+    const pond = box(60, 2, 60, lambert(0x4aa3df), 0, 1, 0);
+    pond.castShadow = false;
     pondG.add(pond);
     for (let i = 0; i < 5; i++) {
       pondG.add(box(10, 2.5, 13, lambert(0x9a6b3f), -22 + i * 11, 3.5, 0));
@@ -1011,15 +1033,8 @@ function buildMapExtras(mapKey, registerDeco) {
   } else if (mapKey === "volcano") {
     // Großer Vulkan
     const volcano = new THREE.Group();
-    const cone = new THREE.Mesh(new THREE.ConeGeometry(55, 80, 8), lambert(0x2b2b31));
-    cone.position.y = 36;
-    cone.castShadow = true;
-    volcano.add(cone);
-    const lavaTop = new THREE.Mesh(
-      new THREE.CylinderGeometry(16, 16, 6, 8),
-      new THREE.MeshLambertMaterial({ color: 0xff7a33, emissive: 0xd64018, emissiveIntensity: 1 })
-    );
-    lavaTop.position.y = 74;
+    volcano.add(pyramid(96, 76, lambert(0x2b2b31), 0, 0, 0, 8));   // Vulkankegel aus Blöcken
+    const lavaTop = box(24, 6, 24, new THREE.MeshLambertMaterial({ color: 0xff7a33, emissive: 0xd64018, emissiveIntensity: 1 }), 0, 74, 0);
     volcano.add(lavaTop);
     volcano.position.set(18.2 * TILE, 0, 1.4 * TILE);
     registerDeco(18, 1, volcano);
@@ -1029,11 +1044,7 @@ function buildMapExtras(mapKey, registerDeco) {
     const antenna = new THREE.Group();
     antenna.add(box(14, 8, 14, lambert(0x2a3158), 0, 4, 0));
     antenna.add(box(4, 70, 4, lambert(0x39406e), 0, 43, 0));
-    const tip = new THREE.Mesh(
-      new THREE.SphereGeometry(5, 8, 8),
-      new THREE.MeshLambertMaterial({ color: 0xff5b7f, emissive: 0xe11d48, emissiveIntensity: 1 })
-    );
-    tip.position.y = 82;
+    const tip = box(8, 8, 8, new THREE.MeshLambertMaterial({ color: 0xff5b7f, emissive: 0xe11d48, emissiveIntensity: 1 }), 0, 82, 0);
     antenna.add(tip);
     antenna.userData.blink = tip;
     antenna.position.set(0.5 * TILE, 0, 12.4 * TILE);
@@ -1112,10 +1123,9 @@ function buildSpawnPortal(mapKey, map) {
     g.add(box(20, 60, 16, ice, 8, 28, -38));
     g.add(box(20, 60, 16, ice, 8, 28, 38));
     for (const vz of [-14, -4, 6, 15]) { // Eiszapfen
-      const icicle = new THREE.Mesh(new THREE.ConeGeometry(2.6, 10 + Math.abs(vz) * 0.5, 5), lambert(0xe8f6fc));
-      icicle.rotation.x = Math.PI;
-      icicle.position.set(17, 44 - (10 + Math.abs(vz) * 0.5) / 2, vz);
-      icicle.castShadow = true;
+      const ih = 10 + Math.abs(vz) * 0.5;
+      const icicle = pyramid(5, ih, lambert(0xe8f6fc), 17, 44, vz, 3);
+      icicle.scale.y = -1;   // nach unten zeigend
       g.add(icicle);
     }
   } else if (mapKey === "volcano") {
@@ -1135,10 +1145,14 @@ function buildSpawnPortal(mapKey, map) {
     g.add(box(14, 60, 14, frame, 6, 30, 32));
     g.add(box(14, 12, 78, frame, 6, 64, 0));
     g.add(box(14, 6, 78, frame, 6, 2, 0));
-    ring = new THREE.Mesh(
-      new THREE.TorusGeometry(25, 2.5, 8, 28),
-      new THREE.MeshLambertMaterial({ color: 0x67e8f9, emissive: 0x22d3ee, emissiveIntensity: 0.9 })
-    );
+    // Energie-Ring aus Blöcken (Achteck statt Torus)
+    ring = new THREE.Group();
+    const ringMat = new THREE.MeshLambertMaterial({ color: 0x67e8f9, emissive: 0x22d3ee, emissiveIntensity: 0.9 });
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const blk = box(5, 5, 5, ringMat, Math.cos(a) * 24, Math.sin(a) * 24, 0);
+      ring.add(blk);
+    }
     ring.rotation.y = Math.PI / 2;
     ring.position.set(14, 26, 0);
     g.add(ring);
@@ -1291,7 +1305,7 @@ function buildMap(mapKey) {
         }
       }
     }
-    const studGeo = new THREE.CylinderGeometry(4.5, 4.5, 3, 10);
+    const studGeo = new THREE.BoxGeometry(7, 3, 7);
     const studs = new THREE.InstancedMesh(studGeo, new THREE.MeshLambertMaterial({ color: 0xffffff }), studPositions.length);
     const sm = new THREE.Matrix4();
     studPositions.forEach((s, i) => {
@@ -1338,8 +1352,7 @@ function buildMap(mapKey) {
       castle.add(box(24, 85, 24, stoneDark, dx, 42, dz));
       castle.add(box(30, 10, 30, stone, dx, 90, dz));
     }
-    const roof = new THREE.Mesh(new THREE.ConeGeometry(34, 40, 4), lambert(0xdc2626));
-    roof.position.y = 75; roof.rotation.y = Math.PI / 4; roof.castShadow = true;
+    const roof = pyramid(54, 40, lambert(0xdc2626), 0, 55, 0, 6);
     castle.add(roof);
     castle.add(box(26, 32, 6, lambert(0x5b3a1e), -40, 16, 0));
     const endRow = map.waypoints[map.waypoints.length - 1][1];
@@ -1882,27 +1895,25 @@ function getGhost(typeKey) {
 function makeMageFigure(robeHex, headHex, level) {
   const g = new THREE.Group();
   const robe = new THREE.Color(robeHex);
-  // Robe als Kegelstumpf statt Beine
-  const skirt = new THREE.Mesh(new THREE.CylinderGeometry(7, 12, 22, 8), lambert(robe));
-  skirt.position.y = 11; skirt.castShadow = true;
-  g.add(skirt);
-  g.add(box(15, 12, 9, lambert(robe), 0, 26, 0));                       // Oberkörper
-  g.add(box(5, 13, 6, lambert(shadeColor(robeHex, -0.08)), -10, 27, 0)); // Arme
-  g.add(box(5, 13, 6, lambert(shadeColor(robeHex, -0.08)), 10, 27, 0));
+  // Robe aus gestapelten Blöcken (breiter unten)
+  g.add(box(16, 8, 16, lambert(robe), 0, 4, 0));
+  g.add(box(13, 8, 13, lambert(robe), 0, 12, 0));
+  g.add(box(15, 12, 9, lambert(robe), 0, 24, 0));                       // Oberkörper
+  g.add(box(5, 13, 6, lambert(shadeColor(robeHex, -0.08)), -10, 25, 0)); // Arme
+  g.add(box(5, 13, 6, lambert(shadeColor(robeHex, -0.08)), 10, 25, 0));
   // Kopf
   const head = new THREE.Mesh(new THREE.BoxGeometry(11, 11, 11), lambert(new THREE.Color(headHex)));
-  head.position.y = 38; head.castShadow = true; g.add(head);
-  // Spitzhut – höher mit Level
-  const hat = new THREE.Mesh(new THREE.ConeGeometry(8 + level * 0.5, 14 + level * 3, 8), lambert(shadeColor(robeHex, -0.2)));
-  hat.position.y = 50 + level * 1.5; g.add(hat);
-  if (level >= 3) { // goldener Hutrand
-    const brim = new THREE.Mesh(new THREE.TorusGeometry(8, 1.6, 6, 12), lambert(0xfacc15));
-    brim.rotation.x = Math.PI / 2; brim.position.y = 44; g.add(brim);
+  head.position.y = 37; head.castShadow = true; g.add(head);
+  // Spitzhut aus Block-Stufen – höher mit Level
+  g.add(pyramid(13, 14 + level * 3, lambert(shadeColor(robeHex, -0.2)), 0, 43, 0, 4 + level));
+  if (level >= 3) { // goldener Hutrand (Blockring)
+    g.add(box(15, 2.5, 15, lambert(0xfacc15), 0, 43, 0));
   }
   if (level >= 4) { // Sterne auf der Robe
     g.add(box(2.5, 2.5, 1, lambert(0xfacc15), 0, 24, 4.6));
   }
-  g.userData = { head, torso: g.children[1], legL: skirt, legR: skirt, armL: g.children[2], armR: g.children[3] };
+  // (Magier-Figuren werden nicht animiert; Referenzen nur als Platzhalter)
+  g.userData = { head, torso: g.children[2], legL: g.children[0], legR: g.children[0], armL: g.children[3], armR: g.children[4] };
   return g;
 }
 
@@ -1934,10 +1945,11 @@ function makeTowerMesh(typeKey, level) {
   const rotG = new THREE.Group();
   group.add(staticG, rotG);
 
-  const plate = new THREE.Mesh(new THREE.CylinderGeometry(19, 21, 6, 20), lambert(0x9ca3af));
-  plate.position.y = 3;
+  const plate = box(40, 6, 40, lambert(0x9ca3af), 0, 3, 0);
   plate.receiveShadow = true;
   staticG.add(plate);
+  // abgesetzter Rand für Detail
+  staticG.add(box(34, 3, 34, lambert(0xb6bcc6), 0, 7, 0));
 
   const studs = new THREE.Group();
   staticG.add(studs);
@@ -2004,8 +2016,8 @@ function makeTowerMesh(typeKey, level) {
     muzzle = new THREE.Object3D();
     muzzle.position.set(0, BH + 35, 44);
     rotG.add(muzzle);
-    flash = new THREE.Mesh(new THREE.ConeGeometry(7, 16, 8), new THREE.MeshBasicMaterial({ color: 0xfde047 }));
-    flash.rotation.x = Math.PI / 2;
+    flash = box(8, 8, 14, new THREE.MeshBasicMaterial({ color: 0xfde047 }), 0, 0, 0);
+    flash.castShadow = false;
     flash.visible = false;
     muzzle.add(flash);
     group.userData.rotG = rotG;
@@ -2067,9 +2079,7 @@ function makeTowerMesh(typeKey, level) {
       figure.position.y = 6; rotG.add(figure);
       const gun = new THREE.Group();
       gun.add(box(2.5, 2.5, 24, lambert(0x60564b), 0, 0, 10));   // Stab
-      const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(4 + level, 0),
-        new THREE.MeshLambertMaterial({ color: 0xaee9ff, emissive: 0x38bdf8, emissiveIntensity: 0.5 }));
-      orb.position.z = 22; gun.add(orb);
+      const orb = gem(8 + level * 1.4, new THREE.MeshLambertMaterial({ color: 0xaee9ff, emissive: 0x38bdf8, emissiveIntensity: 0.5 }), 0, 0, 22); gun.add(orb);
       group.userData.frostOrb = orb;
       gun.position.set(7, 26, 4); rotG.add(gun);
       muzzle = new THREE.Object3D(); muzzle.position.set(7, 26, 28); rotG.add(muzzle);
@@ -2080,15 +2090,13 @@ function makeTowerMesh(typeKey, level) {
       figure.position.y = 6; rotG.add(figure);
       const gun = new THREE.Group();
       gun.add(box(2.5, 2.5, 20, lambert(0x4c1d95), 0, 0, 8));
-      const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(4.5 + level * 0.6, 0),
-        new THREE.MeshLambertMaterial({ color: 0xddd6fe, emissive: 0x8b5cf6, emissiveIntensity: 0.7 }));
-      orb.position.z = 20; gun.add(orb);
+      const orb = gem(9 + level, new THREE.MeshLambertMaterial({ color: 0xddd6fe, emissive: 0x8b5cf6, emissiveIntensity: 0.7 }), 0, 0, 20); gun.add(orb);
       group.userData.teslaOrb = orb;
       gun.position.set(6, 26, 4); rotG.add(gun);
       // Tesla-Spule auf dem Kopf (wächst mit Level)
       const rod = box(1.5, 10 + level * 2, 1.5, lambert(0x4c1d95), 0, 48, 0);
-      const tip = new THREE.Mesh(new THREE.SphereGeometry(2.5 + level * 0.4, 8, 8), new THREE.MeshBasicMaterial({ color: 0xc4b5fd }));
-      tip.position.set(0, 54 + level * 2, 0);
+      const ts = 5 + level * 0.8;
+      const tip = box(ts, ts, ts, new THREE.MeshBasicMaterial({ color: 0xc4b5fd }), 0, 54 + level * 2, 0);
       rotG.add(rod, tip);
       muzzle = new THREE.Object3D(); muzzle.position.set(6, 26, 26); rotG.add(muzzle);
 
@@ -2104,10 +2112,16 @@ function makeTowerMesh(typeKey, level) {
       const gun = new THREE.Group();
       const gunMat = lambert(0x374151);
       if (typeKey === "minigun") {
-        const barrels = new THREE.Mesh(new THREE.CylinderGeometry(4.5 + level * 0.5, 4.5 + level * 0.5, 18 + level * 2, 8), lambert(0x4b5563));
-        barrels.rotation.x = Math.PI / 2; barrels.position.z = 10; barrels.castShadow = true;
+        // Gatling-Läufe aus mehreren kleinen Blöcken (drehen sich)
+        const barrels = new THREE.Group();
+        const bl = 18 + level * 2, br = 4 + level * 0.4;
+        for (let i = 0; i < 5; i++) {
+          const a = (i / 5) * Math.PI * 2;
+          barrels.add(box(2.5, 2.5, bl, lambert(0x2b3240), Math.cos(a) * br, Math.sin(a) * br, bl / 2 + 1));
+        }
+        barrels.castShadow = true;
         gun.add(barrels);
-        gun.add(box(7, 7, 8, gunMat, 0, 0, 1));
+        gun.add(box(9, 9, 8, gunMat, 0, 0, 1));
         group.userData.spinBarrels = barrels;
       } else if (typeKey === "rocket") {
         // Werfer auf der Schulter
@@ -2117,11 +2131,10 @@ function makeTowerMesh(typeKey, level) {
       } else if (typeKey === "flame") {
         gun.add(box(6, 6, 14, lambert(0xb91c1c), 0, 0, 6));
         gun.add(box(8.5, 8.5, 4, lambert(0x7f1d1d), 0, 0, 13));
-        const pilot = new THREE.Mesh(new THREE.SphereGeometry(2.5, 6, 6), new THREE.MeshBasicMaterial({ color: 0xfb923c }));
-        pilot.position.z = 16; gun.add(pilot);
+        const pilot = box(4, 4, 4, new THREE.MeshBasicMaterial({ color: 0xfb923c }), 0, 0, 16);
+        pilot.castShadow = false; gun.add(pilot);
         group.userData.pilotFlame = pilot;
-        const tank = new THREE.Mesh(new THREE.CylinderGeometry(4, 4, 14 + level, 10), lambert(0xdc2626));
-        tank.position.set(-6, 26, -8); tank.castShadow = true; rotG.add(tank);
+        const tank = box(8, 14 + level, 8, lambert(0xdc2626), -6, 26, -8); tank.castShadow = true; rotG.add(tank);
       } else {
         // Schütze: Gewehr wird mit Level größer
         gun.add(box(3.5, 3.5, 16 + level * 2, gunMat, 0, 0, 8));
@@ -2633,9 +2646,8 @@ function updateTower(tower, dt) {
   } else if (def.kind === "rocket") {
     const mesh = new THREE.Group();
     mesh.add(box(5, 5, 12, lambert(0xdc2626), 0, 0, 0));
-    const nose = new THREE.Mesh(new THREE.ConeGeometry(3, 6, 8), lambert(0xfca5a5));
-    nose.rotation.x = Math.PI / 2;
-    nose.position.z = 9;
+    const nose = pyramid(5, 6, lambert(0xfca5a5), 0, 0, 9, 2);
+    nose.rotation.x = Math.PI / 2;   // Block-Spitze nach vorn
     mesh.add(nose);
     mesh.position.copy(_muzzlePos);
     world.add(mesh);
@@ -3287,7 +3299,7 @@ function syncVisuals(dtReal) {
       if (u.spinBarrels) u.spinBarrels.rotation.z += dtReal * (3 + (t.spin || 0) * 60);
       if (u.flash) u.flash.visible = t.flash > 0;
     } else if (u.spinBarrels) {
-      u.spinBarrels.rotation.y += dtReal * (t.flash > 0 ? 25 : 3);
+      u.spinBarrels.rotation.z += dtReal * (t.flash > 0 ? 25 : 3);
     }
     if (u.frostOrb) u.frostOrb.scale.setScalar(1 + Math.sin(state.time * 6) * 0.18);
     if (u.teslaOrb) u.teslaOrb.scale.setScalar(1 + Math.sin(state.time * 9) * 0.25);
