@@ -8,36 +8,62 @@
 </head>
 <body>
 <div id="game-container">
-
-  <!-- Obere Leiste mit Statistiken -->
-  <div id="topbar">
-    <div class="logo">🏰 BLOX TOWER DEFENSE 3D</div>
-    <div class="stats">
-      <div class="stat" id="stat-cash" title="Geld">💰 <span id="cash">0</span></div>
-      <div class="stat" id="stat-lives" title="Leben">❤️ <span id="lives">100</span></div>
-      <div class="stat" id="stat-wave" title="Welle">🌊 Welle <span id="wave">1</span>/<span id="maxwave">40</span></div>
-      <div class="stat" id="stat-kills" title="Besiegte Gegner">💀 <span id="kills">0</span></div>
-    </div>
-    <div class="controls">
-      <button id="btn-start" class="btn btn-green">▶ Welle starten</button>
-      <label class="auto-label"><input type="checkbox" id="chk-auto"> Auto</label>
-      <button id="btn-speed" class="btn">⏩ 1x</button>
-      <button id="btn-pause" class="btn" title="Pause">⏸</button>
-      <button id="btn-sound" class="btn" title="Soundeffekte">🔊</button>
-      <button id="btn-music" class="btn" title="Musik">🎵</button>
-      <button id="btn-cam" class="btn" title="Kamera zurücksetzen">📷</button>
-      <button id="btn-fullscreen" class="btn" title="Vollbild">⛶</button>
-    </div>
-  </div>
-
-  <!-- Wellen-Vorschau -->
-  <div id="wave-preview"></div>
-
-  <div id="main-row">
-    <!-- 3D-Spielfeld -->
-    <div id="canvas-wrap">
+  <div id="canvas-wrap">
       <div id="game3d"></div>
       <div id="fx-layer"></div>
+
+      <!-- ===================== MODERNES HUD ===================== -->
+      <div id="hud">
+        <!-- Oben Mitte: Basis-Lebensbalken + Wellen-Info -->
+        <div id="hud-top">
+          <div id="hud-hp" title="Basis-Leben">
+            <div id="hud-hp-fill"></div>
+            <div id="hud-hp-text">❤️ <span id="lives">100</span></div>
+          </div>
+          <div id="hud-wave-panel">
+            <div id="hud-wave">🌊 WELLE <span id="wave">1</span> / <span id="maxwave">40</span></div>
+            <div id="wave-preview"></div>
+          </div>
+        </div>
+
+        <!-- Oben rechts: Einstellungen + Steuerung -->
+        <div id="hud-topright">
+          <button id="btn-settings-hud" class="hud-btn hud-btn-gear" title="Einstellungen">⚙</button>
+          <button id="btn-speed" class="hud-btn" title="Geschwindigkeit">⏩ 1x</button>
+          <button id="btn-pause" class="hud-btn" title="Pause">⏸</button>
+          <button id="btn-sound" class="hud-btn" title="Soundeffekte">🔊</button>
+          <button id="btn-music" class="hud-btn" title="Musik">🎵</button>
+          <button id="btn-cam" class="hud-btn" title="Kamera zurücksetzen">📷</button>
+          <button id="btn-fullscreen" class="hud-btn" title="Vollbild">⛶</button>
+        </div>
+
+        <!-- Oben links: Kills -->
+        <div id="hud-kills" title="Besiegte Gegner">💀 <span id="kills">0</span></div>
+
+        <!-- Unten Mitte: Turm-Hotbar -->
+        <div id="hud-hotbar">
+          <div id="shop"></div>
+        </div>
+
+        <!-- Unten rechts: Geld + Wellen-Start -->
+        <div id="hud-bottomright">
+          <div id="hud-cash"><span class="cash-ico">💰</span> <span id="cash">0</span></div>
+          <button id="btn-start" class="btn-action">▶ WELLE STARTEN</button>
+          <label class="auto-label"><input type="checkbox" id="chk-auto"> Auto-Wellen</label>
+        </div>
+
+        <!-- Turm-Panel (schwebt, wenn ein Turm gewählt ist) -->
+        <div id="tower-panel" class="hidden">
+          <div class="panel-title" id="tp-name">Turm</div>
+          <div class="panel-level" id="tp-level">Level 1</div>
+          <canvas id="tp-canvas" width="128" height="128"></canvas>
+          <div class="panel-stats" id="tp-stats"></div>
+          <button id="btn-upgrade" class="btn btn-green btn-wide">🆙 Upgrade</button>
+          <button id="btn-target" class="btn btn-wide">🎯 Ziel: Erster</button>
+          <button id="btn-sell" class="btn btn-red btn-wide">💸 Verkaufen</button>
+        </div>
+        <div id="shop-tooltip"></div>
+      </div>
 
       <!-- Minigun-Nest HUD (beim Bedienen) -->
       <div id="nest-hud" class="hidden">
@@ -209,26 +235,6 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Seitenleiste -->
-    <div id="sidebar">
-      <div class="sidebar-title">🛒 TURM-SHOP</div>
-      <div id="shop"></div>
-
-      <!-- Info-Panel für ausgewählten Turm -->
-      <div id="tower-panel" class="hidden">
-        <div class="panel-title" id="tp-name">Turm</div>
-        <div class="panel-level" id="tp-level">Level 1</div>
-        <canvas id="tp-canvas" width="128" height="128"></canvas>
-        <div class="panel-stats" id="tp-stats"></div>
-        <button id="btn-upgrade" class="btn btn-green btn-wide">🆙 Upgrade</button>
-        <button id="btn-target" class="btn btn-wide">🎯 Ziel: Erster</button>
-        <button id="btn-sell" class="btn btn-red btn-wide">💸 Verkaufen</button>
-      </div>
-
-      <div id="hint">Wähle einen Turm aus dem Shop und klicke aufs Gras, um ihn zu platzieren.<br><br>🎥 Linke Maustaste ziehen = Kamera drehen, Mausrad = Zoom.</div>
-      <div id="shop-tooltip"></div>
     </div>
   </div>
 </div>

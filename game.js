@@ -2914,6 +2914,7 @@ function resetGame() {
   // Boss Rush startet mit mehr Geld, da keine normalen Wellen
   state.cash = state.gameMode === "bossrush" ? 1500 : START_CASH;
   state.lives = curDiff().lives;   // Leben hängen von der Schwierigkeit ab
+  state.maxLives = curDiff().lives;
   state.wave = 1;
   state.kills = 0;
   state.bossRush = null;
@@ -3309,6 +3310,19 @@ function updateHUD() {
   document.getElementById("maxwave").textContent = MAX_WAVE;
   document.getElementById("kills").textContent = state.kills;
 
+  // Großer Basis-Lebensbalken oben
+  const maxL = state.maxLives || curDiff().lives;
+  const frac = Math.max(0, Math.min(1, state.lives / maxL));
+  const fill = document.getElementById("hud-hp-fill");
+  if (fill) {
+    fill.style.width = (frac * 100) + "%";
+    fill.style.background = frac > 0.5
+      ? "linear-gradient(180deg, #4ade80, #16a34a)"
+      : frac > 0.25
+        ? "linear-gradient(180deg, #facc15, #d97706)"
+        : "linear-gradient(180deg, #f87171, #dc2626)";
+  }
+
   const br = state.gameMode === "bossrush";
   const btn = document.getElementById("btn-start");
   btn.disabled = state.phase !== "idle" || !state.running;
@@ -3389,8 +3403,7 @@ function registerMiniModel(key, canvas) {
 // Wird pro Frame aufgerufen: dreht alle Modelle und rendert sie auf ihre Canvas
 let miniRenderIdx = 0;
 function updateMiniModels(dtReal) {
-  const sidebarVisible = document.getElementById("sidebar").offsetParent !== null;
-  if (!sidebarVisible || !miniRenderer) return;
+  if (state.mode !== "game" || !miniRenderer) return;  // Hotbar nur im Spiel sichtbar
   const keys = Object.keys(miniModels);
   if (keys.length === 0) return;
 
@@ -3480,9 +3493,11 @@ function showShopTooltip(card, def) {
   const tip = document.getElementById("shop-tooltip");
   tip.innerHTML = `<b>${def.name}</b><br>${towerStatTooltip(def)}`;
   tip.style.display = "block";
+  // Tooltip mittig über der Hotbar-Karte platzieren
   const rect = card.getBoundingClientRect();
-  const wrapRect = document.getElementById("sidebar").getBoundingClientRect();
-  tip.style.top = (rect.top - wrapRect.top + 4) + "px";
+  const wrapRect = document.getElementById("canvas-wrap").getBoundingClientRect();
+  tip.style.left = (rect.left - wrapRect.left + rect.width / 2) + "px";
+  tip.style.bottom = (wrapRect.bottom - rect.top + 10) + "px";
   if (miniModels[card.id?.slice(5)]) miniModels[card.id.slice(5)].hover = true;
 }
 function hideShopTooltip() {
@@ -3851,7 +3866,7 @@ function showMainMenu() {
   document.getElementById("loading-overlay").classList.add("hidden");
   document.getElementById("lobby-ui").classList.add("hidden");
   document.getElementById("menu-overlay").classList.remove("hidden");
-  document.getElementById("sidebar").style.display = "";
+  document.getElementById("hud").style.display = "none";  // HUD nur im Spiel
   hideTowerPanel();
 
   world.visible = true;
@@ -3877,7 +3892,7 @@ function enterLobby() {
   document.getElementById("menu-overlay").classList.add("hidden");
   document.getElementById("gameover-overlay").classList.add("hidden");
   document.getElementById("win-overlay").classList.add("hidden");
-  document.getElementById("sidebar").style.display = "none";
+  document.getElementById("hud").style.display = "none";
   document.getElementById("lobby-ui").classList.remove("hidden");
   hideTowerPanel();
 
@@ -3900,7 +3915,7 @@ function enterGame() {
   world.visible = true;
   lobbyGroup.visible = false;
   controls.enabled = true;
-  document.getElementById("sidebar").style.display = "";
+  document.getElementById("hud").style.display = "";
   document.getElementById("lobby-ui").classList.add("hidden");
   camera.position.copy(CAM_HOME.pos);
   controls.target.copy(CAM_HOME.target);
@@ -4161,6 +4176,7 @@ function buildDiffRow() {
 document.getElementById("btn-spielen").addEventListener("click", () => { ensureAudio(); buildModeRow(); openWindow("mode-overlay"); });
 document.getElementById("btn-shop-open").addEventListener("click", () => { ensureAudio(); buildSkinGrid(); openWindow("shopwin-overlay"); });
 document.getElementById("btn-settings-open").addEventListener("click", () => { ensureAudio(); applySettings(); openWindow("settings-overlay"); });
+document.getElementById("btn-settings-hud").addEventListener("click", () => { ensureAudio(); applySettings(); openWindow("settings-overlay"); });
 document.getElementById("btn-records-open").addEventListener("click", () => { ensureAudio(); buildRecordsList(); openWindow("records-overlay"); });
 document.getElementById("btn-lobby").addEventListener("click", () => { ensureAudio(); enterLobby(); });
 document.getElementById("btn-menu-from-lobby").addEventListener("click", () => { ensureAudio(); showMainMenu(); });
