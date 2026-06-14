@@ -203,8 +203,8 @@ const MAPS = {
   grasslands: {
     name: "Grasslands", icon: "🌲", stars: 1, diffName: "Einfach", hpMult: 1.0,
     desc: "Grüne Wiesen, Holzbrücken, kleine Häuser",
-    grass: [0x69b54c, 0x5fa844], path: [0xd4b483, 0xcaa973],
-    sky: 0x87ceeb, skyTop: 0x3d7edb, water: 0x2f7fd1, earth: 0x8a6437, portal: 0x7ee787,
+    grass: [0x5bbf4a, 0x4fb23f], path: [0xe6c98a, 0xddbe79],
+    sky: 0x8fd6ef, skyTop: 0x3f8fe0, water: 0x2f8fe0, earth: 0x8a6437, portal: 0x9bff7a,
     deco: "grass", clouds: true,
     waypoints: [[-1, 2], [3, 2], [3, 6], [8, 6], [8, 2], [13, 2], [13, 9], [5, 9], [5, 11], [17, 11], [17, 5], [20, 5]],
     hills: [{ c: 0, r: 4, w: 2, h: 2 }, { c: 10, r: 4, w: 2, h: 2 }, { c: 15, r: 0, w: 2, h: 2 }],
@@ -212,8 +212,8 @@ const MAPS = {
   desert: {
     name: "Desert Valley", icon: "🏜", stars: 2, diffName: "Mittel", hpMult: 1.15,
     desc: "Sand, Kakteen und alte Ruinen",
-    grass: [0xe3c47f, 0xd8b76d], path: [0xb5916b, 0xa8845f],
-    sky: 0xf0c98c, skyTop: 0x77a9e0, water: 0x3a98c9, earth: 0xa07840, portal: 0xf0c060,
+    grass: [0xf0d38c, 0xe6c578], path: [0xc99a64, 0xbc8d57],
+    sky: 0xffe0a3, skyTop: 0x86b8ec, water: 0x3aa0d8, earth: 0xa07840, portal: 0xffd24a,
     deco: "desert", clouds: true,
     waypoints: [[-1, 6], [4, 6], [4, 2], [9, 2], [9, 10], [14, 10], [14, 4], [20, 4]],
     hills: [{ c: 1, r: 2, w: 2, h: 2 }, { c: 6, r: 4, w: 2, h: 2 }, { c: 16, r: 7, w: 2, h: 2 }],
@@ -221,8 +221,8 @@ const MAPS = {
   frozen: {
     name: "Frozen Base", icon: "❄", stars: 3, diffName: "Mittel", hpMult: 1.3,
     desc: "Schnee, Eiswege, gefrorene Gebäude",
-    grass: [0xeef4f8, 0xdfe9f0], path: [0xa8d8ec, 0x97cce4],
-    sky: 0xbcd8e8, skyTop: 0x6f9fc8, water: 0x6fb1d8, earth: 0x9aa7b5, portal: 0x7dd3fc,
+    grass: [0xf3f9ff, 0xe2eefa], path: [0x9fdcf5, 0x8ccfee],
+    sky: 0xcfe7f5, skyTop: 0x7fb4e0, water: 0x68bfe8, earth: 0x9aa7b5, portal: 0x9be8ff,
     deco: "snow", clouds: true,
     waypoints: [[-1, 10], [3, 10], [3, 3], [7, 3], [7, 8], [12, 8], [12, 3], [16, 3], [16, 10], [20, 10]],
     hills: [{ c: 0, r: 0, w: 2, h: 2 }, { c: 9, r: 5, w: 2, h: 2 }, { c: 18, r: 0, w: 2, h: 2 }],
@@ -230,8 +230,8 @@ const MAPS = {
   volcano: {
     name: "Volcano Island", icon: "🌋", stars: 4, diffName: "Schwer", hpMult: 1.5,
     desc: "Lava, Vulkane und schwarze Felsen",
-    grass: [0x4a4a52, 0x404048], path: [0x705a4a, 0x665142],
-    sky: 0x5a3845, skyTop: 0x241420, water: 0xe25822, waterGlow: 0x892a0a, earth: 0x332f33, portal: 0xff6a2a,
+    grass: [0x434048, 0x3a373e], path: [0x7d5a44, 0x6e4d3a],
+    sky: 0x6e3a44, skyTop: 0x2a1622, water: 0xff5a1e, waterGlow: 0xb83408, earth: 0x2a262b, portal: 0xff8a3a,
     deco: "volcano", clouds: false,
     waypoints: [[-1, 2], [6, 2], [6, 11], [11, 11], [11, 5], [15, 5], [15, 9], [20, 9]],
     hills: [{ c: 2, r: 5, w: 2, h: 2 }, { c: 8, r: 4, w: 2, h: 2 }, { c: 17, r: 2, w: 2, h: 2 }],
@@ -239,8 +239,8 @@ const MAPS = {
   space: {
     name: "Space Station", icon: "🌌", stars: 5, diffName: "Extrem", hpMult: 1.75,
     desc: "Weltraum, Neonblöcke, schwebende Plattformen",
-    grass: [0x2b3052, 0x242a48], path: [0x3a9aa8, 0x32909e],
-    sky: 0x070b1a, skyTop: 0x01020a, water: 0x0a0e22, earth: 0x141831, portal: 0x22d3ee,
+    grass: [0x2f2f63, 0x282857], path: [0x35c0d8, 0x2bb0c8],
+    sky: 0x0a0e26, skyTop: 0x020310, water: 0x0a0e22, earth: 0x161a3a, portal: 0x4df0ff,
     deco: "space", clouds: false,
     waypoints: [[-1, 6], [2, 6], [2, 2], [6, 2], [6, 10], [10, 10], [10, 2], [14, 2], [14, 10], [18, 10], [18, 6], [20, 6]],
     hills: [{ c: 0, r: 0, w: 2, h: 2 }, { c: 8, r: 4, w: 2, h: 2 }, { c: 16, r: 3, w: 2, h: 2 }],
@@ -881,8 +881,8 @@ function makeThemeDeco(theme, v, off) {
     if (v < 0.07) {
       g = new THREE.Group();
       g.add(box(7, 18, 7, lambert(0x7a5230), 0, 9, 0));
-      g.add(box(26, 18, 26, lambert(0x3e8e41), 0, 26, 0));
-      g.add(box(18, 13, 18, lambert(0x4caf50), 0, 41, 0));
+      g.add(box(26, 18, 26, lambert(0x46a83c), 0, 26, 0));
+      g.add(box(18, 13, 18, lambert(0x5bbf4a), 0, 41, 0));
     } else if (v < 0.11) {
       g = new THREE.Group();
       const rock = box(16, 11, 13, lambert(0x9aa0a6), 0, 5, 0);
@@ -891,7 +891,7 @@ function makeThemeDeco(theme, v, off) {
       g.add(box(8, 6, 7, lambert(0xb8bdc4), 5, 11, 2));
     } else if (v < 0.18) {
       g = new THREE.Group();
-      g.add(box(1.6, 7, 1.6, lambert(0x3e8e41), 0, 3.5, 0));
+      g.add(box(1.6, 7, 1.6, lambert(0x46a83c), 0, 3.5, 0));
       g.add(box(5, 4, 5, lambert(off < 0.5 ? 0xf87171 : 0xfde047), 0, 8.5, 0));
     }
   } else if (theme === "desert") {
@@ -1100,10 +1100,10 @@ function buildSpawnPortal(mapKey, map) {
     g.add(box(22, 18, 78, lambert(0x5d6672), 4, 56, 0));
     g.add(box(20, 64, 18, rock, 8, 30, -38));
     g.add(box(20, 64, 18, rock, 8, 30, 38));
-    g.add(box(30, 26, 30, lambert(0x3e8e41), -6, 70, -20)); // Gras oben
-    g.add(box(24, 20, 24, lambert(0x4caf50), 0, 66, 24));
+    g.add(box(30, 26, 30, lambert(0x46a83c), -6, 70, -20)); // Gras oben
+    g.add(box(24, 20, 24, lambert(0x5bbf4a), 0, 66, 24));
     for (const vz of [-16, -5, 7, 16]) { // Ranken vor dem Eingang
-      g.add(box(2.2, 12 + Math.abs(vz), 2.2, lambert(0x3e8e41), 17, 48 - (12 + Math.abs(vz)) / 2, vz));
+      g.add(box(2.2, 12 + Math.abs(vz), 2.2, lambert(0x46a83c), 17, 48 - (12 + Math.abs(vz)) / 2, vz));
     }
   } else if (mapKey === "desert") {
     // Zerfallener Ruinen-Torbogen
@@ -1436,7 +1436,7 @@ function makeTextPanel(lines, bgColor, w, h) {
   lobbyGroup.add(plaza);
 
   // Gras-Insel drumherum + Erdsockel
-  const grass = box(660, 10, 500, lambert(0x69b54c), L.x, -10, L.z);
+  const grass = box(660, 10, 500, lambert(0x5bbf4a), L.x, -10, L.z);
   grass.castShadow = false;
   grass.receiveShadow = true;
   lobbyGroup.add(grass);
@@ -1451,8 +1451,8 @@ function makeTextPanel(lines, bgColor, w, h) {
   for (const [dx, dz] of [[-290, -210], [290, -210], [-290, 215], [290, 215], [-160, 225], [160, 225]]) {
     const t = new THREE.Group();
     t.add(box(8, 22, 8, lambert(0x7a5230), 0, 11, 0));
-    t.add(box(30, 22, 30, lambert(0x3e8e41), 0, 32, 0));
-    t.add(box(20, 15, 20, lambert(0x4caf50), 0, 50, 0));
+    t.add(box(30, 22, 30, lambert(0x46a83c), 0, 32, 0));
+    t.add(box(20, 15, 20, lambert(0x5bbf4a), 0, 50, 0));
     t.position.set(L.x + dx, 0, L.z + dz);
     lobbyGroup.add(t);
   }
@@ -1736,31 +1736,35 @@ function burst(x, y, z, colorHex, count, speed, gravity) {
   }
 }
 
-/* ---------------- Tracer-Pool (Schusslinien) ---------------- */
+/* ---------------- Tracer-Pool (leuchtende Block-Schussstrahlen) ---------------- */
 
-const TRACER_POOL = 40;
+const TRACER_POOL = 48;
 const tracerPool = [];
+const _tracerGeo = new THREE.BoxGeometry(1, 1, 1);
 {
   for (let i = 0; i < TRACER_POOL; i++) {
-    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-    const line = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: 0xfde047, transparent: true }));
+    const line = new THREE.Mesh(_tracerGeo, new THREE.MeshBasicMaterial({ color: 0xfde047, transparent: true, depthWrite: false }));
     line.visible = false;
+    line.castShadow = false;
     world.add(line);
     tracerPool.push(line);
   }
 }
 
-function spawnTracer(from, to, colorHex) {
+const _tFrom = new THREE.Vector3(), _tTo = new THREE.Vector3();
+function spawnTracer(from, to, colorHex, thick) {
   const line = tracerPool.find(l => !l.visible);
   if (!line) return;
+  _tFrom.set(from.x, from.y, from.z);
+  _tTo.set(to.x, to.y, to.z);
+  const len = _tFrom.distanceTo(_tTo) || 1;
   line.visible = true;
   line.material.color.set(colorHex);
-  line.material.opacity = 0.9;
-  const pos = line.geometry.attributes.position;
-  pos.setXYZ(0, from.x, from.y, from.z);
-  pos.setXYZ(1, to.x, to.y, to.z);
-  pos.needsUpdate = true;
-  state.tracers.push({ line, life: 0.07, maxLife: 0.07 });
+  line.material.opacity = 0.95;
+  line.position.copy(_tFrom).lerp(_tTo, 0.5);   // Mitte zwischen Start und Ziel
+  line.scale.set(thick || 2.4, thick || 2.4, len);
+  line.lookAt(_tTo);                              // +Z zum Ziel
+  state.tracers.push({ line, life: 0.08, maxLife: 0.08 });
 }
 
 /* ---------------- Explosionsringe ---------------- */
@@ -2030,7 +2034,7 @@ function makeTowerMesh(typeKey, level) {
     const soil = box(38, 8, 32, lambert(0x854d0e), 0, 8, 0);
     rotG.add(soil);
     for (let i = 0; i < 4; i++) {
-      const stem = box(2.5, 12, 2.5, lambert(0x84cc16), -13 + i * 8.6, 18, (i % 2 === 0 ? -5 : 5));
+      const stem = box(2.5, 12, 2.5, lambert(0x8fe04a), -13 + i * 8.6, 18, (i % 2 === 0 ? -5 : 5));
       const tip = box(6, 6, 6, lambert(0xfde047), 0, 8, 0);
       stem.add(tip);
       rotG.add(stem);
@@ -2585,11 +2589,15 @@ function updateTower(tower, dt) {
     if (st.slow) {
       target.slowUntil = state.time + st.slowDur;
       target.slowFactor = 1 - st.slow;
-      spawnTracer(_muzzlePos, targetPos, 0x7dd3fc);
+      spawnTracer(_muzzlePos, targetPos, 0x9be8ff, 3.2);
       sfx("frost");
       burst(target.x, 24, target.z, "#aee9ff", 5, 50, false);
     } else {
-      spawnTracer(_muzzlePos, targetPos, 0xfde047);
+      // Sniper: dicker, heller Strahl; Minigun: dünn & schnell; Schütze: mittel
+      const thick = tower.type === "sniper" ? 4.5 : tower.type === "minigun" ? 1.8 : 2.6;
+      const col = tower.type === "sniper" ? 0xfff6c0 : 0xfde047;
+      spawnTracer(_muzzlePos, targetPos, col, thick);
+      burst(target.x, 24 * target.def.scale, target.z, "#fff1a8", tower.type === "sniper" ? 6 : 3, 60, false);
       sfx(tower.type === "sniper" ? "sniper" : tower.type === "minigun" ? "minigun" : "shoot");
     }
   } else if (def.kind === "flame") {
