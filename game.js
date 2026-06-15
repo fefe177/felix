@@ -1652,6 +1652,56 @@ function makeMinifig(bodyHex, headHex, opts = {}) {
   return g;
 }
 
+// Großer, furchteinflößender Boss aus Blöcken (mit animierbaren Gliedmaßen)
+function makeBossFigure(bodyHex, headHex, opts = {}) {
+  const g = new THREE.Group();
+  const body = new THREE.Color(bodyHex);
+  const dark = shadeColor(bodyHex, -0.18);
+  const plate = shadeColor(bodyHex, -0.32);
+
+  function limb(wd, ht, dp, color) {
+    const geo = new THREE.BoxGeometry(wd, ht, dp);
+    geo.translate(0, -ht / 2, 0);   // Drehpunkt oben
+    const m = new THREE.Mesh(geo, lambert(color));
+    m.castShadow = true;
+    return m;
+  }
+  // Stämmige Beine
+  const legL = limb(11, 20, 11, dark); legL.position.set(-8, 20, 0);
+  const legR = limb(11, 20, 11, dark); legR.position.set(8, 20, 0);
+  // Massiver Torso + Brustpanzer
+  const torso = box(30, 26, 18, lambert(body), 0, 36, 0);
+  g.add(box(34, 10, 20, lambert(plate), 0, 44, 0));        // Schulterpanzer
+  g.add(box(22, 12, 3, lambert(plate), 0, 34, 9.5));       // Brustplatte
+  // Dicke Arme mit Stacheln
+  const armL = limb(9, 24, 10, dark); armL.position.set(-19, 46, 0);
+  const armR = limb(9, 24, 10, dark); armR.position.set(19, 46, 0);
+  g.add(box(5, 5, 5, lambert(plate), -22, 36, 0));
+  g.add(box(5, 5, 5, lambert(plate), 22, 36, 0));
+  // Schulter-Stacheln
+  for (const sx of [-17, 17]) { const sp = pyramid(7, 12, lambert(plate), sx, 50, 0, 3); g.add(sp); }
+  // Großer Kopf mit leuchtenden Augen + Hörnern
+  const head = new THREE.Mesh(new THREE.BoxGeometry(20, 18, 18), lambert(new THREE.Color(headHex)));
+  head.position.y = 60; head.castShadow = true;
+  const eyeMat = new THREE.MeshBasicMaterial({ color: 0xff2a2a });
+  head.add(box(4, 4, 2, eyeMat, -5, 1, 9));
+  head.add(box(4, 4, 2, eyeMat, 5, 1, 9));
+  head.add(box(9, 2.5, 2, new THREE.MeshBasicMaterial({ color: 0x111111 }), 0, -5, 9)); // Mund
+  // Hörner
+  const horns = pyramid(5, 10, lambert(plate), -8, 69, 0, 3); g.add(horns);
+  const horns2 = pyramid(5, 10, lambert(plate), 8, 69, 0, 3); g.add(horns2);
+
+  g.add(legL, legR, torso, armL, armR, head);
+
+  if (opts.crown) {
+    const gold = lambert(0xfacc15);
+    g.add(box(22, 4, 22, gold, 0, 70, 0));
+    for (const dx of [-7, 0, 7]) g.add(box(4, 7, 4, gold, dx, 75, 0));
+  }
+  g.userData = { legL, legR, armL, armR, head, torso };
+  return g;
+}
+
 /* ---------------- Lebensbalken (Billboard aus 2 Flächen) ---------------- */
 
 const billboards = [];
@@ -2226,7 +2276,9 @@ function spawnEnemy(typeKey, hpMultOverride) {
   const hp = Math.round(def.hp * mult);
   const isBoss = typeKey === "boss" || !!def.ability;
 
-  const fig = makeMinifig(def.color, def.headColor, { angry: typeKey !== "healer", crown: isBoss });
+  const fig = isBoss
+    ? makeBossFigure(def.color, def.headColor, { crown: true })
+    : makeMinifig(def.color, def.headColor, { angry: typeKey !== "healer", crown: false });
   fig.scale.setScalar(def.scale);
 
   if (def.heals) {
@@ -2258,8 +2310,8 @@ function spawnEnemy(typeKey, hpMultOverride) {
     fig.add(box(14, 1.5, 7, wing, 14, 28, -2));
   }
 
-  const bar = makeHealthBar(30 * def.scale);
-  bar.position.y = 54 * def.scale;
+  const bar = makeHealthBar((isBoss ? 42 : 30) * def.scale);
+  bar.position.y = (isBoss ? 84 : 54) * def.scale;
   bar.visible = true; // HP-Balken + Zahl immer sichtbar
   setHealthBar(bar, hp, hp);
 
@@ -3408,11 +3460,17 @@ function syncVisuals(dtReal) {
     e.group.position.set(e.x, hover, e.z);
     e.figure.rotation.y = e.yaw;
     const f = e.figure.userData;
-    const swing = Math.sin(e.walkPhase) * 0.7;
+    const swing = Math.sin(e.walkPhase) * (e.isBoss ? 0.5 : 0.7);
     f.legL.rotation.x = swing;
     f.legR.rotation.x = -swing;
     f.armL.rotation.x = -swing * 0.8;
     f.armR.rotation.x = swing * 0.8;
+    if (e.isBoss) {
+      // Bosse stampfen schwer (Auf-/Ab-Wuchten) und wiegen die Schultern
+      e.figure.position.y = Math.abs(Math.sin(e.walkPhase)) * 3.5;
+      e.figure.rotation.z = Math.sin(e.walkPhase) * 0.05;
+      if (f.head) f.head.rotation.x = Math.sin(e.walkPhase * 0.5) * 0.08;
+    }
 
     const slowed = state.time < e.slowUntil;
     if (slowed !== e.tinted) {
