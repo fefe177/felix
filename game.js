@@ -2057,12 +2057,13 @@ function getGhost(typeKey) {
 function makeMageFigure(robeHex, headHex, level) {
   const g = new THREE.Group();
   const robe = new THREE.Color(robeHex);
-  // Robe aus gestapelten Blöcken (breiter unten)
-  g.add(box(16, 8, 16, lambert(robe), 0, 4, 0));
-  g.add(box(13, 8, 13, lambert(robe), 0, 12, 0));
-  g.add(box(15, 12, 9, lambert(robe), 0, 24, 0));                       // Oberkörper
-  g.add(box(5, 13, 6, lambert(shadeColor(robeHex, -0.08)), -10, 25, 0)); // Arme
-  g.add(box(5, 13, 6, lambert(shadeColor(robeHex, -0.08)), 10, 25, 0));
+  const armCol = lambert(shadeColor(robeHex, -0.08));
+  // Robe + Körper aus einheitlichen Voxeln
+  g.add(voxPart(16, 8, 16, lambert(robe), false).translateY(0));
+  g.add(voxPart(13, 8, 13, lambert(robe), false).translateY(8));
+  g.add(voxPart(15, 12, 9, lambert(robe), false).translateY(18));        // Oberkörper
+  g.add(voxPart(5, 13, 6, armCol, false).translateY(18).translateX(-10)); // Arme
+  g.add(voxPart(5, 13, 6, armCol, false).translateY(18).translateX(10));
   // Kopf
   const head = new THREE.Mesh(new THREE.BoxGeometry(11, 11, 11), lambert(new THREE.Color(headHex)));
   head.position.y = 37; head.castShadow = true; g.add(head);
@@ -2107,11 +2108,11 @@ function makeTowerMesh(typeKey, level) {
   const rotG = new THREE.Group();
   group.add(staticG, rotG);
 
-  const plate = box(40, 6, 40, lambert(0x9ca3af), 0, 3, 0);
+  const plate = voxPart(40, 6, 40, lambert(0x9ca3af), false);  // Voxel-Sockel
   plate.receiveShadow = true;
   staticG.add(plate);
-  // abgesetzter Rand für Detail
-  staticG.add(box(34, 3, 34, lambert(0xb6bcc6), 0, 7, 0));
+  // abgesetzter Rand für Detail (Voxel)
+  staticG.add(voxPart(34, 3, 34, lambert(0xb6bcc6), false).translateY(6));
 
   const studs = new THREE.Group();
   staticG.add(studs);
