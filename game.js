@@ -2791,11 +2791,14 @@ function enterNest(tower) {
   state.nest = tower;
   tower.operated = true;
   if (tower.group.userData.gunner) tower.group.userData.gunner.visible = true;
-  controls.enabled = false;          // Maus zielt jetzt, statt die Kamera zu drehen
+  controls.enabled = false;          // Ego-Perspektive: Maus zielt frei
   state.placing = null;
-  selectTower(tower);                // Panel bleibt sichtbar → Upgrade auch währenddessen
+  selectTower(null);                 // Panel ausblenden, freie Sicht
+  // Blickrichtung: zur Feldmitte ausrichten
+  tower.aimYaw = Math.atan2(W / 2 - tower.x, D / 2 - tower.z);
+  tower.aimPitch = 0.28;             // flacher Blick übers Feld
   document.getElementById("nest-hud").classList.remove("hidden");
-  centerText("🪖 Minigun übernommen! Maus = zielen, Halten = feuern, E = aussteigen", "#facc15");
+  centerText("🪖 Minigun-Sicht! Maus bewegen = zielen, Halten = feuern, E = aussteigen", "#facc15");
   sfx("place");
 }
 
@@ -2805,9 +2808,37 @@ function exitNest() {
   t.operated = false;
   t.firing = false;
   if (t.group.userData.gunner) t.group.userData.gunner.visible = false;
+  if (t.group.userData.gunPivot) t.group.userData.gunPivot.rotation.x = 0;
   state.nest = null;
   controls.enabled = (state.mode === "game");
   document.getElementById("nest-hud").classList.add("hidden");
+  // Kamera zurück in die Bau-Ansicht
+  if (state.mode === "game") {
+    camera.position.copy(CAM_HOME.pos);
+    controls.target.copy(CAM_HOME.target);
+    controls.update();
+  }
+}
+
+// Ego-Perspektive: Kamera ins Geschütz, Zielpunkt aus dem Fadenkreuz (Bildmitte)
+const _nv = new THREE.Vector3(), _ndir = new THREE.Vector3();
+function updateNestView() {
+  const t = state.nest;
+  if (!t) return;
+  const yaw = t.aimYaw, pitch = t.aimPitch;
+  _ndir.set(Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+  // Geschütz-Weltposition
+  t.group.userData.muzzle.getWorldPosition(_nv);
+  // Kamera hinter/über dem Lauf, damit man übers Feld blickt
+  camera.position.set(_nv.x - _ndir.x * 18, _nv.y + 16, _nv.z - _ndir.z * 18);
+  camera.lookAt(_nv.x + _ndir.x * 200, _nv.y + _ndir.y * 200, _nv.z + _ndir.z * 200);
+  // Zielpunkt: Strahl bis auf Gegner-Höhe (y≈18)
+  const camY = camera.position.y;
+  let s = _ndir.y < -0.02 ? (18 - camY) / _ndir.y : 1000;
+  s = Math.max(40, Math.min(s, nestStats(t).range + 60));
+  state.nestAim.set(camera.position.x + _ndir.x * s, 0, camera.position.z + _ndir.z * s);
+  // Geschütz visuell neigen
+  if (t.group.userData.gunPivot) t.group.userData.gunPivot.rotation.x = pitch * 0.6;
 }
 
 function updateNest(tower, dt) {
@@ -2821,11 +2852,9 @@ function updateNest(tower, dt) {
   if (wantFire) tower.spin = Math.min(1, tower.spin + dt / Math.max(0.05, st.spinUp));
   else tower.spin = Math.max(0, tower.spin - dt / 0.6);
 
-  // Zielen: Lafette dreht zum Mauspunkt (nur wenn bedient)
+  // Zielen: Lafette folgt direkt der Ego-Blickrichtung
   if (operating) {
-    const aim = state.nestAim;
-    const desired = Math.atan2(aim.x - tower.x, aim.z - tower.z);
-    tower.yaw = approachAngle(tower.yaw, desired, dt * 10);
+    tower.yaw = tower.aimYaw;
     tower.group.userData.rotG.rotation.y = tower.yaw;
   }
 
@@ -4307,9 +4336,15 @@ function pointFromEvent(ev) {
 }
 
 renderer.domElement.addEventListener("pointermove", (ev) => {
+  if (state.nest) {
+    // Ego-Perspektive: Maus bewegt frei den Blick (Free-Look)
+    const t = state.nest;
+    t.aimYaw -= (ev.movementX || 0) * 0.0032;
+    t.aimPitch = Math.max(0.05, Math.min(0.8, t.aimPitch + (ev.movementY || 0) * 0.0026));
+    return;
+  }
   const p = pointFromEvent(ev);
   state.hoverPoint = p;
-  if (state.nest && p) state.nestAim.set(p.x, 0, p.z); // Minigun zielt zum Mauspunkt
 });
 renderer.domElement.addEventListener("pointerleave", () => { state.hoverPoint = null; });
 renderer.domElement.addEventListener("contextmenu", (ev) => { if (state.nest) ev.preventDefault(); });
@@ -4608,7 +4643,8 @@ function loop(now) {
   }
 
   syncVisuals(dt);
-  if (state.mode !== "lobby") controls.update();
+  if (state.nest) updateNestView();                       // Ego-Kamera im Geschütz
+  else if (state.mode !== "lobby") controls.update();     // sonst freie Bau-Kamera
   renderer.render(scene, camera);
 
   // Mini-3D-Modelle der Kaufleiste + Upgrade-Panel drehen/rendern
