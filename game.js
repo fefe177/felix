@@ -1574,6 +1574,61 @@ function ensurePlayerFigure() {
   if (!player.group) rebuildPlayerFigure();
 }
 
+/* ---- Begehbarer 3D-Charakter IM SPIEL (Free-Roam) ---- */
+const gamePlayer = { group: null, x: W / 2, z: D / 2, yaw: Math.PI, walkPhase: 0, moving: false };
+function ensureGamePlayer() {
+  if (gamePlayer.group) return;
+  const skin = getEquippedSkin();
+  gamePlayer.group = makeMinifig(skin.body, "#fbbf24", { hat: skin.hat });
+  gamePlayer.group.visible = false;
+  world.add(gamePlayer.group);
+}
+function toggleWalk() {
+  if (state.mode !== "game" || !state.running || state.nest) return;
+  state.walking = !state.walking;
+  ensureGamePlayer();
+  document.getElementById("btn-walk").classList.toggle("active", state.walking);
+  if (state.walking) {
+    gamePlayer.x = W / 2; gamePlayer.z = D / 2 + 80; gamePlayer.yaw = Math.PI;
+    gamePlayer.group.visible = true;
+    controls.enabled = false;
+    state.placing = null; selectTower(null); refreshShopSelection();
+    centerText("🚶 Lauf-Modus: WASD bewegen · Knopf erneut = zurück", "#7ee787");
+  } else {
+    gamePlayer.group.visible = false;
+    controls.enabled = true;
+    camera.position.copy(CAM_HOME.pos);
+    controls.target.copy(CAM_HOME.target);
+    controls.update();
+  }
+}
+function updateGameWalk(dt) {
+  const p = gamePlayer;
+  let mx = 0, mz = 0;
+  if (keysDown.has("w") || keysDown.has("arrowup")) mz -= 1;
+  if (keysDown.has("s") || keysDown.has("arrowdown")) mz += 1;
+  if (keysDown.has("a") || keysDown.has("arrowleft")) mx -= 1;
+  if (keysDown.has("d") || keysDown.has("arrowright")) mx += 1;
+  p.moving = mx !== 0 || mz !== 0;
+  if (p.moving) {
+    const len = Math.hypot(mx, mz);
+    p.x = Math.max(8, Math.min(W - 8, p.x + (mx / len) * 150 * dt));
+    p.z = Math.max(8, Math.min(D - 8, p.z + (mz / len) * 150 * dt));
+    p.yaw = approachAngle(p.yaw, Math.atan2(mx, mz), dt * 12);
+    p.walkPhase += dt * 10;
+  }
+  p.group.position.set(p.x, 0, p.z);
+  p.group.rotation.y = p.yaw;
+  const f = p.group.userData;
+  const swing = p.moving ? Math.sin(p.walkPhase) * 0.7 : 0;
+  f.legL.rotation.x = swing; f.legR.rotation.x = -swing;
+  f.armL.rotation.x = -swing * 0.8; f.armR.rotation.x = swing * 0.8;
+  // Third-Person-Kamera folgt
+  const camPos = new THREE.Vector3(p.x, 150, p.z + 200);
+  camera.position.lerp(camPos, Math.min(1, dt * 5));
+  camera.lookAt(p.x, 20, p.z - 20);
+}
+
 /* ---------------- Roblox-Minifigur (3D) ---------------- */
 
 const faceCache = new Map();
@@ -2840,6 +2895,7 @@ function nestStats(t) { return TOWER_TYPES.nest.levels[t.level]; }
 
 function enterNest(tower) {
   if (state.nest) return;
+  if (state.walking) toggleWalk();   // Lauf-Modus beenden, falls aktiv
   state.nest = tower;
   tower.operated = true;
   if (tower.group.userData.gunner) tower.group.userData.gunner.visible = true;
@@ -3222,6 +3278,9 @@ function win() {
 }
 
 function clearEntities() {
+  state.walking = false;
+  if (gamePlayer.group) gamePlayer.group.visible = false;
+  const wb = document.getElementById("btn-walk"); if (wb) wb.classList.remove("active");
   for (const e of state.enemies) { if (!e.killed) removeEnemyMesh(e); }
   for (const d of state.dying) { world.remove(d.group); disposeObject(d.group); }
   for (const t of state.towers) {
@@ -3253,6 +3312,9 @@ function clearEntities() {
 
 function resetGame() {
   clearEntities();
+  state.walking = false;
+  if (gamePlayer.group) gamePlayer.group.visible = false;
+  document.getElementById("btn-walk").classList.remove("active");
   // Boss Rush startet mit mehr Geld, da keine normalen Wellen
   state.cash = state.gameMode === "bossrush" ? 1500 : START_CASH;
   state.lives = curDiff().lives;   // Leben hängen von der Schwierigkeit ab
@@ -4622,6 +4684,7 @@ document.getElementById("btn-music").addEventListener("click", () => {
 });
 
 document.getElementById("btn-pause").addEventListener("click", () => { ensureAudio(); togglePause(); });
+document.getElementById("btn-walk").addEventListener("click", () => { ensureAudio(); toggleWalk(); });
 
 document.getElementById("btn-cam").addEventListener("click", () => {
   if (state.mode !== "game") return;
@@ -4702,6 +4765,7 @@ function loop(now) {
 
   syncVisuals(dt);
   if (state.nest) updateNestView();                       // Ego-Kamera im Geschütz
+  else if (state.walking && state.mode === "game") updateGameWalk(dt); // Charakter laufen
   else if (state.mode !== "lobby") controls.update();     // sonst freie Bau-Kamera
   renderer.render(scene, camera);
 

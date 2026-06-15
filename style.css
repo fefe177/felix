@@ -148,6 +148,7 @@ html, body {
 }
 .hud-btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
 .hud-btn:active { transform: translateY(1px); }
+.hud-btn.active { background: linear-gradient(180deg, #34d36a, #16a34a); box-shadow: 0 0 12px #34d36a; }
 .hud-btn-gear { font-size: 22px; background: rgba(59, 79, 125, 0.85); }
 
 /* ----- Oben links: Kills ----- */
