@@ -843,10 +843,10 @@ function pillar(w, ht, material, x, y, z) {
 
 function disposeObject(obj) {
   obj.traverse((o) => {
-    if (o.geometry) o.geometry.dispose();
+    if (o.geometry && !(o.geometry.userData && o.geometry.userData.shared)) o.geometry.dispose();
     if (o.material) {
       const mats = Array.isArray(o.material) ? o.material : [o.material];
-      for (const m of mats) { if (m.map) m.map.dispose(); m.dispose(); }
+      for (const m of mats) { if (m.map && !(m.map.userData && m.map.userData.shared)) m.map.dispose(); m.dispose(); }
     }
   });
 }
@@ -1657,32 +1657,69 @@ function faceTexture(headHex, angry) {
   }
   const tex = new THREE.CanvasTexture(cv);
   tex.encoding = THREE.sRGBEncoding;
+  tex.userData.shared = true;   // geteilt → nicht entsorgen
   faceCache.set(key, tex);
   return tex;
 }
 
-/* Baut eine Klötzchen-Figur. Schaut in +Z-Richtung, Ursprung am Boden. */
+/* ---- Einheitliche Voxel-Blöcke (alle exakt gleich groß) ----
+   VOX = Kantenlänge jedes Würfels. Körperteile werden aus diesen
+   gleich großen Würfeln zusammengesetzt und zu EINEM Mesh verschmolzen
+   (sichtbare Würfel dank kleiner Fugen, aber performant). */
+const VOX = 2.6;
+const _voxGeoCache = new Map();
+function voxUnitGeo() {
+  const k = "u";
+  if (!_voxGeoCache.has(k)) _voxGeoCache.set(k, new THREE.BoxGeometry(VOX * 0.92, VOX * 0.92, VOX * 0.92));
+  return _voxGeoCache.get(k);
+}
+// Verschmolzene Voxel-Geometrie je Maße (geteilt zwischen allen Figuren → performant).
+const _voxPartCache = new Map();
+function voxPartGeo(w, h, d, pivotTop) {
+  const key = `${w}_${h}_${d}_${pivotTop ? 1 : 0}`;
+  if (_voxPartCache.has(key)) return _voxPartCache.get(key);
+  const nx = Math.max(1, Math.round(w / VOX));
+  const ny = Math.max(1, Math.round(h / VOX));
+  const nz = Math.max(1, Math.round(d / VOX));
+  const geos = [];
+  const base = voxUnitGeo();
+  for (let ix = 0; ix < nx; ix++)
+    for (let iy = 0; iy < ny; iy++)
+      for (let iz = 0; iz < nz; iz++) {
+        if (ix > 0 && ix < nx - 1 && iy > 0 && iy < ny - 1 && iz > 0 && iz < nz - 1) continue; // nur Hülle
+        const gg = base.clone();
+        gg.translate((ix - (nx - 1) / 2) * VOX, (iy + 0.5) * VOX, (iz - (nz - 1) / 2) * VOX);
+        geos.push(gg);
+      }
+  let merged = THREE.BufferGeometryUtils.mergeBufferGeometries(geos, false);
+  for (const gg of geos) gg.dispose();
+  if (pivotTop) merged.translate(0, -ny * VOX, 0);
+  merged.userData.shared = true;   // nicht entsorgen (wird geteilt)
+  _voxPartCache.set(key, merged);
+  return merged;
+}
+function voxPart(w, h, d, material, pivotTop) {
+  const m = new THREE.Mesh(voxPartGeo(w, h, d, pivotTop), material);
+  m.castShadow = true;
+  return m;
+}
+
+/* Baut eine Klötzchen-Figur aus einheitlichen Voxeln. Schaut in +Z, Ursprung am Boden. */
 function makeMinifig(bodyHex, headHex, opts = {}) {
   const g = new THREE.Group();
   const body = new THREE.Color(bodyHex);
   const bodyDark = shadeColor(bodyHex, -0.12);
 
-  function limb(wd, ht, dp, color) {
-    const geo = new THREE.BoxGeometry(wd, ht, dp);
-    geo.translate(0, -ht / 2, 0);
-    const m = new THREE.Mesh(geo, lambert(color));
-    m.castShadow = true;
-    return m;
-  }
-  const legL = limb(7, 14, 7, bodyDark); legL.position.set(-4.5, 14, 0);
-  const legR = limb(7, 14, 7, bodyDark); legR.position.set(4.5, 14, 0);
+  const legL = voxPart(7, 14, 7, lambert(bodyDark), true); legL.position.set(-4.5, 14, 0);
+  const legR = voxPart(7, 14, 7, lambert(bodyDark), true); legR.position.set(4.5, 14, 0);
 
-  const torso = box(16, 16, 9, lambert(body), 0, 22, 0);
+  const torso = voxPart(16, 16, 9, lambert(body), false); torso.position.set(0, 14, 0);
 
   const armMat = lambert(shadeColor(bodyHex, -0.06));
-  const armL = limb(5.5, 15, 6, armMat.color); armL.position.set(-11, 29, 0);
-  const armR = limb(5.5, 15, 6, armMat.color); armR.position.set(11, 29, 0);
+  const armL = voxPart(5.5, 15, 6, armMat, true); armL.position.set(-11, 29, 0);
+  const armR = voxPart(5.5, 15, 6, armMat, true); armR.position.set(11, 29, 0);
 
+  // Kopf: einzelner Würfel mit Gesicht (bleibt scharf & lesbar)
   const headMats = [];
   const plain = lambert(new THREE.Color(opts.headColor || headHex || "#fbbf24"));
   for (let i = 0; i < 6; i++) headMats.push(plain);
@@ -1714,23 +1751,16 @@ function makeBossFigure(bodyHex, headHex, opts = {}) {
   const dark = shadeColor(bodyHex, -0.18);
   const plate = shadeColor(bodyHex, -0.32);
 
-  function limb(wd, ht, dp, color) {
-    const geo = new THREE.BoxGeometry(wd, ht, dp);
-    geo.translate(0, -ht / 2, 0);   // Drehpunkt oben
-    const m = new THREE.Mesh(geo, lambert(color));
-    m.castShadow = true;
-    return m;
-  }
-  // Stämmige Beine
-  const legL = limb(11, 20, 11, dark); legL.position.set(-8, 20, 0);
-  const legR = limb(11, 20, 11, dark); legR.position.set(8, 20, 0);
+  // Stämmige Beine (einheitliche Voxel)
+  const legL = voxPart(11, 20, 11, lambert(dark), true); legL.position.set(-8, 20, 0);
+  const legR = voxPart(11, 20, 11, lambert(dark), true); legR.position.set(8, 20, 0);
   // Massiver Torso + Brustpanzer
-  const torso = box(30, 26, 18, lambert(body), 0, 36, 0);
+  const torso = voxPart(30, 26, 18, lambert(body), false); torso.position.set(0, 23, 0);
   g.add(box(34, 10, 20, lambert(plate), 0, 44, 0));        // Schulterpanzer
   g.add(box(22, 12, 3, lambert(plate), 0, 34, 9.5));       // Brustplatte
   // Dicke Arme mit Stacheln
-  const armL = limb(9, 24, 10, dark); armL.position.set(-19, 46, 0);
-  const armR = limb(9, 24, 10, dark); armR.position.set(19, 46, 0);
+  const armL = voxPart(9, 24, 10, lambert(dark), true); armL.position.set(-19, 46, 0);
+  const armR = voxPart(9, 24, 10, lambert(dark), true); armR.position.set(19, 46, 0);
   g.add(box(5, 5, 5, lambert(plate), -22, 36, 0));
   g.add(box(5, 5, 5, lambert(plate), 22, 36, 0));
   // Schulter-Stacheln
