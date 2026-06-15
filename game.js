@@ -166,11 +166,28 @@ const TOWER_TYPES = {
       // dmg = Schaden/Schuss, rate = max. Schüsse/s, spinUp = Sek. bis Vollgeschwindigkeit
       // pierce = Gegner pro Kugel, heatRate = Hitze/s beim Feuern (100 = Überhitzung),
       // coolRate = Abkühlung/s wenn nicht gefeuert, overheatLock = Zwangspause in Sek.
-      { dmg: 9,   range: 190, rate: 12, spinUp: 1.3, pierce: 1, heatRate: 22, coolRate: 30, overheatLock: 3.0, upgradeCost: 900 },
-      { dmg: 15,  range: 205, rate: 14, spinUp: 1.1, pierce: 2, heatRate: 20, coolRate: 34, overheatLock: 2.6, upgradeCost: 2000 },
-      { dmg: 24,  range: 220, rate: 16, spinUp: 0.9, pierce: 2, heatRate: 18, coolRate: 40, overheatLock: 2.2, upgradeCost: 4200 },
-      { dmg: 40,  range: 240, rate: 19, spinUp: 0.7, pierce: 3, heatRate: 15, coolRate: 48, overheatLock: 1.6, upgradeCost: 8500 },
-      { dmg: 68,  range: 265, rate: 23, spinUp: 0.5, pierce: 4, heatRate: 11, coolRate: 60, overheatLock: 1.0, splash: 36, upgradeCost: null },
+      { dmg: 6,   range: 240, rate: 12, spinUp: 1.3, pierce: 1, heatRate: 22, coolRate: 30, overheatLock: 3.0, upgradeCost: 900 },
+      { dmg: 10,  range: 260, rate: 14, spinUp: 1.1, pierce: 2, heatRate: 20, coolRate: 34, overheatLock: 2.6, upgradeCost: 2000 },
+      { dmg: 16,  range: 285, rate: 16, spinUp: 0.9, pierce: 2, heatRate: 18, coolRate: 40, overheatLock: 2.2, upgradeCost: 4200 },
+      { dmg: 26,  range: 310, rate: 19, spinUp: 0.7, pierce: 3, heatRate: 15, coolRate: 48, overheatLock: 1.6, upgradeCost: 8500 },
+      { dmg: 42,  range: 340, rate: 23, spinUp: 0.5, pierce: 4, heatRate: 11, coolRate: 60, overheatLock: 1.0, splash: 36, upgradeCost: null },
+    ],
+  },
+  laser: {
+    name: "Laserturm",
+    icon: "🔆",
+    color: "#06b6d4",
+    desc: "Lädt auf & feuert Laser – trifft auch Metall & Unsichtbare!",
+    cost: 1200,
+    unlockWave: 10,
+    kind: "laser",
+    levels: [
+      // charge = Sek. Aufladen vor dem Schuss, dmg = Schaden pro Strahl
+      { dmg: 90,   range: 230, rate: 0.9, charge: 0.8, upgradeCost: 800 },
+      { dmg: 150,  range: 245, rate: 1.0, charge: 0.7, upgradeCost: 1600 },
+      { dmg: 260,  range: 260, rate: 1.1, charge: 0.6, upgradeCost: 3200 },
+      { dmg: 430,  range: 280, rate: 1.2, charge: 0.5, upgradeCost: 6500 },
+      { dmg: 720,  range: 305, rate: 1.4, charge: 0.4, pierce: 3, upgradeCost: null },
     ],
   },
 };
@@ -184,6 +201,12 @@ const ENEMY_TYPES = {
   armored: { name: "Panzer",   hp: 420,  speed: 32,  reward: 35,  dmg: 3,  scale: 1.3,  color: "#475569", headColor: "#64748b" },
   demon:   { name: "Dämon",    hp: 900,  speed: 45,  reward: 70,  dmg: 5,  scale: 1.35, color: "#a855f7", headColor: "#c084fc" },
   healer:  { name: "Heiler",   hp: 260,  speed: 40,  reward: 30,  dmg: 2,  scale: 1.1,  color: "#f8fafc", headColor: "#fde68a", heals: { radius: 95, frac: 0.05, interval: 1 } },
+  // ----- Spezial-Gegner mit Schwächen -----
+  metal:   { name: "Metall-Zombie", hp: 320, speed: 34, reward: 28, dmg: 2, scale: 1.15, color: "#9ca3af", headColor: "#cbd5e1", metal: true },
+  ghost:   { name: "Geist",    hp: 130,  speed: 70,  reward: 26,  dmg: 2,  scale: 1.0,  color: "#a5b4fc", headColor: "#c7d2fe", invisible: true },
+  flyer:   { name: "Flieger",  hp: 150,  speed: 80,  reward: 30,  dmg: 2,  scale: 0.95, color: "#f472b6", headColor: "#f9a8d4", flying: true },
+  slime:   { name: "Schleim",  hp: 90,   speed: 60,  reward: 12,  dmg: 1,  scale: 0.9,  color: "#34d399", headColor: "#6ee7b7" },
+  brute:   { name: "Koloss",   hp: 700,  speed: 28,  reward: 55,  dmg: 4,  scale: 1.5,  color: "#7c3f1d", headColor: "#a8743f" },
   boss:    { name: "BOSS",     hp: 3500, speed: 26,  reward: 400, dmg: 25, scale: 1.8,  color: "#dc2626", headColor: "#ef4444" },
 
   // ----- Boss-Rush-Bosse mit Spezialfähigkeiten -----
@@ -253,9 +276,9 @@ const MAP_ORDER = ["grasslands", "desert", "frozen", "volcano", "space"];
 const DIFFICULTIES = [
   { id: "einfach",     name: "Einfach",     icon: "😊", sub: "Für den Einstieg",          hpMult: 0.8, lives: 130, rewardMult: 1.0, color: "#22c55e" },
   { id: "laessig",     name: "Lässig",      icon: "🙂", sub: "Etwas mehr Gegner",         hpMult: 1.0, lives: 100, rewardMult: 1.15, color: "#3b82f6" },
-  { id: "mittelstufe", name: "Mittelstufe", icon: "😎", sub: "Für erfahrene Spieler",     hpMult: 1.3, lives: 100, rewardMult: 1.35, color: "#f59e0b" },
-  { id: "geschmolzen", name: "Geschmolzen", icon: "🌋", sub: "Heiße Hölle – harte Gegner", hpMult: 1.7, lives: 80,  rewardMult: 1.7, color: "#ef4444" },
-  { id: "fallen",      name: "Fallen",      icon: "💀", sub: "Nur für Profis!",            hpMult: 2.3, lives: 60,  rewardMult: 2.2, color: "#a855f7" },
+  { id: "mittelstufe", name: "Mittelstufe", icon: "😎", sub: "Für erfahrene Spieler",     hpMult: 1.2, lives: 110, rewardMult: 1.35, color: "#f59e0b" },
+  { id: "geschmolzen", name: "Geschmolzen", icon: "🌋", sub: "Heiße Hölle – harte Gegner", hpMult: 1.5, lives: 90,  rewardMult: 1.7, color: "#ef4444" },
+  { id: "fallen",      name: "Fallen",      icon: "💀", sub: "Nur für Profis!",            hpMult: 1.85, lives: 75,  rewardMult: 2.2, color: "#a855f7" },
 ];
 function curDiff() {
   return DIFFICULTIES.find(d => d.id === state.difficulty) || DIFFICULTIES[1];
@@ -2077,6 +2100,23 @@ function makeTowerMesh(typeKey, level) {
       muzzle = new THREE.Object3D(); muzzle.position.set(0, 11, 10 + barrelLen);
       rotG.add(muzzle);
 
+    } else if (typeKey === "laser") {
+      // Laserturm: Techniker mit großem Emitter-Kristall, der sich auflädt
+      figure = makeMinifig(def.color, "#caa472", {});
+      figure.position.y = 6; applyRank(figure, level, "#0e7490"); rotG.add(figure);
+      const gun = new THREE.Group();
+      gun.add(box(7, 7, 16, lambert(0x164e63), 0, 0, 6));      // Emitter-Gehäuse
+      gun.add(box(9, 9, 5, lambert(0x0e7490), 0, 0, -2));
+      // Lade-Kristall (waechst beim Aufladen)
+      const orb = gem(7 + level, new THREE.MeshLambertMaterial({ color: 0x67e8f9, emissive: 0x06b6d4, emissiveIntensity: 0.6 }), 0, 0, 15);
+      gun.add(orb);
+      group.userData.chargeOrb = orb;
+      // Fokus-Stäbe
+      gun.add(box(1.5, 1.5, 10, lambert(0x22d3ee), -4, 0, 18));
+      gun.add(box(1.5, 1.5, 10, lambert(0x22d3ee), 4, 0, 18));
+      gun.position.set(6, 28, 6); rotG.add(gun);
+      muzzle = new THREE.Object3D(); muzzle.position.set(6, 28, 30); rotG.add(muzzle);
+
     } else if (typeKey === "frost") {
       // Eismagier: Robe + Spitzhut + Stab (kein Soldat)
       figure = makeMageFigure(def.color, "#bae6fd", level);
@@ -2193,6 +2233,29 @@ function spawnEnemy(typeKey, hpMultOverride) {
     const red = lambert(0xdc2626);
     fig.add(box(3, 9, 1.5, red, 0, 22, 5));
     fig.add(box(9, 3, 1.5, red, 0, 22, 5));
+  }
+  // Metall-Zombie: glänzende Nieten/Platten
+  if (def.metal) {
+    const steel = lambert(0x64748b);
+    fig.add(box(18, 4, 11, steel, 0, 24, 0));
+    fig.add(box(4, 4, 4, lambert(0xe2e8f0), -6, 30, 5));
+    fig.add(box(4, 4, 4, lambert(0xe2e8f0), 6, 30, 5));
+  }
+  // Geist: fast durchsichtig (nur Sniper/Laser treffen ihn)
+  if (def.invisible) {
+    fig.traverse((o) => {
+      if (o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) { m.transparent = true; m.opacity = 0.32; }
+      }
+      o.castShadow = false;
+    });
+  }
+  // Flieger: Flügel + schwebt höher
+  if (def.flying) {
+    const wing = lambert(0xfbcfe8);
+    fig.add(box(14, 1.5, 7, wing, -14, 28, -2));
+    fig.add(box(14, 1.5, 7, wing, 14, 28, -2));
   }
 
   const bar = makeHealthBar(30 * def.scale);
@@ -2534,11 +2597,21 @@ function removeTower(tower) {
 
 const TARGET_MODES = ["Erster", "Letzter", "Stärkster"];
 
+// Kann dieser Turmtyp diesen Gegner überhaupt treffen? (Spezial-Schwächen)
+function towerCanHit(type, level, e) {
+  const d = e.def;
+  if (d.invisible && !(type === "sniper" || type === "laser")) return false;       // Geister
+  if (d.flying && !((type === "sniper" && level >= 2) || type === "laser")) return false; // Flieger
+  if (d.metal && !(type === "rocket" || type === "laser")) return false;           // Metall
+  return true;
+}
+
 function pickTarget(tower) {
   const st = towerStats(tower);
   let best = null, bestVal = -Infinity;
   for (const e of state.enemies) {
     if (e.dead) continue;
+    if (!towerCanHit(tower.type, tower.level, e)) continue;
     const d = Math.hypot(e.x - tower.x, e.z - tower.z);
     if (d > st.range) continue;
     let val;
@@ -2574,6 +2647,38 @@ function updateTower(tower, dt) {
   const desired = Math.atan2(target.x - tower.x, target.z - tower.z);
   tower.yaw = approachAngle(tower.yaw, desired, dt * 12);
 
+  // Laserturm: erst aufladen, dann starker Strahl
+  if (def.kind === "laser") {
+    const lst = towerStats(tower);
+    const orb = tower.group.userData.chargeOrb;
+    if (tower.cooldown > 0) { tower.charge = 0; if (orb) orb.scale.setScalar(1); return; }
+    tower.charge = (tower.charge || 0) + dt / lst.charge;
+    if (orb) orb.scale.setScalar(1 + Math.min(1, tower.charge) * 1.4);  // Kristall wächst
+    if (tower.charge < 1) return;
+    tower.charge = 0;
+    tower.cooldown = 1 / lst.rate;
+    tower.flash = 0.14;
+    tower.group.userData.rotG.rotation.y = tower.yaw;
+    tower.group.updateMatrixWorld(true);
+    tower.group.userData.muzzle.getWorldPosition(_muzzlePos);
+    const tp = { x: target.x, y: 24 * target.def.scale, z: target.z };
+    damageEnemy(target, lst.dmg);
+    spawnTracer(_muzzlePos, tp, 0x67e8f9, 7);
+    spawnTracer(_muzzlePos, tp, 0xffffff, 2.5);   // heller Kern
+    burst(target.x, 24 * target.def.scale, target.z, "#a5f3fc", 10, 90, false);
+    // Durchschlag (Stufe 5): weitere treffbare Gegner in der Nähe
+    if (lst.pierce) {
+      let hit = 0;
+      for (const e of state.enemies) {
+        if (e.dead || e === target || hit >= lst.pierce) continue;
+        if (!towerCanHit("laser", tower.level, e)) continue;
+        if (Math.hypot(e.x - target.x, e.z - target.z) < 60) { damageEnemy(e, lst.dmg * 0.6); hit++; }
+      }
+    }
+    sfx("zap");
+    return;
+  }
+
   if (tower.cooldown > 0) return;
   const st = towerStats(tower);
   tower.cooldown = 1 / st.rate;
@@ -2602,7 +2707,7 @@ function updateTower(tower, dt) {
     }
   } else if (def.kind === "flame") {
     const inRange = state.enemies
-      .filter(e => !e.dead && Math.hypot(e.x - tower.x, e.z - tower.z) <= st.range)
+      .filter(e => !e.dead && towerCanHit("flame", tower.level, e) && Math.hypot(e.x - tower.x, e.z - tower.z) <= st.range)
       .sort((a, b) => Math.hypot(a.x - tower.x, a.z - tower.z) - Math.hypot(b.x - tower.x, b.z - tower.z))
       .slice(0, st.targets);
     for (const e of inRange) {
@@ -2635,7 +2740,7 @@ function updateTower(tower, dt) {
       const last = chain[chain.length - 1];
       let next = null, bestD = 110;
       for (const e of state.enemies) {
-        if (e.dead || hitSet.has(e)) continue;
+        if (e.dead || hitSet.has(e) || !towerCanHit("tesla", tower.level, e)) continue;
         const d = Math.hypot(e.x - last.x, e.z - last.z);
         if (d < bestD) { bestD = d; next = e; }
       }
@@ -2785,12 +2890,12 @@ function updateNestBullets(dt) {
     const step = SPEED * dt;
     // Treffer entlang der Flugstrecke prüfen
     for (const e of state.enemies) {
-      if (e.dead || b.hit.has(e)) continue;
+      if (e.dead || b.hit.has(e) || !towerCanHit("nest", 0, e)) continue;
       // Abstand des Gegners zur Kugel-Front
       if (Math.hypot(e.x - b.x, e.z - b.z) <= R + 10 * e.def.scale) {
         b.hit.add(e);
         damageEnemy(e, b.dmg);
-        if (b.splash) explode(e.x, e.z, Math.round(b.dmg * 0.5), b.splash);
+        if (b.splash) explode(e.x, e.z, Math.round(b.dmg * 0.5), b.splash, "nest");
         b.pierce--;
         if (b.pierce <= 0) { b.dead = true; break; }
       }
@@ -2820,7 +2925,7 @@ function updateProjectile(p, dt) {
 
   const step = p.speed * dt;
   if (d <= step + 8) {
-    explode(p.tx, p.tz, p.dmg, p.splash);
+    explode(p.tx, p.tz, p.dmg, p.splash, "rocket");
     world.remove(p.mesh);
     disposeObject(p.mesh);
     return true;
@@ -2833,11 +2938,12 @@ function updateProjectile(p, dt) {
   return false;
 }
 
-function explode(x, z, dmg, radius) {
+function explode(x, z, dmg, radius, srcType, srcLevel) {
   sfx("boom");
   state.shake = Math.max(state.shake, 0.15);
   for (const e of state.enemies) {
     if (e.dead) continue;
+    if (srcType && !towerCanHit(srcType, srcLevel || 0, e)) continue;  // Schwächen beachten
     if (Math.hypot(e.x - x, e.z - z) <= radius + 10) damageEnemy(e, dmg);
   }
   burst(x, 14, z, "#fb923c", 10, 130, false);
@@ -2862,17 +2968,22 @@ function buildWave(n) {
   }
 
   add("normal", 4 + n, Math.max(0.35, 0.9 - n * 0.012));
+  if (n >= 2)  add("slime", Math.floor(n * 0.7), 0.45);
   if (n >= 3)  add("fast", Math.floor(n * 0.8), 0.5);
   if (n >= 5)  add("heavy", Math.floor(n / 2) - 1, 1.2);
+  if (n >= 7)  add("metal", Math.floor((n - 4) / 3), 1.4);     // nur Rakete/Laser
+  if (n >= 9)  add("ghost", Math.floor((n - 6) / 4), 1.3);     // nur Sniper/Laser
+  if (n >= 11) add("flyer", Math.floor((n - 8) / 4), 1.2);     // nur Sniper(Lvl2)/Laser
   if (n >= 12) add("armored", Math.floor(n / 4), 1.6);
   if (n >= 14) add("healer", Math.floor((n - 8) / 6), 2.5);
+  if (n >= 16) add("brute", Math.floor((n - 12) / 5), 2.2);
   if (n >= 22) add("demon", Math.floor((n - 18) / 3), 2.0);
   if (n >= 15) add("fast", Math.floor(n / 2), 0.3);
   return list;
 }
 
 function hpScale(wave) {
-  return (1 + (wave - 1) * 0.09) * MAPS[state.map].hpMult * curDiff().hpMult;
+  return (1 + (wave - 1) * 0.085) * MAPS[state.map].hpMult * curDiff().hpMult;
 }
 
 function waveCompositionText(n) {
@@ -3264,7 +3375,8 @@ const _camQuat = new THREE.Quaternion();
 function syncVisuals(dtReal) {
   // Gegner-Meshes
   for (const e of state.enemies) {
-    e.group.position.set(e.x, 0, e.z);
+    const hover = e.def.flying ? 34 + Math.sin(state.time * 4 + e.walkPhase) * 4 : 0;
+    e.group.position.set(e.x, hover, e.z);
     e.figure.rotation.y = e.yaw;
     const f = e.figure.userData;
     const swing = Math.sin(e.walkPhase) * 0.7;
@@ -3585,8 +3697,19 @@ function towerStatTooltip(def) {
   if (st.splash) s += `<br>💥 Splash ${st.splash}`;
   if (st.burn) s += `<br>🔥 Brand, trifft ${st.targets}`;
   if (st.chains) s += `<br>⚡ Kette ${st.chains} Ziele`;
+  if (st.charge) s += `<br>🔆 Lädt ${st.charge}s auf`;
   if (def.cliff) s += `<br>⛰ nur auf Anhöhen`;
+  const sp = towerSpecialText(def);
+  if (sp) s += `<br><span style="color:#7ee787">★ ${sp}</span>`;
   return s;
+}
+
+// Spezial-Stärken eines Turms gegen bestimmte Gegnertypen
+function towerSpecialText(def) {
+  if (def.kind === "laser") return "Trifft ALLES – auch 🛡 Metall & 👻 Unsichtbare";
+  if (def.kind === "rocket") return "Einziger gegen 🛡 Metall-Zombies";
+  if (def.name === "Scharfschütze") return "Sieht 👻 Unsichtbare & 🦇 Flieger (ab Lvl 2)";
+  return "";
 }
 
 function refreshShop() {
@@ -3752,7 +3875,11 @@ function refreshTowerPanel() {
     if (st.splash) stats += `<br>💥 Splash-Radius: <b>${st.splash}</b>`;
     if (st.burn) stats += `<br>🔥 Brand: <b>${st.burn}/s</b> für ${st.burnDur}s<br>👥 Trifft <b>${st.targets}</b> Gegner`;
     if (st.chains) stats += `<br>⚡ Kettenblitz: <b>${st.chains}</b> Ziele`;
+    if (st.charge) stats += `<br>🔆 Aufladezeit: <b>${st.charge}s</b>`;
+    if (st.pierce) stats += `<br>🎯 Durchschlag: <b>${st.pierce}</b>`;
   }
+  const sp = towerSpecialText(def);
+  if (sp) stats += `<br><span style="color:#7ee787">★ ${sp}</span>`;
   document.getElementById("tp-stats").innerHTML = stats;
 
   const upBtn = document.getElementById("btn-upgrade");
