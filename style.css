@@ -673,16 +673,28 @@ html, body {
   text-align: center;
   pointer-events: none;
 }
-/* Fadenkreuz in der Bildmitte (Ego-Perspektive) */
+/* Fadenkreuz in der Bildmitte (Ego-Perspektive) – per CSS gezeichnet */
 #nest-crosshair {
   position: fixed;
   left: 50%; top: 50%;
   transform: translate(-50%, -50%);
-  font-size: 40px;
-  font-weight: 900;
-  color: rgba(255,80,80,0.92);
-  text-shadow: 0 0 6px #000, 0 0 3px #000;
+  width: 46px; height: 46px;
   pointer-events: none;
+  z-index: 20;
+}
+#nest-crosshair span {
+  position: absolute;
+  background: rgba(255,70,70,0.95);
+  box-shadow: 0 0 4px #000;
+}
+#nest-crosshair span:nth-child(1) { left: 50%; top: 0; width: 3px; height: 46px; transform: translateX(-50%); }
+#nest-crosshair span:nth-child(2) { top: 50%; left: 0; height: 3px; width: 46px; transform: translateY(-50%); }
+#nest-crosshair i {
+  position: absolute; left: 50%; top: 50%;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,70,70,0.95);
+  box-shadow: 0 0 5px #000;
+  transform: translate(-50%, -50%);
 }
 .nest-hint {
   background: rgba(15, 21, 40, 0.85);

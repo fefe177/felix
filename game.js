@@ -177,17 +177,17 @@ const TOWER_TYPES = {
     name: "Laserturm",
     icon: "🔆",
     color: "#06b6d4",
-    desc: "Lädt auf & feuert Laser – trifft auch Metall & Unsichtbare!",
+    desc: "Lädt auf, feuert einen Dauer-Strahl, kühlt ab – trifft auch Metall & Unsichtbare!",
     cost: 1200,
     unlockWave: 10,
     kind: "laser",
     levels: [
-      // charge = Sek. Aufladen vor dem Schuss, dmg = Schaden pro Strahl
-      { dmg: 90,   range: 230, rate: 0.9, charge: 0.8, upgradeCost: 800 },
-      { dmg: 150,  range: 245, rate: 1.0, charge: 0.7, upgradeCost: 1600 },
-      { dmg: 260,  range: 260, rate: 1.1, charge: 0.6, upgradeCost: 3200 },
-      { dmg: 430,  range: 280, rate: 1.2, charge: 0.5, upgradeCost: 6500 },
-      { dmg: 720,  range: 305, rate: 1.4, charge: 0.4, pierce: 3, upgradeCost: null },
+      // dmg = Schaden pro Sekunde im Strahl, charge = Aufladen, beamDur = Strahldauer, cool = Abkühlen
+      { dmg: 55,  range: 240, charge: 1.6, beamDur: 8,  cool: 5,   upgradeCost: 800 },
+      { dmg: 90,  range: 255, charge: 1.4, beamDur: 9,  cool: 4.5, upgradeCost: 1600 },
+      { dmg: 140, range: 270, charge: 1.2, beamDur: 10, cool: 4,   upgradeCost: 3200 },
+      { dmg: 220, range: 290, charge: 1.0, beamDur: 11, cool: 3.5, upgradeCost: 6500 },
+      { dmg: 350, range: 315, charge: 0.8, beamDur: 12, cool: 3, pierce: 3, upgradeCost: null },
     ],
   },
 };
@@ -2252,6 +2252,21 @@ function makeTowerMesh(typeKey, level) {
       gun.add(box(1.5, 1.5, 10, lambert(0x22d3ee), 4, 0, 18));
       gun.position.set(6, 28, 6); rotG.add(gun);
       muzzle = new THREE.Object3D(); muzzle.position.set(6, 28, 30); rotG.add(muzzle);
+      // Dauer-Strahl (Einheits-Box, wird zur Ziel-Distanz skaliert), folgt der Lafette
+      const beam = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.85, depthWrite: false })
+      );
+      const beamCore = new THREE.Mesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false })
+      );
+      beam.add(beamCore);
+      beam.castShadow = false; beam.visible = false;
+      beam.position.set(6, 28, 30);
+      rotG.add(beam);
+      group.userData.beam = beam;
+      group.userData.beamCore = beamCore;
 
     } else if (typeKey === "frost") {
       // Eismagier: Robe + Spitzhut + Stab (kein Soldat)
@@ -2761,6 +2776,85 @@ function pickTarget(tower) {
   return best;
 }
 
+// Laser-Strahl ein/aus + auf Ziel-Distanz strecken (Box-Strahl, folgt der Lafette)
+function setLaserBeam(tower, on, dist) {
+  const beam = tower.group.userData.beam, core = tower.group.userData.beamCore;
+  if (!beam) return;
+  beam.visible = on;
+  if (on) {
+    const len = Math.max(10, dist);
+    beam.scale.set(3.5, 3.5, len);
+    beam.position.set(6, 28, 30 + len / 2);
+    beam.material.opacity = 0.55 + Math.random() * 0.35;   // leichtes Flackern
+    if (core) core.scale.set(0.4, 0.4, 1);                  // heller Kern (relativ)
+  }
+}
+
+// Laserturm: Aufladen → Dauer-Strahl (~beamDur Sek.) → Abkühlen
+function updateLaser(tower, dt) {
+  const st = towerStats(tower);
+  const orb = tower.group.userData.chargeOrb;
+  tower.laserPhase = tower.laserPhase || "idle";
+  tower.laserTimer = (tower.laserTimer || 0) - dt;
+
+  // Zielen + Ziel halten
+  let target = tower.beamTarget;
+  if (!target || target.dead || Math.hypot(target.x - tower.x, target.z - tower.z) > st.range || !towerCanHit("laser", tower.level, target)) {
+    target = pickTarget(tower);
+    tower.beamTarget = target;
+  }
+  if (target) {
+    const desired = Math.atan2(target.x - tower.x, target.z - tower.z);
+    tower.yaw = approachAngle(tower.yaw, desired, dt * 9);
+    tower.group.userData.rotG.rotation.y = tower.yaw;
+  } else {
+    tower.yaw += dt * 0.4;
+    tower.group.userData.rotG.rotation.y = tower.yaw;
+  }
+
+  if (tower.laserPhase === "idle") {
+    setLaserBeam(tower, false);
+    if (orb) orb.scale.setScalar(1);
+    if (target) { tower.laserPhase = "charge"; tower.laserTimer = st.charge; }
+    return;
+  }
+
+  if (tower.laserPhase === "charge") {
+    setLaserBeam(tower, false);
+    if (!target) { tower.laserPhase = "idle"; if (orb) orb.scale.setScalar(1); return; }
+    const p = 1 - Math.max(0, tower.laserTimer) / st.charge;       // 0→1
+    if (orb) orb.scale.setScalar(1 + p * 1.8);
+    if (tower.laserTimer <= 0) { tower.laserPhase = "fire"; tower.laserTimer = st.beamDur; sfx("zap"); }
+    return;
+  }
+
+  if (tower.laserPhase === "fire") {
+    if (orb) orb.scale.setScalar(2.6 + Math.sin(state.time * 30) * 0.4);
+    if (!target) { tower.laserPhase = "cool"; tower.laserTimer = st.cool; setLaserBeam(tower, false); return; }
+    const dist = Math.hypot(target.x - tower.x, target.z - tower.z) + 20;
+    setLaserBeam(tower, true, dist);
+    // Dauerschaden pro Sekunde auf das Ziel (+ Durchschlag)
+    damageEnemy(target, st.dmg * dt);
+    if (st.pierce) {
+      let hit = 0;
+      for (const e of state.enemies) {
+        if (e.dead || e === target || hit >= st.pierce || !towerCanHit("laser", tower.level, e)) continue;
+        if (Math.hypot(e.x - target.x, e.z - target.z) < 55) { damageEnemy(e, st.dmg * 0.5 * dt); hit++; }
+      }
+    }
+    if (Math.random() < dt * 14) burst(target.x, 24 * target.def.scale, target.z, "#a5f3fc", 3, 70, false);
+    if (tower.laserTimer <= 0) { tower.laserPhase = "cool"; tower.laserTimer = st.cool; setLaserBeam(tower, false); }
+    return;
+  }
+
+  if (tower.laserPhase === "cool") {
+    setLaserBeam(tower, false);
+    if (orb) orb.scale.setScalar(Math.max(1, 2.6 * Math.max(0, tower.laserTimer) / st.cool));
+    if (tower.laserTimer <= 0) tower.laserPhase = "idle";
+    return;
+  }
+}
+
 const _muzzlePos = new THREE.Vector3();
 function updateTower(tower, dt) {
   const def = TOWER_TYPES[tower.type];
@@ -2773,8 +2867,12 @@ function updateTower(tower, dt) {
   // Geblendet durch Schattenfürst-Boss: Türme können nicht zielen/schießen
   if (state.time < state.blindUntil) {
     tower.yaw += dt * 0.4;
+    if (def.kind === "laser") setLaserBeam(tower, false);
     return;
   }
+
+  // Laserturm hat eine eigene Phasen-Logik (Aufladen → Dauer-Strahl → Abkühlen)
+  if (def.kind === "laser") { updateLaser(tower, dt); return; }
 
   const target = pickTarget(tower);
   if (!target) {
@@ -2784,38 +2882,6 @@ function updateTower(tower, dt) {
 
   const desired = Math.atan2(target.x - tower.x, target.z - tower.z);
   tower.yaw = approachAngle(tower.yaw, desired, dt * 12);
-
-  // Laserturm: erst aufladen, dann starker Strahl
-  if (def.kind === "laser") {
-    const lst = towerStats(tower);
-    const orb = tower.group.userData.chargeOrb;
-    if (tower.cooldown > 0) { tower.charge = 0; if (orb) orb.scale.setScalar(1); return; }
-    tower.charge = (tower.charge || 0) + dt / lst.charge;
-    if (orb) orb.scale.setScalar(1 + Math.min(1, tower.charge) * 1.4);  // Kristall wächst
-    if (tower.charge < 1) return;
-    tower.charge = 0;
-    tower.cooldown = 1 / lst.rate;
-    tower.flash = 0.14;
-    tower.group.userData.rotG.rotation.y = tower.yaw;
-    tower.group.updateMatrixWorld(true);
-    tower.group.userData.muzzle.getWorldPosition(_muzzlePos);
-    const tp = { x: target.x, y: 24 * target.def.scale, z: target.z };
-    damageEnemy(target, lst.dmg);
-    spawnTracer(_muzzlePos, tp, 0x67e8f9, 7);
-    spawnTracer(_muzzlePos, tp, 0xffffff, 2.5);   // heller Kern
-    burst(target.x, 24 * target.def.scale, target.z, "#a5f3fc", 10, 90, false);
-    // Durchschlag (Stufe 5): weitere treffbare Gegner in der Nähe
-    if (lst.pierce) {
-      let hit = 0;
-      for (const e of state.enemies) {
-        if (e.dead || e === target || hit >= lst.pierce) continue;
-        if (!towerCanHit("laser", tower.level, e)) continue;
-        if (Math.hypot(e.x - target.x, e.z - target.z) < 60) { damageEnemy(e, lst.dmg * 0.6); hit++; }
-      }
-    }
-    sfx("zap");
-    return;
-  }
 
   if (tower.cooldown > 0) return;
   const st = towerStats(tower);
@@ -2937,6 +3003,9 @@ function enterNest(tower) {
   tower.aimYaw = Math.atan2(W / 2 - tower.x, D / 2 - tower.z);
   tower.aimPitch = 0.28;             // flacher Blick übers Feld
   document.getElementById("nest-hud").classList.remove("hidden");
+  // Mauszeiger ausblenden + Maus einfangen (echtes Zielen)
+  renderer.domElement.style.cursor = "none";
+  try { renderer.domElement.requestPointerLock(); } catch (e) {}
   centerText("🪖 Minigun-Sicht! Maus bewegen = zielen, Halten = feuern, E = aussteigen", "#facc15");
   sfx("place");
 }
@@ -2951,6 +3020,9 @@ function exitNest() {
   state.nest = null;
   controls.enabled = (state.mode === "game");
   document.getElementById("nest-hud").classList.add("hidden");
+  // Mauszeiger wieder anzeigen + Maus freigeben
+  renderer.domElement.style.cursor = "";
+  try { if (document.pointerLockElement) document.exitPointerLock(); } catch (e) {}
   // Kamera zurück in die Bau-Ansicht
   if (state.mode === "game") {
     camera.position.copy(CAM_HOME.pos);
@@ -3872,12 +3944,17 @@ function updateMiniModels(dtReal) {
 function towerStatTooltip(def) {
   const st = def.levels[0];
   if (def.kind === "farm") return `💰 Einkommen: <b>${st.income}</b>/Welle`;
-  let s = `⚔️ Schaden <b>${st.dmg}</b> · 📏 Reichw. <b>${st.range}</b> · ⏱️ <b>${st.rate}/s</b>`;
-  if (st.slow) s += `<br>❄️ −${Math.round(st.slow * 100)}% Tempo`;
-  if (st.splash) s += `<br>💥 Splash ${st.splash}`;
-  if (st.burn) s += `<br>🔥 Brand, trifft ${st.targets}`;
-  if (st.chains) s += `<br>⚡ Kette ${st.chains} Ziele`;
-  if (st.charge) s += `<br>🔆 Lädt ${st.charge}s auf`;
+  let s;
+  if (def.kind === "laser") {
+    s = `🔆 Strahl-Schaden <b>${st.dmg}</b>/s · 📏 Reichw. <b>${st.range}</b>`;
+    s += `<br>⏳ Lädt ${st.charge}s · ☄️ Strahl ${st.beamDur}s · ❄️ Abkühlen ${st.cool}s`;
+  } else {
+    s = `⚔️ Schaden <b>${st.dmg}</b> · 📏 Reichw. <b>${st.range}</b> · ⏱️ <b>${st.rate}/s</b>`;
+    if (st.slow) s += `<br>❄️ −${Math.round(st.slow * 100)}% Tempo`;
+    if (st.splash) s += `<br>💥 Splash ${st.splash}`;
+    if (st.burn) s += `<br>🔥 Brand, trifft ${st.targets}`;
+    if (st.chains) s += `<br>⚡ Kette ${st.chains} Ziele`;
+  }
   if (def.cliff) s += `<br>⛰ nur auf Anhöhen`;
   const sp = towerSpecialText(def);
   if (sp) s += `<br><span style="color:#7ee787">★ ${sp}</span>`;
@@ -4049,6 +4126,9 @@ function refreshTowerPanel() {
     stats = `⚔️ Schaden: <b>${st.dmg}</b>/Schuss<br>📏 Reichweite: <b>${st.range}</b><br>⏱️ Feuerrate: <b>${st.rate}/s</b> (max)<br>🎯 Durchschlag: <b>${st.pierce}</b> Gegner<br>🌀 Hochlauf: <b>${st.spinUp}s</b><br>🔥 Überhitzung: <b>${st.overheatLock}s</b> Pause`;
     if (st.splash) stats += `<br>💥 Splash: <b>${st.splash}</b>`;
     stats += `<br><span style="color:#facc15">🪖 Klick/E = einsteigen</span>`;
+  } else if (def.kind === "laser") {
+    stats = `🔆 Strahl-Schaden: <b>${st.dmg}</b>/Sek.<br>📏 Reichweite: <b>${st.range}</b><br>⏳ Aufladen: <b>${st.charge}s</b><br>☄️ Strahldauer: <b>${st.beamDur}s</b><br>❄️ Abkühlen: <b>${st.cool}s</b>`;
+    if (st.pierce) stats += `<br>🎯 Durchschlag: <b>${st.pierce}</b>`;
   } else {
     stats = `⚔️ Schaden: <b>${st.dmg}</b><br>📏 Reichweite: <b>${st.range}</b><br>⏱️ Feuerrate: <b>${st.rate}/s</b>`;
     if (st.slow) stats += `<br>❄️ Verlangsamung: <b>${Math.round(st.slow * 100)}%</b> für ${st.slowDur}s`;
@@ -4499,6 +4579,10 @@ renderer.domElement.addEventListener("pointermove", (ev) => {
 });
 renderer.domElement.addEventListener("pointerleave", () => { state.hoverPoint = null; });
 renderer.domElement.addEventListener("contextmenu", (ev) => { if (state.nest) ev.preventDefault(); });
+// Verlässt der Pointer-Lock (z.B. ESC), Geschütz verlassen
+document.addEventListener("pointerlockchange", () => {
+  if (state.nest && !document.pointerLockElement) exitNest();
+});
 
 let downPos = null;
 renderer.domElement.addEventListener("pointerdown", (ev) => {
