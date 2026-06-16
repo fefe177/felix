@@ -2252,21 +2252,22 @@ function makeTowerMesh(typeKey, level) {
       gun.add(box(1.5, 1.5, 10, lambert(0x22d3ee), 4, 0, 18));
       gun.position.set(6, 28, 6); rotG.add(gun);
       muzzle = new THREE.Object3D(); muzzle.position.set(6, 28, 30); rotG.add(muzzle);
-      // Dauer-Strahl (Einheits-Box, wird zur Ziel-Distanz skaliert), folgt der Lafette
-      const beam = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.85, depthWrite: false })
-      );
-      const beamCore = new THREE.Mesh(
-        new THREE.BoxGeometry(1, 1, 1),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthWrite: false })
-      );
-      beam.add(beamCore);
-      beam.castShadow = false; beam.visible = false;
+      // Dauer-Strahl aus einzelnen Block-Würfeln (Voxel-Stil)
+      const beam = new THREE.Group();
       beam.position.set(6, 28, 30);
+      const beamBlockGeo = new THREE.BoxGeometry(6, 6, 6);
+      const beamBlocks = [];
+      for (let i = 0; i < 60; i++) {
+        const m = new THREE.Mesh(beamBlockGeo, new THREE.MeshBasicMaterial({
+          color: i % 3 === 0 ? 0xffffff : 0x67e8f9, transparent: true, opacity: 0.9, depthWrite: false
+        }));
+        m.visible = false; m.castShadow = false;
+        beam.add(m); beamBlocks.push(m);
+      }
+      beam.visible = false;
       rotG.add(beam);
       group.userData.beam = beam;
-      group.userData.beamCore = beamCore;
+      group.userData.beamBlocks = beamBlocks;
 
     } else if (typeKey === "frost") {
       // Eismagier: Robe + Spitzhut + Stab (kein Soldat)
@@ -2776,17 +2777,27 @@ function pickTarget(tower) {
   return best;
 }
 
-// Laser-Strahl ein/aus + auf Ziel-Distanz strecken (Box-Strahl, folgt der Lafette)
+// Laser-Strahl ein/aus – Reihe von Block-Würfeln vom Geschütz zum Ziel
 function setLaserBeam(tower, on, dist) {
-  const beam = tower.group.userData.beam, core = tower.group.userData.beamCore;
+  const beam = tower.group.userData.beam, blocks = tower.group.userData.beamBlocks;
   if (!beam) return;
   beam.visible = on;
-  if (on) {
-    const len = Math.max(10, dist);
-    beam.scale.set(3.5, 3.5, len);
-    beam.position.set(6, 28, 30 + len / 2);
-    beam.material.opacity = 0.55 + Math.random() * 0.35;   // leichtes Flackern
-    if (core) core.scale.set(0.4, 0.4, 1);                  // heller Kern (relativ)
+  if (!on) return;
+  const spacing = 7;
+  const len = Math.max(10, dist);
+  const n = Math.min(blocks.length, Math.floor(len / spacing));
+  for (let i = 0; i < blocks.length; i++) {
+    const m = blocks[i];
+    if (i < n) {
+      m.visible = true;
+      m.position.z = i * spacing;
+      const s = 0.8 + Math.random() * 0.5;              // leichtes Flackern/Pulsieren
+      m.scale.setScalar(s);
+      m.rotation.set(Math.random() * 0.4, i * 0.5, Math.random() * 0.4);
+      m.material.opacity = 0.7 + Math.random() * 0.3;
+    } else {
+      m.visible = false;
+    }
   }
 }
 
