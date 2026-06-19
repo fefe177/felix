@@ -286,13 +286,24 @@ function curDiff() {
 
 /* ---------------- Spielmodi (horizontale Auswahl wie TDS) ---------------- */
 const GAME_MODES = [
-  { id: "normal",   name: "Überleben",     icon: "🛡", sub: "40 Wellen verteidigen" },
-  { id: "bossrush", name: "Boss Rush",     icon: "👹", sub: "Nur Bosse, alle 60s einer", lockedFn: () => !isBossRushUnlocked(), lockedSub: "Gewinne eine ⭐⭐⭐-Karte!" },
-  { id: "hardcore", name: "Hardcore",      icon: "🔥", sub: "Bald verfügbar", locked: true },
-  { id: "pvp",      name: "PVP",           icon: "⚔️", sub: "Bald verfügbar", locked: true },
-  { id: "special",  name: "Spezielle Modi", icon: "✨", sub: "Bald verfügbar", locked: true },
-  { id: "sandbox",  name: "Sandkiste",     icon: "🧰", sub: "Bald verfügbar", locked: true },
+  { id: "normal",   name: "Überleben",  icon: "🛡", sub: "40 Wellen verteidigen" },
+  { id: "endless",  name: "Endlos",     icon: "♾️", sub: "Endlose Wellen – wie weit kommst du?" },
+  { id: "hardcore", name: "Hardcore",   icon: "🔥", sub: "Härtere Gegner, wenig Leben" },
+  { id: "sandbox",  name: "Sandkiste",  icon: "🧰", sub: "Unbegrenzt Geld, kein Verlieren" },
+  { id: "bossrush", name: "Boss Rush",  icon: "👹", sub: "Nur Bosse, alle 60s einer", lockedFn: () => !isBossRushUnlocked(), lockedSub: "Gewinne eine ⭐⭐⭐-Karte!" },
+  { id: "pvp",      name: "PVP",        icon: "⚔️", sub: "Bald verfügbar", locked: true },
+  { id: "koop",     name: "Koop",       icon: "🤝", sub: "Bald verfügbar", locked: true },
 ];
+
+// Verhaltens-Konfiguration je Modus
+const MODE_CFG = {
+  normal:   {},
+  endless:  { endless: true },
+  hardcore: { hpBoost: 1.45, lifeMult: 0.4, rewardBoost: 1.5 },
+  sandbox:  { sandbox: true, endless: true },
+  bossrush: {},
+};
+function modeCfg() { return MODE_CFG[state.gameMode] || {}; }
 
 // Pfad-Kacheln aus Wegpunkten berechnen
 function computePathTiles(waypoints) {
@@ -3234,7 +3245,12 @@ function buildWave(n) {
 }
 
 function hpScale(wave) {
-  return (1 + (wave - 1) * 0.085) * MAPS[state.map].hpMult * curDiff().hpMult;
+  return (1 + (wave - 1) * 0.085) * MAPS[state.map].hpMult * curDiff().hpMult * (modeCfg().hpBoost || 1);
+}
+
+// Turm im aktuellen Modus freigeschaltet? (Sandkiste: alles frei)
+function towerUnlocked(def) {
+  return modeCfg().sandbox || state.wave >= def.unlockWave;
 }
 
 function waveCompositionText(n) {
@@ -3324,7 +3340,7 @@ function finishWave() {
   state.cash += bonus;
   centerText(`Welle ${state.wave} geschafft! +${bonus}💰`, "#ffd24a");
   sfx("cash");
-  addCoins(Math.round(3 * curDiff().rewardMult)); // Münzen (mehr bei höherer Schwierigkeit)
+  addCoins(Math.round(3 * curDiff().rewardMult * (modeCfg().rewardBoost || 1))); // Münzen
 
   let hadFarm = false;
   for (const t of state.towers) {
@@ -3337,7 +3353,8 @@ function finishWave() {
   }
   if (hadFarm) sfx("coin");
 
-  if (state.wave >= MAX_WAVE) {
+  // Endlos/Sandkiste: nie gewinnen, immer weiter; sonst Sieg bei Welle 40
+  if (!modeCfg().endless && state.wave >= MAX_WAVE) {
     win();
     return;
   }
@@ -3349,6 +3366,7 @@ function finishWave() {
 }
 
 function gameOver() {
+  if (modeCfg().sandbox) { state.lives = state.maxLives; return; }  // Sandkiste verliert nie
   state.running = false;
   sfx("lose");
 
@@ -3364,12 +3382,13 @@ function gameOver() {
     return;
   }
 
-  const coins = Math.round(state.wave * 2 * curDiff().rewardMult);
+  const coins = Math.round(state.wave * 2 * curDiff().rewardMult * (modeCfg().rewardBoost || 1));
   addCoins(coins);
-  const isNew = saveRecord(state.map, state.wave);
+  const isNew = saveRecord(state.map + "_" + state.gameMode, state.wave);
+  const modeName = (GAME_MODES.find(m => m.id === state.gameMode) || {}).name || "";
   document.getElementById("go-wave").textContent = state.wave;
   document.getElementById("go-highscore").textContent =
-    (isNew ? `🏆 NEUER REKORD auf ${MAPS[state.map].name}! ` : `💀 ${state.kills} Gegner besiegt. `) + `🪙 +${coins} Münzen`;
+    (isNew ? `🏆 NEUER REKORD (${modeName})! ` : `💀 ${state.kills} Gegner besiegt. `) + `🪙 +${coins} Münzen`;
   document.getElementById("gameover-overlay").classList.remove("hidden");
 }
 
@@ -3429,10 +3448,12 @@ function resetGame() {
   state.walking = false;
   if (gamePlayer.group) gamePlayer.group.visible = false;
   document.getElementById("btn-walk").classList.remove("active");
-  // Boss Rush startet mit mehr Geld, da keine normalen Wellen
-  state.cash = state.gameMode === "bossrush" ? 1500 : START_CASH;
-  state.lives = curDiff().lives;   // Leben hängen von der Schwierigkeit ab
-  state.maxLives = curDiff().lives;
+  const cfg = modeCfg();
+  // Startgeld/Leben je Modus
+  state.cash = cfg.sandbox ? 999999 : state.gameMode === "bossrush" ? 1500 : START_CASH;
+  const baseLives = cfg.sandbox ? 99999 : Math.round(curDiff().lives * (cfg.lifeMult || 1));
+  state.lives = baseLives;
+  state.maxLives = baseLives;
   state.wave = 1;
   state.kills = 0;
   state.bossRush = null;
@@ -3832,7 +3853,7 @@ function updateHUD() {
   document.getElementById("cash").textContent = Math.floor(state.cash);
   document.getElementById("lives").textContent = Math.max(0, state.lives);
   document.getElementById("wave").textContent = state.wave;
-  document.getElementById("maxwave").textContent = MAX_WAVE;
+  document.getElementById("maxwave").textContent = modeCfg().endless ? "∞" : MAX_WAVE;
   document.getElementById("kills").textContent = state.kills;
 
   // Großer Basis-Lebensbalken oben
@@ -3885,7 +3906,7 @@ function updateHUD() {
   for (const [key, def] of Object.entries(TOWER_TYPES)) {
     const card = document.getElementById("card-" + key);
     if (!card) continue;
-    const locked = state.wave < def.unlockWave;
+    const locked = !towerUnlocked(def);
     card.classList.toggle("locked", locked);
     const costEl = card.querySelector(".shop-cost");
     costEl.style.color = state.cash >= def.cost && !locked ? "#7ee787" : "#f87171";
@@ -3999,7 +4020,7 @@ function refreshShop() {
         <div class="shop-cost">$${def.cost}</div>`;
       card.addEventListener("click", () => {
         ensureAudio();
-        if (state.wave < def.unlockWave) {
+        if (!towerUnlocked(def)) {
           centerText(`${def.name} ab Welle ${def.unlockWave}!`, "#f87171");
           return;
         }
@@ -4024,7 +4045,7 @@ function refreshShop() {
   for (const [key, def] of Object.entries(TOWER_TYPES)) {
     const card = document.getElementById("card-" + key);
     const descEl = card.querySelector(".shop-desc");
-    descEl.textContent = state.wave < def.unlockWave ? `🔒 Ab Welle ${def.unlockWave}` : def.desc;
+    descEl.textContent = !towerUnlocked(def) ? `🔒 Ab Welle ${def.unlockWave}` : def.desc;
   }
   refreshShopSelection();
   updateHUD();
@@ -4057,7 +4078,7 @@ function refreshShopSelection() {
     else card.style.boxShadow = "";
     // Nicht leistbar / gesperrt ausgrauen
     const placed = def.unique && state.towers.some(t => t.type === key); // schon gebaut?
-    const locked = state.wave < def.unlockWave || placed;
+    const locked = !towerUnlocked(def) || placed;
     const poor = state.cash < def.cost;
     card.classList.toggle("locked", locked);
     card.classList.toggle("poor", poor && !locked);
