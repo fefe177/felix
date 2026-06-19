@@ -1,0 +1,50 @@
+{
+  "name": "blox-tower-defense-3d",
+  "version": "1.0.0",
+  "description": "Tower-Defense-Spiel im Roblox-Stil – als Desktop-App (Electron)",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "electron .",
+    "exe": "electron-builder --win portable",
+    "build:win": "electron-builder --win portable",
+    "build:win-installer": "electron-builder --win nsis",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux AppImage"
+  },
+  "author": "Felix",
+  "license": "MIT",
+  "build": {
+    "appId": "eu.bieder.bloxtd3d",
+    "productName": "Blox Tower Defense 3D",
+    "files": [
+      "index.html",
+      "style.css",
+      "game.js",
+      "electron-main.js",
+      "vendor/**/*",
+      "icon.png",
+      "icon.ico"
+    ],
+    "win": {
+      "icon": "icon.ico",
+      "target": ["portable"]
+    },
+    "portable": {
+      "artifactName": "Blox Tower Defense 3D.exe"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "artifactName": "Blox Tower Defense 3D Setup.exe",
+      "shortcutName": "Blox Tower Defense 3D"
+    },
+    "mac": { "icon": "icon.png", "target": ["dmg"] },
+    "linux": { "icon": "icon.png", "target": ["AppImage"], "category": "Game" },
+    "directories": { "output": "dist" }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^26.15.3",
+    "png-to-ico": "^3.0.1"
+  }
+}

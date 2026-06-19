@@ -1,0 +1,51 @@
+name: Windows-App bauen
+
+# Baut die fertige "Blox Tower Defense 3D.exe" automatisch auf GitHub
+# und stellt sie zum Download bereit.
+
+on:
+  push:
+    branches: ["**"]          # bei jedem Push
+    tags: ["v*"]
+  workflow_dispatch: {}        # oder manuell per Knopf im "Actions"-Tab
+
+permissions:
+  contents: write              # nötig, um die EXE als Release hochzuladen
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Code holen
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Abhängigkeiten installieren
+        run: npm install
+
+      - name: Portable EXE bauen
+        run: npm run build:win
+
+      # 1) Als Build-Artefakt (im "Actions"-Tab herunterladbar)
+      - name: EXE als Artefakt hochladen
+        uses: actions/upload-artifact@v4
+        with:
+          name: Blox-Tower-Defense-3D-Windows
+          path: dist/*.exe
+
+      # 2) Als dauerhafter Download unter "Releases" (Tag "latest")
+      - name: EXE als Release veröffentlichen
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Blox Tower Defense 3D (neueste Version)
+          body: |
+            Fertige Windows-App – einfach herunterladen und doppelklicken.
+            Kein Node.js und kein Browser nötig.
+          files: dist/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

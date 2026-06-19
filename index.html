@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blox Tower Defense 3D</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="game-container">
+  <div id="canvas-wrap">
+      <div id="game3d"></div>
+      <div id="fx-layer"></div>
+
+      <!-- ===================== MODERNES HUD ===================== -->
+      <div id="hud">
+        <!-- Oben Mitte: Basis-Lebensbalken + Wellen-Info -->
+        <div id="hud-top">
+          <div id="hud-hp" title="Basis-Leben">
+            <div id="hud-hp-fill"></div>
+            <div id="hud-hp-text">❤️ <span id="lives">100</span></div>
+          </div>
+          <div id="hud-wave-panel">
+            <div id="hud-wave">🌊 WELLE <span id="wave">1</span> / <span id="maxwave">40</span></div>
+            <div id="wave-preview"></div>
+          </div>
+        </div>
+
+        <!-- Oben rechts: Einstellungen + Steuerung -->
+        <div id="hud-topright">
+          <button id="btn-settings-hud" class="hud-btn hud-btn-gear" title="Einstellungen">⚙</button>
+          <button id="btn-speed" class="hud-btn" title="Geschwindigkeit">⏩ 1x</button>
+          <button id="btn-pause" class="hud-btn" title="Pause">⏸</button>
+          <button id="btn-walk" class="hud-btn" title="Charakter laufen (WASD)">🚶</button>
+          <button id="btn-sound" class="hud-btn" title="Soundeffekte">🔊</button>
+          <button id="btn-music" class="hud-btn" title="Musik">🎵</button>
+          <button id="btn-cam" class="hud-btn" title="Kamera zurücksetzen">📷</button>
+          <button id="btn-fullscreen" class="hud-btn" title="Vollbild">⛶</button>
+        </div>
+
+        <!-- Oben links: Kills -->
+        <div id="hud-kills" title="Besiegte Gegner">💀 <span id="kills">0</span></div>
+
+        <!-- Unten Mitte: Turm-Hotbar -->
+        <div id="hud-hotbar">
+          <div id="shop"></div>
+        </div>
+
+        <!-- Unten rechts: Geld + Wellen-Start -->
+        <div id="hud-bottomright">
+          <div id="hud-cash"><span class="cash-ico">💰</span> <span id="cash">0</span></div>
+          <button id="btn-start" class="btn-action">▶ WELLE STARTEN</button>
+          <label class="auto-label"><input type="checkbox" id="chk-auto"> Auto-Wellen</label>
+        </div>
+
+        <!-- Turm-Panel (schwebt, wenn ein Turm gewählt ist) -->
+        <div id="tower-panel" class="hidden">
+          <div class="panel-title" id="tp-name">Turm</div>
+          <div class="panel-level" id="tp-level">Level 1</div>
+          <canvas id="tp-canvas" width="128" height="128"></canvas>
+          <div class="panel-stats" id="tp-stats"></div>
+          <button id="btn-upgrade" class="btn btn-green btn-wide">🆙 Upgrade</button>
+          <button id="btn-target" class="btn btn-wide">🎯 Ziel: Erster</button>
+          <button id="btn-sell" class="btn btn-red btn-wide">💸 Verkaufen</button>
+        </div>
+        <div id="shop-tooltip"></div>
+      </div>
+
+      <!-- Minigun-Nest HUD (beim Bedienen) -->
+      <div id="nest-hud" class="hidden">
+        <div id="nest-crosshair"><span></span><span></span><i></i></div>
+        <div class="nest-hint">🪖 <b>Maus bewegen</b> = zielen · <b>Halten</b> = feuern · <b>E</b>/Rechtsklick = aussteigen</div>
+        <div class="nest-heat-wrap">🔥 <div class="nest-heat-bar"><div id="nest-heat-fill"></div></div> <span id="nest-heat-txt"></span></div>
+      </div>
+
+      <!-- Wellen-Banner -->
+      <div id="wave-banner" class="hidden"></div>
+
+      <!-- Menü-Knopf in der Lobby -->
+      <div id="lobby-ui" class="hidden">
+        <button id="btn-menu-from-lobby" class="btn">📋 MENÜ</button>
+      </div>
+
+      <!-- ========== HAUPTMENÜ ========== -->
+      <div id="menu-overlay" class="overlay">
+        <div class="overlay-box menu-box">
+          <h1>🏰 BLOX TOWER DEFENSE 3D</h1>
+          <p class="small" id="menu-info"></p>
+          <button id="btn-spielen" class="btn btn-huge btn-green">🎮 SPIELEN</button>
+          <div class="btn-row">
+            <button id="btn-shop-open" class="btn">🏪 Shop</button>
+            <button id="btn-settings-open" class="btn">⚙ Einstellungen</button>
+            <button id="btn-records-open" class="btn">🏆 Rekorde</button>
+          </div>
+          <button id="btn-lobby" class="btn btn-small-extra">🌀 3D-Lobby erkunden</button>
+        </div>
+      </div>
+
+      <!-- ========== SPIELMODUS AUSWÄHLEN ========== -->
+      <div id="mode-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window pixel-wide">
+          <div class="pixel-title">
+            <span>WÄHLE EINEN SPIELMODUS</span>
+            <button class="pixel-close" data-close="mode-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div id="mode-row" class="card-row"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== KARTE AUSWÄHLEN ========== -->
+      <div id="map-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window pixel-wide">
+          <div class="pixel-title">
+            <button class="pixel-back" data-back="map-overlay">⬅</button>
+            <span>KARTE AUSWÄHLEN</span>
+            <button class="pixel-close" data-close="map-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div id="map-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== KARTEN-DETAIL ========== -->
+      <div id="mapinfo-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window">
+          <div class="pixel-title">
+            <button class="pixel-back" data-back="mapinfo-overlay">⬅</button>
+            <span id="mi-name">Karte</span>
+            <button class="pixel-close" data-close="mapinfo-overlay">✕</button>
+          </div>
+          <div class="pixel-body" style="text-align:center">
+            <canvas id="mi-preview" width="400" height="260"></canvas>
+            <div id="mi-stats"></div>
+            <div class="btn-row">
+              <button id="btn-start-map" class="btn btn-big btn-green">WEITER ▶</button>
+              <button id="btn-back-map" class="btn btn-big">⬅ ZURÜCK</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== SCHWIERIGKEIT AUSWÄHLEN ========== -->
+      <div id="diff-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window pixel-wide">
+          <div class="pixel-title">
+            <button class="pixel-back" data-back="diff-overlay">⬅</button>
+            <span>WÄHLE EINE SCHWIERIGKEIT</span>
+            <button class="pixel-close" data-close="diff-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div id="diff-row" class="card-row"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== SHOP ========== -->
+      <div id="shopwin-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window pixel-wide">
+          <div class="pixel-title">
+            <span>🏪 SHOP – SKINS</span>
+            <button class="pixel-close" data-close="shopwin-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div class="coins-line">🪙 Münzen: <b id="shop-coins">0</b> <span class="small-note">(verdiene Münzen durch Wellen &amp; Siege!)</span></div>
+            <div id="skin-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== EINSTELLUNGEN ========== -->
+      <div id="settings-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window">
+          <div class="pixel-title">
+            <span>⚙ EINSTELLUNGEN</span>
+            <button class="pixel-close" data-close="settings-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <label class="setting-row"><span>🖥 Hohe Grafik (mehr Pixel)</span><input type="checkbox" id="set-hires"></label>
+            <label class="setting-row"><span>✨ Ray-Tracing-Wasser (Spiegelungen)</span><input type="checkbox" id="set-rt"></label>
+            <label class="setting-row"><span>🔊 Soundeffekte</span><input type="checkbox" id="set-sound"></label>
+            <label class="setting-row slider-row"><span>🔊 Effekt-Lautstärke</span><input type="range" id="set-volsfx" min="0" max="100"></label>
+            <label class="setting-row"><span>🎵 Musik</span><input type="checkbox" id="set-music"></label>
+            <label class="setting-row slider-row"><span>🎵 Musik-Lautstärke</span><input type="range" id="set-volmusic" min="0" max="100"></label>
+            <label class="setting-row"><span>🌗 Schatten</span><input type="checkbox" id="set-shadows"></label>
+            <label class="setting-row"><span>🔢 Schadenszahlen</span><input type="checkbox" id="set-dmg"></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== REKORDE ========== -->
+      <div id="records-overlay" class="overlay pixel-overlay hidden">
+        <div class="pixel-window">
+          <div class="pixel-title">
+            <span>🏆 REKORDE</span>
+            <button class="pixel-close" data-close="records-overlay">✕</button>
+          </div>
+          <div class="pixel-body">
+            <div id="records-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========== LADEBILDSCHIRM ========== -->
+      <div id="loading-overlay" class="overlay hidden">
+        <div class="loading-box">
+          <div class="loading-title">Lade Karte…</div>
+          <div id="loading-map"></div>
+          <div class="loading-bar"><div class="loading-fill" id="loading-fill"></div></div>
+        </div>
+      </div>
+
+      <!-- Game Over -->
+      <div id="gameover-overlay" class="overlay hidden">
+        <div class="overlay-box">
+          <h1>💀 GAME OVER</h1>
+          <p>Du hast es bis Welle <span id="go-wave">1</span> geschafft!</p>
+          <p class="small" id="go-highscore"></p>
+          <div class="btn-row">
+            <button id="btn-retry" class="btn btn-big btn-green">NOCHMAL</button>
+            <button id="btn-menu-go" class="btn btn-big">📋 MENÜ</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sieg -->
+      <div id="win-overlay" class="overlay hidden">
+        <div class="overlay-box">
+          <h1>🏆 SIEG!</h1>
+          <p>Du hast alle 40 Wellen überlebt! Deine Basis ist sicher!</p>
+          <p class="small" id="win-info"></p>
+          <div class="btn-row">
+            <button id="btn-again" class="btn btn-big btn-green">NOCHMAL SPIELEN</button>
+            <button id="btn-menu-win" class="btn btn-big">📋 MENÜ</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script src="vendor/Reflector.js"></script>
+<script src="vendor/BufferGeometryUtils.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
