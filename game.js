@@ -288,7 +288,9 @@ function curDiff() {
 const GAME_MODES = [
   { id: "normal",   name: "Überleben",  icon: "🛡", sub: "40 Wellen verteidigen" },
   { id: "endless",  name: "Endlos",     icon: "♾️", sub: "Endlose Wellen – wie weit kommst du?" },
+  { id: "rush",     name: "Zeitansturm", icon: "⏱️", sub: "Schnelle Wellen ohne Pause!" },
   { id: "hardcore", name: "Hardcore",   icon: "🔥", sub: "Härtere Gegner, wenig Leben" },
+  { id: "nightmare", name: "Albtraum",  icon: "💀", sub: "Extrem schwer & endlos", lockedFn: () => !isBossRushUnlocked(), lockedSub: "Gewinne eine ⭐⭐⭐-Karte!" },
   { id: "sandbox",  name: "Sandkiste",  icon: "🧰", sub: "Unbegrenzt Geld, kein Verlieren" },
   { id: "bossrush", name: "Boss Rush",  icon: "👹", sub: "Nur Bosse, alle 60s einer", lockedFn: () => !isBossRushUnlocked(), lockedSub: "Gewinne eine ⭐⭐⭐-Karte!" },
   { id: "pvp",      name: "PVP",        icon: "⚔️", sub: "Bald verfügbar", locked: true },
@@ -299,7 +301,9 @@ const GAME_MODES = [
 const MODE_CFG = {
   normal:   {},
   endless:  { endless: true },
+  rush:     { endless: true, auto: true, spawnMult: 0.45, gap: 1.2, startCash: 700 },
   hardcore: { hpBoost: 1.45, lifeMult: 0.4, rewardBoost: 1.5 },
+  nightmare:{ endless: true, hpBoost: 1.9, lifeMult: 0.5, rewardBoost: 2.2 },
   sandbox:  { sandbox: true, endless: true },
   bossrush: {},
 };
@@ -3277,13 +3281,14 @@ function startWave() {
   state.waveTime = 0;
   state.spawnQueue = [];
 
+  const sm = modeCfg().spawnMult || 1;   // Zeitansturm: kürzere Abstände
   let tcursor = 0.5;
   for (const grp of buildWave(state.wave)) {
     for (let i = 0; i < grp.count; i++) {
       state.spawnQueue.push({ type: grp.type, time: tcursor });
-      tcursor += grp.interval;
+      tcursor += grp.interval * sm;
     }
-    tcursor += 1.2;
+    tcursor += 1.2 * sm;
   }
 
   showBanner(state.wave % 10 === 0 ? `⚠️ BOSS-WELLE ${state.wave} ⚠️` : `WELLE ${state.wave}`);
@@ -3360,7 +3365,7 @@ function finishWave() {
   }
   state.wave++;
   state.phase = "idle";
-  state.autoTimer = 3;
+  state.autoTimer = modeCfg().gap || 3;
   updateHUD();
   refreshShop();
 }
@@ -3450,10 +3455,15 @@ function resetGame() {
   document.getElementById("btn-walk").classList.remove("active");
   const cfg = modeCfg();
   // Startgeld/Leben je Modus
-  state.cash = cfg.sandbox ? 999999 : state.gameMode === "bossrush" ? 1500 : START_CASH;
+  state.cash = cfg.sandbox ? 999999 : cfg.startCash || (state.gameMode === "bossrush" ? 1500 : START_CASH);
   const baseLives = cfg.sandbox ? 99999 : Math.round(curDiff().lives * (cfg.lifeMult || 1));
   state.lives = baseLives;
   state.maxLives = baseLives;
+  // Zeitansturm: Wellen laufen automatisch
+  if (cfg.auto) {
+    state.autoStart = true;
+    const chk = document.getElementById("chk-auto"); if (chk) chk.checked = true;
+  }
   state.wave = 1;
   state.kills = 0;
   state.bossRush = null;
