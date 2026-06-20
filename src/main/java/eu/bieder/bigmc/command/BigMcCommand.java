@@ -44,6 +44,7 @@ public class BigMcCommand implements CommandExecutor, TabCompleter {
             plugin.getQuestManager().loadQuests();
             plugin.getBattlePassManager().loadConfig();
             plugin.getCrateManager().loadCrates();
+            plugin.getBossManager().loadBosses();
 
             // 3. Rang-Permissions der Online-Spieler neu setzen (falls geaendert)
             Bukkit.getOnlinePlayers().forEach(p -> plugin.getRankManager().applyPermissions(p));

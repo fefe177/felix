@@ -161,6 +161,11 @@ commands:
     usage: /crate [open|preview|givekey] ...
     aliases: [crates, cases]
     permission: bigmc.crate
+  bossevent:
+    description: Boss-Events starten, stoppen und auflisten.
+    usage: /bossevent start|stop|list
+    aliases: [boss, bossevents]
+    permission: bigmc.boss
 
 permissions:
   bigmc.use:
@@ -288,6 +293,12 @@ permissions:
     default: true
   bigmc.crate.admin:
     description: Crate-Schluessel vergeben.
+    default: op
+  bigmc.boss:
+    description: Boss-Events ansehen/auflisten.
+    default: true
+  bigmc.boss.admin:
+    description: Boss-Events starten und stoppen.
     default: op
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.

@@ -136,6 +136,43 @@ afk:
     pitch: 0.0
 
 # ------------------------------------------------------------
+# Boss-Events: automatische Boss-Spawns mit Schadens-Rangliste.
+#   entity = LivingEntity-Typ; location leer = nahe eines zufaelligen Spielers.
+#   rewards: Platz -> {money, shards, items}.
+# ------------------------------------------------------------
+bossevents:
+  auto-spawn: true
+  interval-minutes: 60
+  fight-timeout-seconds: 300
+  bosses:
+    ravager_koenig:
+      display: "&c&lRavager-König"
+      entity: RAVAGER
+      health: 500
+      location:
+        world: ""
+        x: 0.0
+        y: 80.0
+        z: 0.0
+      rewards:
+        1: {money: 50000.0, shards: 100, items: {DIAMOND_BLOCK: 4}}
+        2: {money: 25000.0, shards: 50}
+        3: {money: 10000.0, shards: 25}
+    wither_lord:
+      display: "&8&lWither-Lord"
+      entity: WITHER
+      health: 800
+      location:
+        world: ""
+        x: 0.0
+        y: 80.0
+        z: 0.0
+      rewards:
+        1: {money: 100000.0, shards: 200, items: {NETHERITE_INGOT: 2}}
+        2: {money: 50000.0, shards: 100}
+        3: {money: 20000.0, shards: 50}
+
+# ------------------------------------------------------------
 # Crates: Schluessel -> gewichtete Belohnungen.
 #   weight = relatives Gewicht (Drop-Chance); rarity nur fuer Anzeige.
 #   money/shards/items/commands sind optional pro Belohnung.

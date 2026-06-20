@@ -206,6 +206,22 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+boss:
+  usage: "&cVerwendung: /bossevent start|stop|list"
+  spawned: "&8&m----&r &c&lBOSS-EVENT &8&m----\n&7Ein &c%boss% &7ist erschienen! Bringe ihn zur Strecke!"
+  defeated: "&a&lBOSS BESIEGT! &7%boss% &awurde bezwungen. Top-Schaden:"
+  ranking: "&e#%place% &7%player% &8- &c%damage% Schaden"
+  reward: "&aDu hast als Platz &e%place% &aeine Boss-Belohnung erhalten!"
+  escaped: "&7Der Boss &c%boss% &7ist entkommen (Zeit abgelaufen)."
+  ended: "&7Das Boss-Event (&c%boss%&7) wurde beendet."
+  already-active: "&cEs ist bereits ein Boss aktiv."
+  none-active: "&cAktuell ist kein Boss aktiv."
+  stopped: "&7Boss-Event abgebrochen."
+  unknown: "&cUnbekannter Boss: &e%boss%"
+  spawn-failed: "&cDer Boss konnte nicht gespawnt werden (keine gültige Position?)."
+  list-header: "&8&m----&r &c&lBosse &8&m----"
+  list-entry: "&e%id% &7- %boss%"
+
 crate:
   gui-title: "&8» &6Crates"
   gui-keys: "&7Schlüssel: &e%keys%"

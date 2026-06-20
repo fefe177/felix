@@ -13,6 +13,9 @@ import eu.bieder.bigmc.battlepass.BattlePassGUI;
 import eu.bieder.bigmc.battlepass.BattlePassListener;
 import eu.bieder.bigmc.battlepass.BattlePassManager;
 import eu.bieder.bigmc.battlepass.command.BattlePassCommand;
+import eu.bieder.bigmc.boss.BossListener;
+import eu.bieder.bigmc.boss.BossManager;
+import eu.bieder.bigmc.boss.command.BossCommand;
 import eu.bieder.bigmc.clan.ClanListener;
 import eu.bieder.bigmc.clan.ClanManager;
 import eu.bieder.bigmc.clan.command.ClanChatCommand;
@@ -133,6 +136,7 @@ public final class BigMC extends JavaPlugin {
     private ClanManager clanManager;
     private CrateManager crateManager;
     private CrateGUI crateGUI;
+    private BossManager bossManager;
 
     @Override
     public void onEnable() {
@@ -200,6 +204,7 @@ public final class BigMC extends JavaPlugin {
         this.clanManager = new ClanManager(this);             // Clans
         this.crateManager = new CrateManager(this);           // Crates
         this.crateGUI = new CrateGUI(this);
+        this.bossManager = new BossManager(this);             // Boss-Events
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -227,6 +232,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new ClanListener(this), this);
         getServer().getPluginManager().registerEvents(new CrateListener(this), this);
         getServer().getPluginManager().registerEvents(crateGUI, this);
+        getServer().getPluginManager().registerEvents(new BossListener(this), this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -308,6 +314,9 @@ public final class BigMC extends JavaPlugin {
         CrateCommand crateCommand = new CrateCommand(this);
         getCommand("crate").setExecutor(crateCommand);
         getCommand("crate").setTabCompleter(crateCommand);
+        BossCommand bossCommand = new BossCommand(this);
+        getCommand("bossevent").setExecutor(bossCommand);
+        getCommand("bossevent").setTabCompleter(bossCommand);
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -340,6 +349,9 @@ public final class BigMC extends JavaPlugin {
         // AFK-Zone: regelmaessige Shards-Belohnung fuer AFK-Spieler
         afkManager.start();
 
+        // Boss-Events: automatischer Spawn-Task
+        bossManager.startAutoSpawnTask();
+
         // Quests: alle 60s speichern + Tages-/Wochenwechsel pruefen
         getServer().getScheduler().runTaskTimer(this, () -> questManager.tick(), 20L * 60, 20L * 60);
 
@@ -351,6 +363,10 @@ public final class BigMC extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        // Aktives Boss-Event abbrechen (Boss entfernen)
+        if (this.bossManager != null) {
+            this.bossManager.stop();
+        }
         // Laufendes Event ohne Belohnung abbrechen
         if (this.eventManager != null) {
             this.eventManager.cancel();
@@ -434,6 +450,10 @@ public final class BigMC extends JavaPlugin {
 
     public CrateGUI getCrateGUI() {
         return crateGUI;
+    }
+
+    public BossManager getBossManager() {
+        return bossManager;
     }
 
     public EconomyManager getEconomyManager() {
