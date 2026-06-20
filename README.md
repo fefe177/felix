@@ -40,8 +40,28 @@
 | **AFK-Zone** | `/afk`, `/afk set` | Teleport in die AFK-Zone, dort gibt es regelmäßig Shards |
 | **Spawner** | `/spawnershop` | Custom-Spawner: produzieren Items statt Mobs, Abhol-GUI per Rechtsklick, stapelbar bis 500, kosten Shards |
 | **Drill** | `/drill`, `/drill give` | Drill-Spitzhacke: 3×3-Abbau, Ebene je nach Blickrichtung |
+| **Spawn/RTP/TPA** | `/spawn`, `/setspawn`, `/spawnbuild`, `/rtp`, `/tpa`, `/tpaccept`, `/tpadeny` | Spawn + Schutzzone, 10 Spawn-Designs (GUI), Random-Teleport, Teleport-Anfragen |
+| **Scoreboard** | `/board` | Sidebar mit Geld/Shards/Rang/Stats |
+
+### HugoSMP/DonutSMP-Ausbau
+
+| System | Befehle | Kurzbeschreibung |
+|---|---|---|
+| **Quests** | `/quests` | Daily- & Weekly-Quests mit GUI, Fortschritt, Auto-Reset, Money/Shards |
+| **Battle Pass** | `/battlepass [buy]` | Free/Premium-Pfad, Seasons, XP aus Quests/Mining/PvP, Belohnungs-GUI |
+| **Clans** | `/clan ...`, `/c <msg>` | Erstellen, Einladen, Ränge, Clan-Chat, Punkte, Topliste |
+| **Crates** | `/crate [open\|preview\|givekey]` | Schlüssel, Seltenheitsstufen, Vorschau-Chancen, Öffnungs-Animation |
+| **Boss-Events** | `/bossevent start\|stop\|list` | Auto-Spawns, BossBar, Schadens-Rangliste, Top-Belohnungen |
+| **Prestige** | `/prestige [confirm]` | Level, skalierende Kosten, permanenter Verkaufs-Bonus, GUI |
+| **Cosmetics** | `/cosmetics` | Partikel-Trails, Chat-Titel, Join-Nachrichten |
+| **Daily Login** | `/dailyreward [claim]` | Login-Serie, Zyklus-Belohnungen, GUI |
+| **Season** | `/season info\|end` | Season-Start/-Ende, Belohnungen, Stat-Reset |
+| **Leaderboards** | `/leaderboard [kategorie]` (`/lb`) | Geld, Shards, Kills, Tode, Prestige, Clan-Punkte, Battle-Pass-Level |
+| **Admin-Tools** | `/bigmcadmin ...` (`/bmadmin`) | Season-, Quest-, Battle-Pass-, Crate-, Clan-, Prestige-Verwaltung, Reload |
+| **Verwaltung** | `/bigmc reload` | Config & Texte live neu laden |
 
 Alle Zahlen stehen in `config.yml`, alle Texte in `messages.yml` (deutsch, mit `&`-Farbcodes).
+Alle neuen Systeme speichern persistent in SQLite, nutzen **asynchrone DB-Zugriffe**, moderne GUIs mit Sounds & Pagination und sind dupe-/exploit-geschützt.
 
 ---
 
@@ -177,6 +197,26 @@ Standardmäßig sind alle Spieler-Befehle für jeden freigegeben (`default: true
 | `bigmc.spawner.admin` | op | Fremde Custom-Spawner verwalten |
 | `bigmc.drill` | true | Drill kaufen und nutzen |
 | `bigmc.drill.admin` | op | Drill verschenken |
+| `bigmc.spawn`, `bigmc.rtp`, `bigmc.tpa`, `bigmc.board` | true | Spawn/RTP/TPA/Scoreboard |
+| `bigmc.spawn.admin`, `bigmc.spawn.bypass`, `bigmc.rtp.bypass` | op | Spawn setzen/bauen, Schutzzone umgehen, RTP ohne Cooldown |
+| `bigmc.shards` | true | Shards anzeigen/überweisen |
+| `bigmc.shards.admin` | op | Shards geben/abziehen/setzen |
+| `bigmc.afk`, `bigmc.afk.admin` | true / op | AFK-Zone nutzen / setzen |
+| `bigmc.quests` | true | Quest-Menü |
+| `bigmc.battlepass` | true | Battle Pass |
+| `bigmc.clan` | true | Clan-System (`/clan`, `/c`) |
+| `bigmc.crate` | true | Crates öffnen/ansehen |
+| `bigmc.crate.admin` | op | Crate-Schlüssel vergeben |
+| `bigmc.boss` | true | Boss-Events ansehen |
+| `bigmc.boss.admin` | op | Boss-Events starten/stoppen |
+| `bigmc.prestige` | true | Prestige-System |
+| `bigmc.cosmetics` | true | Cosmetics-Menü |
+| `bigmc.dailyreward` | true | Tägliche Login-Belohnung |
+| `bigmc.season` | true | Season-Info |
+| `bigmc.season.admin` | op | Season beenden/starten |
+| `bigmc.leaderboard` | true | Ranglisten ansehen |
+| `bigmc.use` | true | `/bigmc`-Info |
+| `bigmc.admin` | op | `/bigmc reload` **und** `/bigmcadmin` (alle Admin-Tools) |
 
 Rang-Permissions (z. B. `bigmc.perk.gold`) werden **kumulativ** über das Rangsystem vergeben und sind in `config.yml` frei definierbar.
 
@@ -200,7 +240,22 @@ src/main/java/eu/bieder/bigmc/
 ├── vote/                       # Vote-Belohnungen (Phase 9)
 ├── event/                      # Events (Phase 10)
 ├── spawner/                    # Custom-Spawner + Spawner-Shop
-└── drill/                      # Drill-Spitzhacke (3x3-Abbau)
+├── drill/                      # Drill-Spitzhacke (3x3-Abbau)
+├── shards/                     # Zweite Währung
+├── afk/  rtp/  tpa/  spawn/    # AFK-Zone, Random-TP, TPA, Spawn + Schutz + Builder
+├── scoreboard/                 # Sidebar-Scoreboard
+├── quest/                      # Daily/Weekly Quests
+├── battlepass/                 # Battle Pass (Seasons)
+├── clan/                       # Clans
+├── crate/                      # Crates
+├── boss/                       # Boss-Events
+├── prestige/                   # Prestige
+├── cosmetics/                  # Cosmetics
+├── dailylogin/                 # Daily Login Rewards
+├── season/                     # Season-System
+├── leaderboard/                # Erweiterte Leaderboards
+├── admin/                      # Admin-Tools
+└── util/                       # GuiDesign (Rahmen, Sounds, Pagination)
 
 src/main/resources/
 ├── plugin.yml                  # Commands & Permissions
@@ -215,7 +270,15 @@ Pro Feature gibt es einen eigenen Manager; die `BigMC`-Hauptklasse erzeugt sie u
 ## Datenbank
 
 SQLite-Datei: `plugins/BigMC/bigmc.db`. Angelegte Tabellen u. a.:
-`economy`, `auctions`, `auction_pending`, `orders`, `order_deliveries`, `stats`, `player_ranks`, `votes`, `spawners`, `bigmc_meta`.
+`economy`, `shards`, `auctions`, `auction_pending`, `orders`, `order_deliveries`, `stats`,
+`player_ranks`, `votes`, `spawners`, `quest_progress`, `battlepass`, `battlepass_claims`,
+`clans`, `clan_members`, `crate_keys`, `prestige`, `cosmetics`, `login_rewards`,
+`season_meta`, `bigmc_meta`.
+
+**Performance:** Die neuen Systeme nutzen einen eigenen asynchronen DB-Executor
+(zweite Verbindung, WAL-Modus) — kein Datenbankzugriff blockiert den Hauptthread.
+Heiße Pfade (Quest-/Battle-Pass-Fortschritt) laufen über In-Memory-Caches und werden
+periodisch + beim Quit + beim Stop async gespeichert.
 
 Backups: einfach die `bigmc.db` (bei laufendem Server zusätzlich `-wal`/`-shm`) sichern.
 
