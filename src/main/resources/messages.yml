@@ -206,6 +206,20 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+quests:
+  gui-title: "&8» &aQuests"
+  daily-header: "&a&lTägliche Quests"
+  weekly-header: "&d&lWöchentliche Quests"
+  lore-progress: "&7Fortschritt: &e%progress%&7/&e%amount%"
+  lore-reward-money: "&7Belohnung: &a%money%"
+  lore-reward-shards: "&7Belohnung: &d%shards%"
+  lore-claim: "&a&lKlicke zum Abholen!"
+  lore-claimed: "&8✔ Bereits abgeholt"
+  lore-incomplete: "&7Noch nicht abgeschlossen"
+  completed: "&aQuest abgeschlossen: &e%quest%&7! Hole die Belohnung im &e/quests &7Menü ab."
+  not-complete: "&cDiese Quest ist noch nicht abgeschlossen."
+  reward-received: "&aBelohnung für &e%quest% &aerhalten!"
+
 spawn:
   teleported: "&7Du wurdest zum &aSpawn &7teleportiert."
   set: "&aSpawn wurde auf deine Position gesetzt."

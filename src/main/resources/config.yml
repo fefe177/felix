@@ -135,6 +135,91 @@ afk:
     yaw: 0.0
     pitch: 0.0
 
+# ------------------------------------------------------------
+# Quests: taegliche & woechentliche Missionen.
+#   objective: BREAK | PLACE | KILL_ENTITY | KILL_PLAYER | FISH
+#   filter:    Material-/EntityType-Name (leer = beliebig)
+# daily-count / weekly-count = wie viele aus dem Pool taeglich/woechentlich
+# aktiv sind (rotieren automatisch, Reset taeglich/woechentlich).
+# ------------------------------------------------------------
+quests:
+  daily-count: 3
+  weekly-count: 2
+  daily:
+    mine_stone:
+      display: "Baue 200 Stein ab"
+      icon: STONE
+      objective: BREAK
+      filter: STONE
+      amount: 200
+      reward-money: 500.0
+      reward-shards: 3
+      reward-xp: 50
+    mine_iron:
+      display: "Baue 32 Eisenerz ab"
+      icon: RAW_IRON
+      objective: BREAK
+      filter: IRON_ORE
+      amount: 32
+      reward-money: 800.0
+      reward-shards: 5
+      reward-xp: 70
+    kill_zombies:
+      display: "Töte 30 Zombies"
+      icon: ROTTEN_FLESH
+      objective: KILL_ENTITY
+      filter: ZOMBIE
+      amount: 30
+      reward-money: 600.0
+      reward-shards: 4
+      reward-xp: 60
+    catch_fish:
+      display: "Angle 15 Fische"
+      icon: COD
+      objective: FISH
+      filter: ""
+      amount: 15
+      reward-money: 400.0
+      reward-shards: 3
+      reward-xp: 40
+    pvp_kills:
+      display: "Besiege 3 Spieler"
+      icon: DIAMOND_SWORD
+      objective: KILL_PLAYER
+      filter: ""
+      amount: 3
+      reward-money: 1500.0
+      reward-shards: 10
+      reward-xp: 120
+  weekly:
+    mine_diamonds:
+      display: "Baue 24 Diamanterz ab"
+      icon: DIAMOND
+      objective: BREAK
+      filter: DIAMOND_ORE
+      amount: 24
+      reward-money: 5000.0
+      reward-shards: 40
+      reward-xp: 400
+    weekly_pvp:
+      display: "Besiege 25 Spieler"
+      icon: NETHERITE_SWORD
+      objective: KILL_PLAYER
+      filter: ""
+      amount: 25
+      reward-money: 10000.0
+      reward-shards: 80
+      reward-xp: 700
+    big_mining:
+      display: "Baue 3000 Stein ab"
+      icon: STONE_BRICKS
+      objective: BREAK
+      filter: STONE
+      amount: 3000
+      reward-money: 4000.0
+      reward-shards: 30
+      reward-xp: 350
+
 # Server-Spawn + Schutzzone. Spawn bequem per /setspawn setzen.
 spawn:
   # Radius der Schutzzone um den Spawn (Bloecke, 0 = Schutz aus).

@@ -136,6 +136,11 @@ commands:
     usage: /tpadeny
     aliases: [tpno]
     permission: bigmc.tpa
+  quests:
+    description: Oeffnet das Daily- und Weekly-Quest-Menue.
+    usage: /quests
+    aliases: [quest, q]
+    permission: bigmc.quests
 
 permissions:
   bigmc.use:
@@ -248,6 +253,9 @@ permissions:
     default: op
   bigmc.tpa:
     description: Teleport-Anfragen senden und beantworten.
+    default: true
+  bigmc.quests:
+    description: Das Quest-Menue benutzen.
     default: true
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.

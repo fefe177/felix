@@ -10,6 +10,11 @@ import eu.bieder.bigmc.command.BigMcCommand;
 import eu.bieder.bigmc.config.ConfigManager;
 import eu.bieder.bigmc.config.MessageManager;
 import eu.bieder.bigmc.database.Database;
+import eu.bieder.bigmc.database.DatabaseExecutor;
+import eu.bieder.bigmc.quest.QuestGUI;
+import eu.bieder.bigmc.quest.QuestListener;
+import eu.bieder.bigmc.quest.QuestManager;
+import eu.bieder.bigmc.quest.command.QuestCommand;
 import eu.bieder.bigmc.duel.DuelKit;
 import eu.bieder.bigmc.duel.DuelListener;
 import eu.bieder.bigmc.duel.DuelManager;
@@ -84,6 +89,7 @@ public final class BigMC extends JavaPlugin {
     private ConfigManager configManager;
     private MessageManager messageManager;
     private Database database;
+    private DatabaseExecutor databaseExecutor;
     private EconomyManager economyManager;
     private ShopManager shopManager;
     private ShopGUI shopGUI;
@@ -108,6 +114,8 @@ public final class BigMC extends JavaPlugin {
     private SpawnBuildGUI spawnBuildGUI;
     private RtpManager rtpManager;
     private TpaManager tpaManager;
+    private QuestManager questManager;
+    private QuestGUI questGUI;
 
     @Override
     public void onEnable() {
@@ -129,6 +137,16 @@ public final class BigMC extends JavaPlugin {
         } catch (Exception e) {
             // Bei DB-Fehler das Plugin sauber deaktivieren, statt halb-funktional zu laufen
             getLogger().severe("Konnte die Datenbank nicht initialisieren: " + e.getMessage());
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
+
+        // 3b. Asynchroner DB-Executor (eigene Verbindung) fuer neue Systeme
+        this.databaseExecutor = new DatabaseExecutor(this);
+        try {
+            this.databaseExecutor.start();
+        } catch (Exception e) {
+            getLogger().severe("Async-DB-Executor konnte nicht gestartet werden: " + e.getMessage());
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
@@ -158,6 +176,8 @@ public final class BigMC extends JavaPlugin {
         this.rtpManager = new RtpManager(this);               // Random-Teleport
         this.tpaManager = new TpaManager(this);               // TPA-Anfragen
         this.sidebarManager = new SidebarManager(this);       // Sidebar-Scoreboard
+        this.questManager = new QuestManager(this);           // Daily/Weekly Quests
+        this.questGUI = new QuestGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -178,6 +198,8 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new SpawnListener(this), this);
         getServer().getPluginManager().registerEvents(spawnBuildGUI, this);
         getServer().getPluginManager().registerEvents(new TpaListener(this), this);
+        getServer().getPluginManager().registerEvents(new QuestListener(this), this);
+        getServer().getPluginManager().registerEvents(questGUI, this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -248,6 +270,10 @@ public final class BigMC extends JavaPlugin {
         getCommand("tpa").setTabCompleter(tpaCommand);
         getCommand("tpaccept").setExecutor(tpaCommand);
         getCommand("tpadeny").setExecutor(tpaCommand);
+        getCommand("quests").setExecutor(new QuestCommand(this));
+
+        // Bereits online befindliche Spieler laden (z.B. nach /reload)
+        getServer().getOnlinePlayers().forEach(p -> questManager.loadPlayer(p.getUniqueId()));
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -273,6 +299,9 @@ public final class BigMC extends JavaPlugin {
         // AFK-Zone: regelmaessige Shards-Belohnung fuer AFK-Spieler
         afkManager.start();
 
+        // Quests: alle 60s speichern + Tages-/Wochenwechsel pruefen
+        getServer().getScheduler().runTaskTimer(this, () -> questManager.tick(), 20L * 60, 20L * 60);
+
         getLogger().info("BigMC v" + getDescription().getVersion() + " wurde aktiviert.");
     }
 
@@ -293,6 +322,14 @@ public final class BigMC extends JavaPlugin {
         // Offene Spielzeit-Sessions speichern
         if (this.statsManager != null) {
             this.statsManager.flushAllPlaytime();
+        }
+        // Quest-Fortschritt speichern
+        if (this.questManager != null) {
+            this.questManager.shutdown();
+        }
+        // Async-DB-Executor beenden (verarbeitet ausstehende Schreibvorgaenge)
+        if (this.databaseExecutor != null) {
+            this.databaseExecutor.shutdown();
         }
         // Datenbankverbindung sauber schliessen
         if (this.database != null) {
@@ -317,6 +354,18 @@ public final class BigMC extends JavaPlugin {
 
     public Database getDatabase() {
         return database;
+    }
+
+    public DatabaseExecutor getDatabaseExecutor() {
+        return databaseExecutor;
+    }
+
+    public QuestManager getQuestManager() {
+        return questManager;
+    }
+
+    public QuestGUI getQuestGUI() {
+        return questGUI;
     }
 
     public EconomyManager getEconomyManager() {

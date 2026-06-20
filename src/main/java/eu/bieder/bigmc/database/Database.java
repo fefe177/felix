@@ -21,6 +21,7 @@ public class Database {
 
     private final BigMC plugin;
     private Connection connection;
+    private File dbFile;
 
     public Database(BigMC plugin) {
         this.plugin = plugin;
@@ -37,6 +38,7 @@ public class Database {
 
         String fileName = plugin.getConfigManager().getDatabaseFileName();
         File dbFile = new File(plugin.getDataFolder(), fileName);
+        this.dbFile = dbFile;
 
         // Den geshadeten SQLite-Treiber explizit laden
         try {
@@ -91,6 +93,13 @@ public class Database {
             plugin.getLogger().severe("Datenbankverbindung konnte nicht wiederhergestellt werden: " + e.getMessage());
         }
         return connection;
+    }
+
+    /**
+     * Liefert die SQLite-Datei (fuer den asynchronen Zweit-Connection-Executor).
+     */
+    public File getDatabaseFile() {
+        return dbFile;
     }
 
     /**
