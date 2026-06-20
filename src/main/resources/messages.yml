@@ -206,6 +206,23 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+dailylogin:
+  gui-title: "&8» &aTägliche Belohnung"
+  day-name: "&eTag %day%"
+  day-current: "&a➥ Heute fällig"
+  day-past: "&8✔ Vergangen"
+  day-future: "&7Kommt noch"
+  reward-money: "&7Geld: &a%money%"
+  reward-shards: "&7Shards: &d%shards%"
+  reward-item: "&7Item: &e%amount%x %item%"
+  streak-name: "&6&lDeine Login-Serie"
+  streak-lore: "&7Serie: &e%streak% Tage"
+  claim-button: "&a&lBelohnung abholen"
+  claimed-button: "&7Heute bereits abgeholt"
+  claimed: "&aTag &e%day% &aabgeholt! Login-Serie: &e%streak%"
+  already-claimed: "&cDu hast deine Belohnung heute schon abgeholt."
+  reminder: "&aDeine tägliche Belohnung wartet! &7Hole sie mit &e/dailyreward &7ab."
+
 cosmetics:
   gui-title: "&8» &dCosmetics"
   category-title: "&8» %category%"

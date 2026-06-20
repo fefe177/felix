@@ -176,6 +176,11 @@ commands:
     usage: /cosmetics
     aliases: [cosmetic, kosmetik]
     permission: bigmc.cosmetics
+  dailyreward:
+    description: Taegliche Login-Belohnung abholen.
+    usage: /dailyreward [claim]
+    aliases: [daily, dailylogin]
+    permission: bigmc.dailyreward
 
 permissions:
   bigmc.use:
@@ -315,6 +320,9 @@ permissions:
     default: true
   bigmc.cosmetics:
     description: Das Cosmetics-Menue benutzen.
+    default: true
+  bigmc.dailyreward:
+    description: Die taegliche Login-Belohnung abholen.
     default: true
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
