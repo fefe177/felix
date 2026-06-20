@@ -206,6 +206,16 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+season:
+  info-header: "&8&m----&r &b&lSeason %season% &8&m----"
+  info-ranking: "&7Wertung nach: &e%category%"
+  info-entry: "&e#%place% &7%player%: &e%value%"
+  ended: "&8&m----&r &c&lSEASON %season% BEENDET &8&m----"
+  winner: "&e#%place% &7%player% &8- &e%value%"
+  started: "&a&lSEASON %season% &ahat begonnen! Viel Erfolg!"
+  start-done: "&aSeason %season% wurde gestartet."
+  reward: "&aDu hast eine Season-Belohnung erhalten!"
+
 dailylogin:
   gui-title: "&8» &aTägliche Belohnung"
   day-name: "&eTag %day%"

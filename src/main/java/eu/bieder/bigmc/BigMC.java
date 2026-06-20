@@ -65,6 +65,8 @@ import eu.bieder.bigmc.rank.command.RankCommand;
 import eu.bieder.bigmc.rank.command.RanksCommand;
 import eu.bieder.bigmc.rtp.RtpManager;
 import eu.bieder.bigmc.rtp.command.RtpCommand;
+import eu.bieder.bigmc.season.SeasonManager;
+import eu.bieder.bigmc.season.command.SeasonCommand;
 import eu.bieder.bigmc.scoreboard.SidebarListener;
 import eu.bieder.bigmc.scoreboard.SidebarManager;
 import eu.bieder.bigmc.scoreboard.command.BoardCommand;
@@ -155,6 +157,7 @@ public final class BigMC extends JavaPlugin {
     private CosmeticsGUI cosmeticsGUI;
     private DailyLoginManager dailyLoginManager;
     private DailyLoginGUI dailyLoginGUI;
+    private SeasonManager seasonManager;
 
     @Override
     public void onEnable() {
@@ -229,6 +232,7 @@ public final class BigMC extends JavaPlugin {
         this.cosmeticsGUI = new CosmeticsGUI(this);
         this.dailyLoginManager = new DailyLoginManager(this); // Daily Login Rewards
         this.dailyLoginGUI = new DailyLoginGUI(this);
+        this.seasonManager = new SeasonManager(this);         // Season-System
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -350,6 +354,9 @@ public final class BigMC extends JavaPlugin {
         getCommand("prestige").setExecutor(new PrestigeCommand(this));
         getCommand("cosmetics").setExecutor(new CosmeticsCommand(this));
         getCommand("dailyreward").setExecutor(new DailyRewardCommand(this));
+        SeasonCommand seasonCommand = new SeasonCommand(this);
+        getCommand("season").setExecutor(seasonCommand);
+        getCommand("season").setTabCompleter(seasonCommand);
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -392,6 +399,10 @@ public final class BigMC extends JavaPlugin {
         long particleTicks = cosmeticsManager.getParticleUpdateTicks();
         getServer().getScheduler().runTaskTimer(this,
                 () -> cosmeticsManager.spawnParticles(), particleTicks, particleTicks);
+
+        // Season: stuendlich auf automatisches Ende pruefen
+        getServer().getScheduler().runTaskTimer(this,
+                () -> seasonManager.checkAutoEnd(), 20L * 60 * 60, 20L * 60 * 60);
 
         // Quests: alle 60s speichern + Tages-/Wochenwechsel pruefen
         getServer().getScheduler().runTaskTimer(this, () -> questManager.tick(), 20L * 60, 20L * 60);
@@ -519,6 +530,10 @@ public final class BigMC extends JavaPlugin {
 
     public DailyLoginGUI getDailyLoginGUI() {
         return dailyLoginGUI;
+    }
+
+    public SeasonManager getSeasonManager() {
+        return seasonManager;
     }
 
     public EconomyManager getEconomyManager() {

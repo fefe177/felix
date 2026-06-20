@@ -181,6 +181,11 @@ commands:
     usage: /dailyreward [claim]
     aliases: [daily, dailylogin]
     permission: bigmc.dailyreward
+  season:
+    description: Season-Info anzeigen oder die Season beenden.
+    usage: /season info|end
+    aliases: [seasons]
+    permission: bigmc.season
 
 permissions:
   bigmc.use:
@@ -324,6 +329,12 @@ permissions:
   bigmc.dailyreward:
     description: Die taegliche Login-Belohnung abholen.
     default: true
+  bigmc.season:
+    description: Season-Informationen ansehen.
+    default: true
+  bigmc.season.admin:
+    description: Die Season beenden/starten.
+    default: op
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
     default: op

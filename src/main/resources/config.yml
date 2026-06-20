@@ -135,6 +135,19 @@ afk:
     yaw: 0.0
     pitch: 0.0
 
+# Season-System: Ranglisten-Belohnungen + Stat-Reset bei Season-Ende.
+#   ranking: kills | money  (Kategorie fuer die Season-Wertung)
+#   reset-stats: Statistiken, die beim Season-Ende auf 0 gesetzt werden
+#   duration-days: 0 = nur manuell (/season end), sonst automatisch
+season:
+  ranking: kills
+  reset-stats: [kills, deaths, duel_wins]
+  duration-days: 0
+  rewards:
+    1: {money: 100000.0, shards: 500, items: {NETHERITE_BLOCK: 1}}
+    2: {money: 50000.0, shards: 250}
+    3: {money: 25000.0, shards: 100}
+
 # Daily-Login-Rewards: Belohnung je Tag im Zyklus (Serie/Streak).
 dailylogin:
   cycle: 7

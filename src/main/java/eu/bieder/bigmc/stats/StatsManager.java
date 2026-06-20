@@ -222,6 +222,25 @@ public class StatsManager {
                 rs.getLong("playtime_seconds"));
     }
 
+    /**
+     * Setzt ausgewaehlte Statistik-Spalten fuer ALLE Spieler auf 0 zurueck
+     * (fuer den Season-Reset). Nur fest erlaubte Spaltennamen werden akzeptiert.
+     */
+    public void resetColumns(java.util.Collection<String> columns) {
+        java.util.Set<String> allowed = java.util.Set.of("kills", "deaths", "duel_wins");
+        java.util.List<String> safe = new java.util.ArrayList<>();
+        for (String c : columns) {
+            if (allowed.contains(c)) safe.add(c + " = 0");
+        }
+        if (safe.isEmpty()) return;
+        String sql = "UPDATE stats SET " + String.join(", ", safe) + ";";
+        try (Statement st = connection().createStatement()) {
+            st.executeUpdate(sql);
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Season-Stat-Reset fehlgeschlagen: " + e.getMessage());
+        }
+    }
+
     private Connection connection() {
         return plugin.getDatabase().getConnection();
     }
