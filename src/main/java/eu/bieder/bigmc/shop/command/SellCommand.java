@@ -76,7 +76,8 @@ public class SellCommand implements CommandExecutor, TabCompleter {
         }
 
         int amount = hand.getAmount();
-        double total = price.get() * amount;
+        double total = plugin.getPrestigeManager().applySellBonus(
+                player.getUniqueId(), price.get() * amount);
 
         // Erst Items wegnehmen, dann Geld gutschreiben (scam-sicher)
         player.getInventory().setItemInMainHand(null);
@@ -116,6 +117,7 @@ public class SellCommand implements CommandExecutor, TabCompleter {
             return;
         }
 
+        total = plugin.getPrestigeManager().applySellBonus(player.getUniqueId(), total);
         player.getInventory().setStorageContents(contents);
         plugin.getEconomyManager().deposit(player.getUniqueId(), total);
 

@@ -47,6 +47,10 @@ import eu.bieder.bigmc.fly.FlyManager;
 import eu.bieder.bigmc.fly.command.FlyCommand;
 import eu.bieder.bigmc.order.OrderManager;
 import eu.bieder.bigmc.order.command.OrderCommand;
+import eu.bieder.bigmc.prestige.PrestigeGUI;
+import eu.bieder.bigmc.prestige.PrestigeListener;
+import eu.bieder.bigmc.prestige.PrestigeManager;
+import eu.bieder.bigmc.prestige.command.PrestigeCommand;
 import eu.bieder.bigmc.rank.RankListener;
 import eu.bieder.bigmc.rank.RankManager;
 import eu.bieder.bigmc.rank.command.RankCommand;
@@ -137,6 +141,8 @@ public final class BigMC extends JavaPlugin {
     private CrateManager crateManager;
     private CrateGUI crateGUI;
     private BossManager bossManager;
+    private PrestigeManager prestigeManager;
+    private PrestigeGUI prestigeGUI;
 
     @Override
     public void onEnable() {
@@ -205,6 +211,8 @@ public final class BigMC extends JavaPlugin {
         this.crateManager = new CrateManager(this);           // Crates
         this.crateGUI = new CrateGUI(this);
         this.bossManager = new BossManager(this);             // Boss-Events
+        this.prestigeManager = new PrestigeManager(this);     // Prestige
+        this.prestigeGUI = new PrestigeGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -233,6 +241,8 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new CrateListener(this), this);
         getServer().getPluginManager().registerEvents(crateGUI, this);
         getServer().getPluginManager().registerEvents(new BossListener(this), this);
+        getServer().getPluginManager().registerEvents(new PrestigeListener(this), this);
+        getServer().getPluginManager().registerEvents(prestigeGUI, this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -317,12 +327,14 @@ public final class BigMC extends JavaPlugin {
         BossCommand bossCommand = new BossCommand(this);
         getCommand("bossevent").setExecutor(bossCommand);
         getCommand("bossevent").setTabCompleter(bossCommand);
+        getCommand("prestige").setExecutor(new PrestigeCommand(this));
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
             questManager.loadPlayer(p.getUniqueId());
             battlePassManager.loadPlayer(p.getUniqueId());
             crateManager.loadPlayer(p.getUniqueId());
+            prestigeManager.loadPlayer(p.getUniqueId());
         });
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
@@ -454,6 +466,14 @@ public final class BigMC extends JavaPlugin {
 
     public BossManager getBossManager() {
         return bossManager;
+    }
+
+    public PrestigeManager getPrestigeManager() {
+        return prestigeManager;
+    }
+
+    public PrestigeGUI getPrestigeGUI() {
+        return prestigeGUI;
     }
 
     public EconomyManager getEconomyManager() {

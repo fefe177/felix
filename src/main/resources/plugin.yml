@@ -166,6 +166,11 @@ commands:
     usage: /bossevent start|stop|list
     aliases: [boss, bossevents]
     permission: bigmc.boss
+  prestige:
+    description: Oeffnet das Prestige-Menue.
+    usage: /prestige [confirm]
+    aliases: [prestiges]
+    permission: bigmc.prestige
 
 permissions:
   bigmc.use:
@@ -300,6 +305,9 @@ permissions:
   bigmc.boss.admin:
     description: Boss-Events starten und stoppen.
     default: op
+  bigmc.prestige:
+    description: Das Prestige-System benutzen.
+    default: true
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
     default: op

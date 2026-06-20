@@ -297,7 +297,8 @@ public class ShopGUI implements Listener {
             return;
         }
 
-        double total = item.sellPrice() * removed;
+        double total = plugin.getPrestigeManager().applySellBonus(
+                player.getUniqueId(), item.sellPrice() * removed);
         plugin.getEconomyManager().deposit(player.getUniqueId(), total);
         GuiDesign.soundSuccess(player);
         msg.send(player, "shop.sold",

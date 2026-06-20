@@ -206,6 +206,20 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+prestige:
+  gui-title: "&8» &dPrestige"
+  info-name: "&d&lDein Prestige"
+  info-level: "&7Level: &e%level%&7/&e%max%"
+  info-bonus: "&7Verkaufs-Bonus: &a+%bonus%%"
+  button-name: "&a&lPrestige aufsteigen"
+  button-cost: "&7Kosten: &a%cost%"
+  button-next: "&7Neuer Bonus: &a+%bonus%%"
+  button-click: "&eKlicke zum Aufsteigen!"
+  max-button: "&7Maximales Prestige erreicht"
+  max: "&cDu hast bereits das maximale Prestige erreicht."
+  success: "&dPrestige &e%level% &derreicht! Verkaufs-Bonus: &a+%bonus%%"
+  broadcast: "&d%player% &7ist zu &dPrestige %level% &7aufgestiegen!"
+
 boss:
   usage: "&cVerwendung: /bossevent start|stop|list"
   spawned: "&8&m----&r &c&lBOSS-EVENT &8&m----\n&7Ein &c%boss% &7ist erschienen! Bringe ihn zur Strecke!"

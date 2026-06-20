@@ -135,6 +135,15 @@ afk:
     yaw: 0.0
     pitch: 0.0
 
+# Prestige: kostet Geld, gibt dauerhaften Verkaufs-Bonus + Shards.
+prestige:
+  max-prestige: 10
+  base-cost: 100000.0
+  cost-multiplier: 2.0
+  sell-bonus-percent: 5.0
+  reward-shards: 50
+  broadcast: true
+
 # ------------------------------------------------------------
 # Boss-Events: automatische Boss-Spawns mit Schadens-Rangliste.
 #   entity = LivingEntity-Typ; location leer = nahe eines zufaelligen Spielers.
