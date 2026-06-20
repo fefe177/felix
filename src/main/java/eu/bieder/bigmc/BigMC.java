@@ -2,6 +2,7 @@ package eu.bieder.bigmc;
 
 import eu.bieder.bigmc.auction.AuctionHouseGUI;
 import eu.bieder.bigmc.auction.AuctionManager;
+import eu.bieder.bigmc.admin.command.AdminCommand;
 import eu.bieder.bigmc.afk.AfkListener;
 import eu.bieder.bigmc.afk.AfkManager;
 import eu.bieder.bigmc.afk.command.AfkCommand;
@@ -368,6 +369,9 @@ public final class BigMC extends JavaPlugin {
         LeaderboardCommand leaderboardCommand = new LeaderboardCommand(this);
         getCommand("leaderboard").setExecutor(leaderboardCommand);
         getCommand("leaderboard").setTabCompleter(leaderboardCommand);
+        AdminCommand adminCommand = new AdminCommand(this);
+        getCommand("bigmcadmin").setExecutor(adminCommand);
+        getCommand("bigmcadmin").setTabCompleter(adminCommand);
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {

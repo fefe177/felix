@@ -236,6 +236,24 @@ public class BattlePassManager {
         return true;
     }
 
+    /** Admin: Level eines (online) Spielers setzen. */
+    public boolean adminSetLevel(UUID uuid, int level) {
+        PlayerData d = data.get(uuid);
+        if (d == null) return false;
+        d.xp = Math.max(0, level) * xpPerLevel;
+        d.dirty = true;
+        flush(uuid);
+        return true;
+    }
+
+    /** Admin: XP eines (online) Spielers hinzufuegen. */
+    public boolean adminAddXp(Player player, int amount) {
+        if (data.get(player.getUniqueId()) == null) return false;
+        addXp(player, amount);
+        flush(player.getUniqueId());
+        return true;
+    }
+
     /** Admin: Premium setzen (z.B. als Belohnung). */
     public void setPremium(UUID uuid, boolean premium) {
         PlayerData d = data.get(uuid);

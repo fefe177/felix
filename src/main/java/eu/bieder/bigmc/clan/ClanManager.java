@@ -250,6 +250,19 @@ public class ClanManager {
         });
     }
 
+    /** Admin: Punkte eines Clans direkt setzen. */
+    public void setPoints(Clan clan, long points) {
+        clan.setPoints(points);
+        final int id = clan.getId();
+        plugin.getDatabaseExecutor().execute(conn -> {
+            try (PreparedStatement ps = conn.prepareStatement("UPDATE clans SET points = ? WHERE id = ?;")) {
+                ps.setLong(1, points);
+                ps.setInt(2, id);
+                ps.executeUpdate();
+            }
+        });
+    }
+
     public void addPoints(UUID uuid, long amount) {
         Clan clan = getClanOf(uuid);
         if (clan == null || amount == 0) return;

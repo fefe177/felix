@@ -191,6 +191,11 @@ commands:
     usage: /leaderboard [kategorie]
     aliases: [lb, leaderboards, ranglisten]
     permission: bigmc.leaderboard
+  bigmcadmin:
+    description: Zentrales Admin-Werkzeug fuer alle Systeme.
+    usage: /bigmcadmin season|battlepass|quest|crate|clan|prestige|reload ...
+    aliases: [bmadmin]
+    permission: bigmc.admin
 
 permissions:
   bigmc.use:

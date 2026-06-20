@@ -320,6 +320,37 @@ public class QuestManager {
         }
     }
 
+    /** Admin: Quest-Fortschritt eines Spielers fuer die aktuelle Periode zuruecksetzen. */
+    public void adminReset(UUID uuid) {
+        PlayerData d = data.get(uuid);
+        if (d != null) {
+            d.progress.clear();
+            d.claimed.clear();
+            d.dirty = false;
+        }
+        final String dk = dailyKey(), wk = weeklyKey();
+        plugin.getDatabaseExecutor().execute(conn -> {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM quest_progress WHERE uuid = ? AND period_key IN (?, ?);")) {
+                ps.setString(1, uuid.toString());
+                ps.setString(2, dk);
+                ps.setString(3, wk);
+                ps.executeUpdate();
+            }
+        });
+    }
+
+    /** Admin: eine Quest fuer einen (online) Spieler als abgeschlossen markieren. */
+    public boolean adminComplete(UUID uuid, String questId) {
+        PlayerData d = data.get(uuid);
+        Quest q = byId.get(questId);
+        if (d == null || q == null) return false;
+        d.progress.put(questId, q.amount());
+        d.dirty = true;
+        flush(uuid);
+        return true;
+    }
+
     /** Beim Plugin-Stop: alle Online-Spieler speichern. */
     public void shutdown() {
         for (Player p : Bukkit.getOnlinePlayers()) {

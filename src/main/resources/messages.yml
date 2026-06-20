@@ -206,6 +206,10 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+admin:
+  done: "&aErledigt."
+  player-online-required: "&cDer Zielspieler muss online sein."
+
 leaderboard:
   gui-title: "&8» &6Ranglisten"
   category-title: "&8» Top: %category%"
