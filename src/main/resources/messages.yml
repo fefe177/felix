@@ -206,6 +206,19 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+leaderboard:
+  gui-title: "&8» &6Ranglisten"
+  category-title: "&8» Top: %category%"
+  category-lore: "&7Klicke für die Top 10"
+  loading: "&7Lade Daten..."
+  back: "&c« Zurück"
+  entry-name: "&e#%place% &7%player%"
+  entry-value: "&7Wert: &e%value%"
+  usage: "&cVerwendung: /leaderboard <%categories%>"
+  chat-header: "&8&m----&r &6&lTop: %category% &8&m----"
+  chat-entry: "&e#%place% &7%player%: &e%value%"
+  empty: "&7Noch keine Daten vorhanden."
+
 season:
   info-header: "&8&m----&r &b&lSeason %season% &8&m----"
   info-ranking: "&7Wertung nach: &e%category%"

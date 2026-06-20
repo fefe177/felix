@@ -134,6 +134,24 @@ public class ShardsManager {
         return true;
     }
 
+    /** Liefert die Spieler mit den meisten Shards (fuer Leaderboards). */
+    public java.util.List<Account> getTop(int limit) {
+        java.util.List<Account> result = new java.util.ArrayList<>();
+        try (PreparedStatement ps = connection().prepareStatement(
+                "SELECT uuid, name, amount FROM shards ORDER BY amount DESC LIMIT ?;")) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    result.add(new Account(UUID.fromString(rs.getString("uuid")),
+                            rs.getString("name"), rs.getLong("amount")));
+                }
+            }
+        } catch (SQLException e) {
+            plugin.getLogger().severe("Shards-Topliste konnte nicht geladen werden: " + e.getMessage());
+        }
+        return result;
+    }
+
     /** Konto per Spielername suchen (Gross-/Kleinschreibung egal). */
     public Optional<Account> findAccount(String name) {
         try (PreparedStatement ps = connection().prepareStatement(

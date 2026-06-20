@@ -75,6 +75,9 @@ import eu.bieder.bigmc.shards.ShardsManager;
 import eu.bieder.bigmc.shards.command.ShardsCommand;
 import eu.bieder.bigmc.economy.command.MoneyCommand;
 import eu.bieder.bigmc.economy.command.PayCommand;
+import eu.bieder.bigmc.leaderboard.LeaderboardGUI;
+import eu.bieder.bigmc.leaderboard.LeaderboardManager;
+import eu.bieder.bigmc.leaderboard.command.LeaderboardCommand;
 import eu.bieder.bigmc.shop.ShopGUI;
 import eu.bieder.bigmc.spawn.SpawnBuildGUI;
 import eu.bieder.bigmc.spawn.SpawnListener;
@@ -158,6 +161,8 @@ public final class BigMC extends JavaPlugin {
     private DailyLoginManager dailyLoginManager;
     private DailyLoginGUI dailyLoginGUI;
     private SeasonManager seasonManager;
+    private LeaderboardManager leaderboardManager;
+    private LeaderboardGUI leaderboardGUI;
 
     @Override
     public void onEnable() {
@@ -233,6 +238,8 @@ public final class BigMC extends JavaPlugin {
         this.dailyLoginManager = new DailyLoginManager(this); // Daily Login Rewards
         this.dailyLoginGUI = new DailyLoginGUI(this);
         this.seasonManager = new SeasonManager(this);         // Season-System
+        this.leaderboardManager = new LeaderboardManager(this); // Leaderboards
+        this.leaderboardGUI = new LeaderboardGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -267,6 +274,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(cosmeticsGUI, this);
         getServer().getPluginManager().registerEvents(new DailyLoginListener(this), this);
         getServer().getPluginManager().registerEvents(dailyLoginGUI, this);
+        getServer().getPluginManager().registerEvents(leaderboardGUI, this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -357,6 +365,9 @@ public final class BigMC extends JavaPlugin {
         SeasonCommand seasonCommand = new SeasonCommand(this);
         getCommand("season").setExecutor(seasonCommand);
         getCommand("season").setTabCompleter(seasonCommand);
+        LeaderboardCommand leaderboardCommand = new LeaderboardCommand(this);
+        getCommand("leaderboard").setExecutor(leaderboardCommand);
+        getCommand("leaderboard").setTabCompleter(leaderboardCommand);
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -534,6 +545,14 @@ public final class BigMC extends JavaPlugin {
 
     public SeasonManager getSeasonManager() {
         return seasonManager;
+    }
+
+    public LeaderboardManager getLeaderboardManager() {
+        return leaderboardManager;
+    }
+
+    public LeaderboardGUI getLeaderboardGUI() {
+        return leaderboardGUI;
     }
 
     public EconomyManager getEconomyManager() {

@@ -186,6 +186,11 @@ commands:
     usage: /season info|end
     aliases: [seasons]
     permission: bigmc.season
+  leaderboard:
+    description: Zeigt die Ranglisten (Geld, Shards, Kills, Prestige ...).
+    usage: /leaderboard [kategorie]
+    aliases: [lb, leaderboards, ranglisten]
+    permission: bigmc.leaderboard
 
 permissions:
   bigmc.use:
@@ -335,6 +340,9 @@ permissions:
   bigmc.season.admin:
     description: Die Season beenden/starten.
     default: op
+  bigmc.leaderboard:
+    description: Die Ranglisten ansehen.
+    default: true
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
     default: op
