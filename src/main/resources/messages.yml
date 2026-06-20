@@ -206,6 +206,22 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+crate:
+  gui-title: "&8» &6Crates"
+  gui-keys: "&7Schlüssel: &e%keys%"
+  gui-open: "&aLinksklick: Öffnen"
+  gui-preview: "&7Rechtsklick: Vorschau"
+  preview-title: "&8» Vorschau: %crate%"
+  preview-chance: "&7Chance: &e%chance%%"
+  anim-title: "&8» &6Crate wird geöffnet..."
+  back: "&c« Zurück"
+  no-key: "&cDu hast keinen Schlüssel für die %crate%&c."
+  won: "&aDu hast aus der %crate% &a%reward% &agewonnen!"
+  unknown: "&cUnbekannte Crate: &e%crate%"
+  givekey-usage: "&cVerwendung: /crate givekey <spieler> <crate> <anzahl>"
+  key-given: "&7Du hast &e%player% &e%amount%x &7Schlüssel für &e%crate% &7gegeben."
+  key-received: "&aDu hast &e%amount%x &aSchlüssel für die %crate% &aerhalten!"
+
 clan:
   usage: "&cVerwendung: /clan create|invite|accept|leave|kick|promote|demote|transfer|info|top|chat"
   create-usage: "&cVerwendung: /clan create <name>"

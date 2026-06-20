@@ -156,6 +156,11 @@ commands:
     usage: /c <nachricht>
     aliases: [cc]
     permission: bigmc.clan
+  crate:
+    description: Crates oeffnen, Vorschau anzeigen, Schluessel vergeben.
+    usage: /crate [open|preview|givekey] ...
+    aliases: [crates, cases]
+    permission: bigmc.crate
 
 permissions:
   bigmc.use:
@@ -278,6 +283,12 @@ permissions:
   bigmc.clan:
     description: Das Clan-System benutzen.
     default: true
+  bigmc.crate:
+    description: Crates oeffnen und ansehen.
+    default: true
+  bigmc.crate.admin:
+    description: Crate-Schluessel vergeben.
+    default: op
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
     default: op

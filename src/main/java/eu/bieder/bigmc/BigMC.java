@@ -17,6 +17,10 @@ import eu.bieder.bigmc.clan.ClanListener;
 import eu.bieder.bigmc.clan.ClanManager;
 import eu.bieder.bigmc.clan.command.ClanChatCommand;
 import eu.bieder.bigmc.clan.command.ClanCommand;
+import eu.bieder.bigmc.crate.CrateGUI;
+import eu.bieder.bigmc.crate.CrateListener;
+import eu.bieder.bigmc.crate.CrateManager;
+import eu.bieder.bigmc.crate.command.CrateCommand;
 import eu.bieder.bigmc.database.Database;
 import eu.bieder.bigmc.database.DatabaseExecutor;
 import eu.bieder.bigmc.quest.QuestGUI;
@@ -127,6 +131,8 @@ public final class BigMC extends JavaPlugin {
     private BattlePassManager battlePassManager;
     private BattlePassGUI battlePassGUI;
     private ClanManager clanManager;
+    private CrateManager crateManager;
+    private CrateGUI crateGUI;
 
     @Override
     public void onEnable() {
@@ -192,6 +198,8 @@ public final class BigMC extends JavaPlugin {
         this.battlePassManager = new BattlePassManager(this); // Battle Pass
         this.battlePassGUI = new BattlePassGUI(this);
         this.clanManager = new ClanManager(this);             // Clans
+        this.crateManager = new CrateManager(this);           // Crates
+        this.crateGUI = new CrateGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -217,6 +225,8 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BattlePassListener(this), this);
         getServer().getPluginManager().registerEvents(battlePassGUI, this);
         getServer().getPluginManager().registerEvents(new ClanListener(this), this);
+        getServer().getPluginManager().registerEvents(new CrateListener(this), this);
+        getServer().getPluginManager().registerEvents(crateGUI, this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -295,11 +305,15 @@ public final class BigMC extends JavaPlugin {
         getCommand("clan").setExecutor(clanCommand);
         getCommand("clan").setTabCompleter(clanCommand);
         getCommand("c").setExecutor(new ClanChatCommand(this));
+        CrateCommand crateCommand = new CrateCommand(this);
+        getCommand("crate").setExecutor(crateCommand);
+        getCommand("crate").setTabCompleter(crateCommand);
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
             questManager.loadPlayer(p.getUniqueId());
             battlePassManager.loadPlayer(p.getUniqueId());
+            crateManager.loadPlayer(p.getUniqueId());
         });
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
@@ -412,6 +426,14 @@ public final class BigMC extends JavaPlugin {
 
     public ClanManager getClanManager() {
         return clanManager;
+    }
+
+    public CrateManager getCrateManager() {
+        return crateManager;
+    }
+
+    public CrateGUI getCrateGUI() {
+        return crateGUI;
     }
 
     public EconomyManager getEconomyManager() {
