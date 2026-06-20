@@ -136,6 +136,48 @@ afk:
     pitch: 0.0
 
 # ------------------------------------------------------------
+# Battle Pass: Free- und Premium-Pfad mit Season-Unterstuetzung.
+# Belohnungen koennen pro Level unter levels.<n>.free/premium gesetzt werden;
+# nicht konfigurierte Level nutzen die fallback-Formel.
+# ------------------------------------------------------------
+battlepass:
+  season: 1
+  xp-per-level: 1000
+  max-level: 30
+  premium-cost-money: 50000.0
+  premium-cost-shards: 0
+  xp-per-block-mined: 1
+  xp-per-mob-kill: 2
+  xp-per-player-kill: 25
+  fallback:
+    free-money-per-level: 250.0
+    free-shard-milestone: 10
+    premium-money-per-level: 600.0
+    premium-shards-per-level: 5
+  levels:
+    5:
+      free:
+        money: 2000.0
+        shards: 15
+      premium:
+        money: 5000.0
+        shards: 30
+    10:
+      free:
+        money: 5000.0
+        shards: 30
+      premium:
+        money: 12000.0
+        shards: 60
+    30:
+      free:
+        money: 20000.0
+        shards: 100
+      premium:
+        money: 50000.0
+        shards: 300
+
+# ------------------------------------------------------------
 # Quests: taegliche & woechentliche Missionen.
 #   objective: BREAK | PLACE | KILL_ENTITY | KILL_PLAYER | FISH
 #   filter:    Material-/EntityType-Name (leer = beliebig)

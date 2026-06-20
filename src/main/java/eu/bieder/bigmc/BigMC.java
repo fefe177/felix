@@ -9,6 +9,10 @@ import eu.bieder.bigmc.auction.command.AhCommand;
 import eu.bieder.bigmc.command.BigMcCommand;
 import eu.bieder.bigmc.config.ConfigManager;
 import eu.bieder.bigmc.config.MessageManager;
+import eu.bieder.bigmc.battlepass.BattlePassGUI;
+import eu.bieder.bigmc.battlepass.BattlePassListener;
+import eu.bieder.bigmc.battlepass.BattlePassManager;
+import eu.bieder.bigmc.battlepass.command.BattlePassCommand;
 import eu.bieder.bigmc.database.Database;
 import eu.bieder.bigmc.database.DatabaseExecutor;
 import eu.bieder.bigmc.quest.QuestGUI;
@@ -116,6 +120,8 @@ public final class BigMC extends JavaPlugin {
     private TpaManager tpaManager;
     private QuestManager questManager;
     private QuestGUI questGUI;
+    private BattlePassManager battlePassManager;
+    private BattlePassGUI battlePassGUI;
 
     @Override
     public void onEnable() {
@@ -178,6 +184,8 @@ public final class BigMC extends JavaPlugin {
         this.sidebarManager = new SidebarManager(this);       // Sidebar-Scoreboard
         this.questManager = new QuestManager(this);           // Daily/Weekly Quests
         this.questGUI = new QuestGUI(this);
+        this.battlePassManager = new BattlePassManager(this); // Battle Pass
+        this.battlePassGUI = new BattlePassGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -200,6 +208,8 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new TpaListener(this), this);
         getServer().getPluginManager().registerEvents(new QuestListener(this), this);
         getServer().getPluginManager().registerEvents(questGUI, this);
+        getServer().getPluginManager().registerEvents(new BattlePassListener(this), this);
+        getServer().getPluginManager().registerEvents(battlePassGUI, this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -271,9 +281,15 @@ public final class BigMC extends JavaPlugin {
         getCommand("tpaccept").setExecutor(tpaCommand);
         getCommand("tpadeny").setExecutor(tpaCommand);
         getCommand("quests").setExecutor(new QuestCommand(this));
+        BattlePassCommand bpCommand = new BattlePassCommand(this);
+        getCommand("battlepass").setExecutor(bpCommand);
+        getCommand("battlepass").setTabCompleter(bpCommand);
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
-        getServer().getOnlinePlayers().forEach(p -> questManager.loadPlayer(p.getUniqueId()));
+        getServer().getOnlinePlayers().forEach(p -> {
+            questManager.loadPlayer(p.getUniqueId());
+            battlePassManager.loadPlayer(p.getUniqueId());
+        });
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
         long expiryTicks = 20L * getConfig().getLong("auction.expiry-check-seconds", 60);
@@ -302,6 +318,9 @@ public final class BigMC extends JavaPlugin {
         // Quests: alle 60s speichern + Tages-/Wochenwechsel pruefen
         getServer().getScheduler().runTaskTimer(this, () -> questManager.tick(), 20L * 60, 20L * 60);
 
+        // Battle Pass: alle 60s speichern
+        getServer().getScheduler().runTaskTimer(this, () -> battlePassManager.flushAll(), 20L * 60, 20L * 60);
+
         getLogger().info("BigMC v" + getDescription().getVersion() + " wurde aktiviert.");
     }
 
@@ -326,6 +345,10 @@ public final class BigMC extends JavaPlugin {
         // Quest-Fortschritt speichern
         if (this.questManager != null) {
             this.questManager.shutdown();
+        }
+        // Battle-Pass-Fortschritt speichern
+        if (this.battlePassManager != null) {
+            this.battlePassManager.flushAll();
         }
         // Async-DB-Executor beenden (verarbeitet ausstehende Schreibvorgaenge)
         if (this.databaseExecutor != null) {
@@ -366,6 +389,14 @@ public final class BigMC extends JavaPlugin {
 
     public QuestGUI getQuestGUI() {
         return questGUI;
+    }
+
+    public BattlePassManager getBattlePassManager() {
+        return battlePassManager;
+    }
+
+    public BattlePassGUI getBattlePassGUI() {
+        return battlePassGUI;
     }
 
     public EconomyManager getEconomyManager() {

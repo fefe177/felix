@@ -71,10 +71,13 @@ public class QuestListener implements Listener {
     @EventHandler(ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
         Player player = event.getPlayer();
-        // Selbst platzierte Bloecke nicht werten
+        // Selbst platzierte Bloecke nicht werten (gilt auch fuer Battle-Pass-XP)
         if (playerPlaced.remove(key(event.getBlock()))) return;
         plugin.getQuestManager().handle(player, QuestObjective.BREAK,
                 event.getBlock().getType().name(), 1);
+        if (plugin.getBattlePassManager() != null) {
+            plugin.getBattlePassManager().onMine(player);
+        }
     }
 
     @EventHandler(ignoreCancelled = true)
@@ -90,6 +93,9 @@ public class QuestListener implements Listener {
         if (killer == null) return;
         plugin.getQuestManager().handle(killer, QuestObjective.KILL_ENTITY,
                 event.getEntityType().name(), 1);
+        if (plugin.getBattlePassManager() != null) {
+            plugin.getBattlePassManager().onMobKill(killer);
+        }
     }
 
     @EventHandler
@@ -98,6 +104,9 @@ public class QuestListener implements Listener {
         Player killer = victim.getKiller();
         if (killer == null || killer.getUniqueId().equals(victim.getUniqueId())) return;
         plugin.getQuestManager().handle(killer, QuestObjective.KILL_PLAYER, null, 1);
+        if (plugin.getBattlePassManager() != null) {
+            plugin.getBattlePassManager().onPlayerKill(killer);
+        }
     }
 
     @EventHandler(ignoreCancelled = true)

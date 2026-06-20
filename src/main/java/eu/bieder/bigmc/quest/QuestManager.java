@@ -251,6 +251,9 @@ public class QuestManager {
 
         if (q.rewardMoney() > 0) plugin.getEconomyManager().deposit(player.getUniqueId(), q.rewardMoney());
         if (q.rewardShards() > 0) plugin.getShardsManager().addShards(player.getUniqueId(), q.rewardShards());
+        if (q.rewardXp() > 0 && plugin.getBattlePassManager() != null) {
+            plugin.getBattlePassManager().addXp(player, q.rewardXp());
+        }
 
         flush(player.getUniqueId());
         return true;
