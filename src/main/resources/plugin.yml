@@ -171,6 +171,11 @@ commands:
     usage: /prestige [confirm]
     aliases: [prestiges]
     permission: bigmc.prestige
+  cosmetics:
+    description: Oeffnet das Cosmetics-Menue.
+    usage: /cosmetics
+    aliases: [cosmetic, kosmetik]
+    permission: bigmc.cosmetics
 
 permissions:
   bigmc.use:
@@ -307,6 +312,9 @@ permissions:
     default: op
   bigmc.prestige:
     description: Das Prestige-System benutzen.
+    default: true
+  bigmc.cosmetics:
+    description: Das Cosmetics-Menue benutzen.
     default: true
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.

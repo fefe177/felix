@@ -135,6 +135,57 @@ afk:
     yaw: 0.0
     pitch: 0.0
 
+# ------------------------------------------------------------
+# Cosmetics: Partikel-Trails, Chat-Titel, Join-Nachrichten.
+#   value bei particles = Partikel-Name; bei titles = Chat-Tag;
+#   bei join-messages = Vorlage (%player%).
+# ------------------------------------------------------------
+cosmetics:
+  particle-update-ticks: 5
+  particles:
+    hearts:
+      display: "&dHerzen"
+      icon: POPPY
+      value: HEART
+    flames:
+      display: "&cFlammen"
+      icon: BLAZE_POWDER
+      value: FLAME
+    clouds:
+      display: "&fWolken"
+      icon: WHITE_WOOL
+      value: CLOUD
+    notes:
+      display: "&aNoten"
+      icon: NOTE_BLOCK
+      value: NOTE
+    souls:
+      display: "&bSeelen"
+      icon: SOUL_SAND
+      value: SOUL_FIRE_FLAME
+  titles:
+    veteran:
+      display: "&7[Veteran]"
+      icon: IRON_INGOT
+      value: "&7[Veteran] "
+    legend:
+      display: "&6[Legende]"
+      icon: GOLD_INGOT
+      value: "&6[Legende] "
+    king:
+      display: "&5[König]"
+      icon: GOLDEN_HELMET
+      value: "&5[König] "
+  join-messages:
+    epic:
+      display: "&bEpischer Auftritt"
+      icon: FIREWORK_ROCKET
+      value: "&b✦ &e%player% &7ist dem Server beigetreten! &b✦"
+    simple:
+      display: "&aSchlicht"
+      icon: PAPER
+      value: "&8[&a+&8] &7%player%"
+
 # Prestige: kostet Geld, gibt dauerhaften Verkaufs-Bonus + Shards.
 prestige:
   max-prestige: 10

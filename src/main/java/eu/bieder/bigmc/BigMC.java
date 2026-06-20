@@ -8,6 +8,10 @@ import eu.bieder.bigmc.afk.command.AfkCommand;
 import eu.bieder.bigmc.auction.command.AhCommand;
 import eu.bieder.bigmc.command.BigMcCommand;
 import eu.bieder.bigmc.config.ConfigManager;
+import eu.bieder.bigmc.cosmetics.CosmeticsGUI;
+import eu.bieder.bigmc.cosmetics.CosmeticsListener;
+import eu.bieder.bigmc.cosmetics.CosmeticsManager;
+import eu.bieder.bigmc.cosmetics.command.CosmeticsCommand;
 import eu.bieder.bigmc.config.MessageManager;
 import eu.bieder.bigmc.battlepass.BattlePassGUI;
 import eu.bieder.bigmc.battlepass.BattlePassListener;
@@ -143,6 +147,8 @@ public final class BigMC extends JavaPlugin {
     private BossManager bossManager;
     private PrestigeManager prestigeManager;
     private PrestigeGUI prestigeGUI;
+    private CosmeticsManager cosmeticsManager;
+    private CosmeticsGUI cosmeticsGUI;
 
     @Override
     public void onEnable() {
@@ -213,6 +219,8 @@ public final class BigMC extends JavaPlugin {
         this.bossManager = new BossManager(this);             // Boss-Events
         this.prestigeManager = new PrestigeManager(this);     // Prestige
         this.prestigeGUI = new PrestigeGUI(this);
+        this.cosmeticsManager = new CosmeticsManager(this);   // Cosmetics
+        this.cosmeticsGUI = new CosmeticsGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -243,6 +251,8 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BossListener(this), this);
         getServer().getPluginManager().registerEvents(new PrestigeListener(this), this);
         getServer().getPluginManager().registerEvents(prestigeGUI, this);
+        getServer().getPluginManager().registerEvents(new CosmeticsListener(this), this);
+        getServer().getPluginManager().registerEvents(cosmeticsGUI, this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -328,6 +338,7 @@ public final class BigMC extends JavaPlugin {
         getCommand("bossevent").setExecutor(bossCommand);
         getCommand("bossevent").setTabCompleter(bossCommand);
         getCommand("prestige").setExecutor(new PrestigeCommand(this));
+        getCommand("cosmetics").setExecutor(new CosmeticsCommand(this));
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -335,6 +346,7 @@ public final class BigMC extends JavaPlugin {
             battlePassManager.loadPlayer(p.getUniqueId());
             crateManager.loadPlayer(p.getUniqueId());
             prestigeManager.loadPlayer(p.getUniqueId());
+            cosmeticsManager.loadAsync(p.getUniqueId());
         });
 
         // 7. Wiederkehrende Aufgaben: abgelaufene Auktionen ins Abholfach verschieben
@@ -363,6 +375,11 @@ public final class BigMC extends JavaPlugin {
 
         // Boss-Events: automatischer Spawn-Task
         bossManager.startAutoSpawnTask();
+
+        // Cosmetics: Partikel-Trails regelmaessig spawnen
+        long particleTicks = cosmeticsManager.getParticleUpdateTicks();
+        getServer().getScheduler().runTaskTimer(this,
+                () -> cosmeticsManager.spawnParticles(), particleTicks, particleTicks);
 
         // Quests: alle 60s speichern + Tages-/Wochenwechsel pruefen
         getServer().getScheduler().runTaskTimer(this, () -> questManager.tick(), 20L * 60, 20L * 60);
@@ -474,6 +491,14 @@ public final class BigMC extends JavaPlugin {
 
     public PrestigeGUI getPrestigeGUI() {
         return prestigeGUI;
+    }
+
+    public CosmeticsManager getCosmeticsManager() {
+        return cosmeticsManager;
+    }
+
+    public CosmeticsGUI getCosmeticsGUI() {
+        return cosmeticsGUI;
     }
 
     public EconomyManager getEconomyManager() {

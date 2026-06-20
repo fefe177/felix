@@ -128,6 +128,20 @@ public class DatabaseExecutor {
         });
     }
 
+    /**
+     * Fuehrt eine lesende Abfrage aus und WARTET auf das Ergebnis (blockierend).
+     * Nur von einem Hintergrund-Thread aufrufen (z.B. AsyncPlayerPreLoginEvent),
+     * NIEMALS vom Server-Hauptthread.
+     */
+    public <T> T querySync(SqlFunction<T> read) {
+        try {
+            return executor.submit(() -> read.apply(connection)).get();
+        } catch (Exception e) {
+            plugin.getLogger().severe("Synchrone DB-Abfrage fehlgeschlagen: " + e.getMessage());
+            return null;
+        }
+    }
+
     /** Beendet den Executor und schliesst die Verbindung sauber. */
     public void shutdown() {
         executor.shutdown();

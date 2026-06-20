@@ -206,6 +206,16 @@ shards:
   admin-take-failed: "&e%player% &chat nicht genug Shards dafür."
   admin-set: "&7Shards von &e%player% &7auf &d%amount% &7gesetzt."
 
+cosmetics:
+  gui-title: "&8» &dCosmetics"
+  category-title: "&8» %category%"
+  category-lore: "&7Klicke zum Öffnen"
+  none: "&cKeines / Entfernen"
+  equipped: "&a✔ Ausgerüstet"
+  click-equip: "&eKlicke zum Ausrüsten"
+  applied: "&aCosmetic angepasst!"
+  back: "&c« Zurück"
+
 prestige:
   gui-title: "&8» &dPrestige"
   info-name: "&d&lDein Prestige"
@@ -446,7 +456,7 @@ fly:
   expired: "&cDeine Flugzeit ist abgelaufen."
 
 ranks:
-  chat-format: "%prefix%&f%player%&7: &f%message%"
+  chat-format: "%prefix%%title%&f%player%&7: &f%message%"
   usage: "&cVerwendung: /rank &7| &c/rank buy"
   set-usage: "&cVerwendung: /rank set <spieler> <rang>"
   none-configured: "&cEs sind keine Ränge konfiguriert."

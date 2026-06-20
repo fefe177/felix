@@ -57,9 +57,16 @@ public class RankListener implements Listener {
         // Rohnachricht des Spielers als reinen Text uebernehmen
         String message = LegacyComponentSerializer.legacySection().serialize(event.message());
 
+        // Cosmetic-Titel (falls ausgeruestet)
+        String title = "";
+        if (plugin.getCosmeticsManager() != null) {
+            title = plugin.getCosmeticsManager().getEquippedTitle(event.getPlayer().getUniqueId());
+        }
+
         MessageManager msg = plugin.getMessageManager();
         String format = msg.getRaw("ranks.chat-format")
                 .replace("%prefix%", MessageManager.color(prefix))
+                .replace("%title%", MessageManager.color(title))
                 .replace("%player%", event.getPlayer().getName())
                 .replace("%message%", message);
 
