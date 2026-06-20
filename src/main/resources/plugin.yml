@@ -146,6 +146,16 @@ commands:
     usage: /battlepass [buy]
     aliases: [bp, pass]
     permission: bigmc.battlepass
+  clan:
+    description: Clan-System (erstellen, beitreten, verwalten).
+    usage: /clan create|invite|accept|leave|info|top|chat ...
+    aliases: [clans, gilde]
+    permission: bigmc.clan
+  c:
+    description: Sendet eine Nachricht in den Clan-Chat.
+    usage: /c <nachricht>
+    aliases: [cc]
+    permission: bigmc.clan
 
 permissions:
   bigmc.use:
@@ -264,6 +274,9 @@ permissions:
     default: true
   bigmc.battlepass:
     description: Den Battle Pass benutzen.
+    default: true
+  bigmc.clan:
+    description: Das Clan-System benutzen.
     default: true
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.

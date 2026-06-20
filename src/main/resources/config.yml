@@ -135,6 +135,14 @@ afk:
     yaw: 0.0
     pitch: 0.0
 
+# Clan-System
+clans:
+  min-name-length: 3
+  max-name-length: 12
+  max-members: 10
+  points-per-kill: 1
+  invite-timeout-seconds: 60
+
 # ------------------------------------------------------------
 # Battle Pass: Free- und Premium-Pfad mit Season-Unterstuetzung.
 # Belohnungen koennen pro Level unter levels.<n>.free/premium gesetzt werden;

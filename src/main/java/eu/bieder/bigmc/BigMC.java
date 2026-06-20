@@ -13,6 +13,10 @@ import eu.bieder.bigmc.battlepass.BattlePassGUI;
 import eu.bieder.bigmc.battlepass.BattlePassListener;
 import eu.bieder.bigmc.battlepass.BattlePassManager;
 import eu.bieder.bigmc.battlepass.command.BattlePassCommand;
+import eu.bieder.bigmc.clan.ClanListener;
+import eu.bieder.bigmc.clan.ClanManager;
+import eu.bieder.bigmc.clan.command.ClanChatCommand;
+import eu.bieder.bigmc.clan.command.ClanCommand;
 import eu.bieder.bigmc.database.Database;
 import eu.bieder.bigmc.database.DatabaseExecutor;
 import eu.bieder.bigmc.quest.QuestGUI;
@@ -122,6 +126,7 @@ public final class BigMC extends JavaPlugin {
     private QuestGUI questGUI;
     private BattlePassManager battlePassManager;
     private BattlePassGUI battlePassGUI;
+    private ClanManager clanManager;
 
     @Override
     public void onEnable() {
@@ -186,6 +191,7 @@ public final class BigMC extends JavaPlugin {
         this.questGUI = new QuestGUI(this);
         this.battlePassManager = new BattlePassManager(this); // Battle Pass
         this.battlePassGUI = new BattlePassGUI(this);
+        this.clanManager = new ClanManager(this);             // Clans
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -210,6 +216,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(questGUI, this);
         getServer().getPluginManager().registerEvents(new BattlePassListener(this), this);
         getServer().getPluginManager().registerEvents(battlePassGUI, this);
+        getServer().getPluginManager().registerEvents(new ClanListener(this), this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -284,6 +291,10 @@ public final class BigMC extends JavaPlugin {
         BattlePassCommand bpCommand = new BattlePassCommand(this);
         getCommand("battlepass").setExecutor(bpCommand);
         getCommand("battlepass").setTabCompleter(bpCommand);
+        ClanCommand clanCommand = new ClanCommand(this);
+        getCommand("clan").setExecutor(clanCommand);
+        getCommand("clan").setTabCompleter(clanCommand);
+        getCommand("c").setExecutor(new ClanChatCommand(this));
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -397,6 +408,10 @@ public final class BigMC extends JavaPlugin {
 
     public BattlePassGUI getBattlePassGUI() {
         return battlePassGUI;
+    }
+
+    public ClanManager getClanManager() {
+        return clanManager;
     }
 
     public EconomyManager getEconomyManager() {
