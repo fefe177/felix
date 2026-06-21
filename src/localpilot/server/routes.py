@@ -162,3 +162,38 @@ async def get_config(context: ContextDep) -> dict[str, Any]:
     if isinstance(data.get("llm"), dict) and "api_key" in data["llm"]:
         data["llm"]["api_key"] = "***"
     return data
+
+
+# ---------------------------------------------------------------------------
+# Daemon endpoints (Phase 11)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/api/daemon/status")
+async def daemon_status(context: ContextDep) -> dict[str, Any]:
+    """Return the current daemon status."""
+
+    dm = context.daemon_manager
+    return {
+        "active": dm.active,
+        "mission_root": context.container.config.daemon.mission_root,
+        "stop_file": context.container.config.daemon.stop_file,
+    }
+
+
+@router.post("/api/daemon/start")
+async def daemon_start(context: ContextDep) -> dict[str, Any]:
+    """Start the autonomous daemon in the background (409 if already running)."""
+
+    started = await context.daemon_manager.start()
+    if not started:
+        raise HTTPException(status_code=409, detail="Daemon laeuft bereits.")
+    return {"started": True}
+
+
+@router.post("/api/daemon/stop")
+async def daemon_stop(context: ContextDep) -> dict[str, Any]:
+    """Stop the autonomous daemon gracefully."""
+
+    stopped = await context.daemon_manager.stop()
+    return {"stopped": stopped}

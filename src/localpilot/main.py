@@ -153,5 +153,101 @@ def serve(config: Path | None = _ConfigOption) -> None:
     uvicorn.run(fastapi_app, host=app_config.server.host, port=app_config.server.port)
 
 
+@app.command()
+def daemon(
+    once: bool = typer.Option(False, "--once", help="Run a single self-chosen task and exit."),
+    stop: bool = typer.Option(False, "--stop", help="Write the STOP sentinel and exit."),
+    mission: str | None = typer.Option(
+        None,
+        "--mission",
+        "-m",
+        help="Restrict to one mission: organize | research | code.",
+    ),
+    config: Path | None = _ConfigOption,
+) -> None:
+    """Run the autonomous daemon (self-directed, no confirmation prompts).
+
+    The daemon chooses its own goals from the configured missions, executes
+    them autonomously, and learns from the results. Safety guardrails
+    (STOP file, blocklist, workdir restriction) stay active at all times.
+
+    Examples::
+
+        localpilot daemon --once          # one self-chosen task, then exit
+        localpilot daemon                 # run forever until STOP file appears
+        localpilot daemon --stop          # halt a running daemon gracefully
+        localpilot daemon --mission code  # restrict to the code mission
+    """
+
+    app_config = load_config(str(config) if config is not None else None)
+    configure_logging(app_config.log_level)
+
+    if stop:
+        from pathlib import Path as _Path
+
+        stop_path = _Path(app_config.daemon.stop_file).expanduser().resolve()
+        stop_path.parent.mkdir(parents=True, exist_ok=True)
+        stop_path.touch()
+        typer.echo(f"STOP-Datei geschrieben: {stop_path}")
+        return
+
+    asyncio.run(_daemon_lifecycle(app_config, once=once, mission=mission))
+
+
+async def _daemon_lifecycle(
+    app_config: AppConfig,
+    *,
+    once: bool,
+    mission: str | None,
+) -> None:
+    """Start the container, run the daemon and shut down cleanly."""
+
+    from localpilot.autonomy.daemon import AutonomousDaemon
+
+    container = Container(app_config)
+    # Daemon forces autonomous mode; blocklist + workdir restriction stay on.
+    app_config.safety.mode = "autonomous"
+    try:
+        await container.startup()
+        d: AutonomousDaemon = container.create_daemon()
+        if once:
+            result = await d.run_once(mission)
+            if result is None:
+                typer.echo("Daemon wurde durch STOP-Datei abgebrochen.")
+            else:
+                typer.echo(f"\nTask {result.task_id} – Status: {result.status}")
+                typer.echo(result.summary)
+        else:
+            typer.echo(
+                f"Daemon gestartet. Arbeitsordner: {app_config.daemon.mission_root}\n"
+                f"Stoppen: localpilot daemon --stop  oder STOP-Datei anlegen: "
+                f"{app_config.daemon.stop_file}"
+            )
+            import signal
+
+            loop = asyncio.get_running_loop()
+
+            def _handle_signal() -> None:
+                typer.echo("\nSignal empfangen – Daemon wird beendet …")
+                d.request_stop()
+
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                try:
+                    loop.add_signal_handler(sig, _handle_signal)
+                except (NotImplementedError, OSError):
+                    pass  # Windows: signal handler not supported in event loop
+
+            await d.run_forever()
+    except LLMError as exc:
+        typer.echo(f"LLM-Fehler: {exc}", err=True)
+        typer.echo(
+            "Laeuft ein lokales LLM-Backend? Pruefe llm.base_url und llm.model.",
+            err=True,
+        )
+        raise typer.Exit(code=1) from exc
+    finally:
+        await container.shutdown()
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()

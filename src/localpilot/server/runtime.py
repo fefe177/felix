@@ -8,7 +8,10 @@ the HTTP/WebSocket layer to the agent:
   decision delivered via ``POST /api/confirm``.
 * :class:`AgentRunManager` - runs at most one agent run at a time as a background
   task, exposes its id and supports cooperative cancellation.
-* :class:`ServerContext` - bundles the container, run manager and provider.
+* :class:`DaemonManager` - starts and stops the :class:`AutonomousDaemon` as a
+  background task; exactly one daemon may run at a time.
+* :class:`ServerContext` - bundles the container, run manager, daemon manager
+  and confirmation provider.
 """
 
 from __future__ import annotations
@@ -57,6 +60,52 @@ class WebUIConfirmationProvider:
         return True
 
 
+class DaemonManager:
+    """Starts and stops the AutonomousDaemon as a background asyncio task."""
+
+    def __init__(self, container: Container) -> None:
+        """Store the container; the daemon is created lazily on first start."""
+
+        self._container = container
+        self._task: asyncio.Task[None] | None = None
+
+    @property
+    def active(self) -> bool:
+        """Whether the daemon is currently running."""
+
+        return self._task is not None and not self._task.done()
+
+    async def start(self) -> bool:
+        """Start the daemon in the background; return ``False`` if already running."""
+
+        if self.active:
+            return False
+        daemon = self._container.create_daemon()
+        self._daemon = daemon
+        self._container.config.safety.mode = "autonomous"
+        self._task = asyncio.create_task(daemon.run_forever())
+        return True
+
+    async def stop(self) -> bool:
+        """Signal the daemon to stop and cancel the background task."""
+
+        if not self.active or self._task is None:
+            return False
+        if hasattr(self, "_daemon"):
+            self._daemon.request_stop()
+        self._task.cancel()
+        try:
+            await self._task
+        except asyncio.CancelledError:
+            pass
+        return True
+
+    async def shutdown(self) -> None:
+        """Cancel the daemon on server shutdown."""
+
+        await self.stop()
+
+
 @dataclass
 class ServerContext:
     """Shared, app-lifetime objects exposed to the routes via ``app.state``."""
@@ -64,6 +113,7 @@ class ServerContext:
     container: Container
     run_manager: AgentRunManager
     confirm_provider: WebUIConfirmationProvider
+    daemon_manager: DaemonManager
 
 
 class AgentRunManager:

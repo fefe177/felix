@@ -26,10 +26,14 @@ export interface EventState {
   screenshot: string | null;
   pendingConfirmation: PendingConfirmation | null;
   lastEventAt: number | null;
+  /** Rolling window of the last 100 raw events (used by AutonomyPanel). */
+  events: AgentEvent[];
 }
 
 const MAX_LOGS = 500;
 const MAX_TOOL_CALLS = 200;
+
+const MAX_RAW_EVENTS = 100;
 
 const initialState: EventState = {
   connection: "connecting",
@@ -41,6 +45,7 @@ const initialState: EventState = {
   screenshot: null,
   pendingConfirmation: null,
   lastEventAt: null,
+  events: [],
 };
 
 interface PendingToolMeta {
@@ -67,7 +72,11 @@ function reduceEvent(
   pendingMeta: { current: PendingToolMeta | null },
 ): EventState {
   const now = Date.now();
-  const base = { ...state, lastEventAt: now };
+  const base = {
+    ...state,
+    lastEventAt: now,
+    events: [...state.events, event].slice(-MAX_RAW_EVENTS),
+  };
 
   switch (event.type) {
     case "agent_start":

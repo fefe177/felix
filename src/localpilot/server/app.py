@@ -23,7 +23,12 @@ from localpilot.config.schema import AppConfig
 from localpilot.container import Container
 from localpilot.logging.setup import EventBus, configure_logging
 from localpilot.server.routes import router as api_router
-from localpilot.server.runtime import AgentRunManager, ServerContext, WebUIConfirmationProvider
+from localpilot.server.runtime import (
+    AgentRunManager,
+    DaemonManager,
+    ServerContext,
+    WebUIConfirmationProvider,
+)
 from localpilot.server.websocket import router as ws_router
 
 #: Origin of the Vite dev server that the GUI will run on.
@@ -75,6 +80,7 @@ def _make_lifespan(
 
         confirm_provider = WebUIConfirmationProvider(active_container.event_bus)
         run_manager = AgentRunManager(active_container, confirm_provider)
+        daemon_manager = DaemonManager(active_container)
 
         loop = asyncio.get_running_loop()
         handler = EventBusLogHandler(active_container.event_bus, loop)
@@ -85,11 +91,13 @@ def _make_lifespan(
             container=active_container,
             run_manager=run_manager,
             confirm_provider=confirm_provider,
+            daemon_manager=daemon_manager,
         )
         try:
             yield
         finally:
             app_logger.removeHandler(handler)
+            await daemon_manager.shutdown()
             await run_manager.shutdown()
             await active_container.shutdown()
 

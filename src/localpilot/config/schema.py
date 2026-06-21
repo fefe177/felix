@@ -104,6 +104,20 @@ class AgentConfig(BaseModel):
     max_repair_attempts: int = 2
 
 
+class DaemonConfig(BaseModel):
+    """Settings for the autonomous background daemon (Phase 11)."""
+
+    enabled: bool = False
+    idle_interval_s: int = 60
+    max_tasks_per_hour: int = 20
+    max_consecutive_failures: int = 5
+    stop_file: str = "~/localpilot-workspace/STOP"
+    missions: list[str] = Field(default_factory=lambda: ["organize", "research", "code"])
+    mission_root: str = "~/localpilot-workspace"
+    reflect: bool = True
+    research_browser: bool = True
+
+
 class AppConfig(BaseSettings):
     """Top-level application configuration.
 
@@ -130,6 +144,7 @@ class AppConfig(BaseSettings):
     safety: SafetyConfig = Field(default_factory=SafetyConfig)
     server: ServerConfig = Field(default_factory=ServerConfig)
     agent: AgentConfig = Field(default_factory=AgentConfig)
+    daemon: DaemonConfig = Field(default_factory=DaemonConfig)
     multi_agent: bool = False
     log_level: str = "INFO"
 

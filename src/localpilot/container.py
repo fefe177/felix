@@ -18,6 +18,7 @@ import structlog
 
 from localpilot.agent.loop import AgentLoop
 from localpilot.agent.safety import ConfirmationProvider, SafetyGate
+from localpilot.autonomy.daemon import AutonomousDaemon
 from localpilot.browser.controller import BrowserController
 from localpilot.config.schema import AppConfig
 from localpilot.desktop.controller import DesktopController
@@ -178,6 +179,15 @@ class Container:
         if multi_agent:
             return Orchestrator(self, confirmation_provider)
         return AgentLoop(self, confirmation_provider)
+
+    def create_daemon(self) -> AutonomousDaemon:
+        """Build an :class:`~localpilot.autonomy.daemon.AutonomousDaemon` from this container.
+
+        Requires :meth:`startup` to have been called so the memory database is
+        connected.
+        """
+
+        return AutonomousDaemon(self)
 
     async def startup(self) -> None:
         """Connect the database and initialise the schema (idempotent)."""

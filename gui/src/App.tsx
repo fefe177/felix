@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { useEventStream } from "./api/client";
+import { AutonomyPanel } from "./components/AutonomyPanel";
 import { ConnectionBanner } from "./components/ConnectionBanner";
 import { LiveLogs } from "./components/LiveLogs";
 import { MemoryView } from "./components/MemoryView";
@@ -9,9 +10,9 @@ import { ScreenshotPreview } from "./components/ScreenshotPreview";
 import { TaskPanel } from "./components/TaskPanel";
 import { ToolCalls } from "./components/ToolCalls";
 
-type View = "dashboard" | "memory";
+type View = "dashboard" | "autonomy" | "memory";
 
-/** Root dashboard: a sidebar plus the dashboard or memory view. */
+/** Root dashboard: a sidebar plus the dashboard, autonomy or memory view. */
 export function App() {
   const stream = useEventStream();
   const [view, setView] = useState<View>("dashboard");
@@ -29,6 +30,12 @@ export function App() {
             onClick={() => setView("dashboard")}
           >
             Dashboard
+          </button>
+          <button
+            className={`nav-item ${view === "autonomy" ? "active" : ""}`}
+            onClick={() => setView("autonomy")}
+          >
+            Autonomy
           </button>
           <button
             className={`nav-item ${view === "memory" ? "active" : ""}`}
@@ -60,6 +67,8 @@ export function App() {
               <ScreenshotPreview screenshot={stream.screenshot} />
             </div>
           </>
+        ) : view === "autonomy" ? (
+          <AutonomyPanel events={stream.events} />
         ) : (
           <MemoryView />
         )}

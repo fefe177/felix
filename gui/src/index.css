@@ -538,6 +538,141 @@ body {
   min-width: 110px;
 }
 
+/* Autonomy panel */
+.autonomy-panel {
+  max-width: 740px;
+}
+
+.autonomy-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.autonomy-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.autonomy-root {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 14px;
+  font-family: ui-monospace, monospace;
+}
+
+.autonomy-controls {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.autonomy-toggle {
+  min-width: 160px;
+}
+
+.btn-panic {
+  background: #7b1a1a;
+  color: #ff8080;
+  border: 1px solid var(--danger);
+  border-radius: 8px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-panic:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-panic:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.autonomy-feed-label {
+  font-size: 12px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0 0 8px;
+}
+
+.autonomy-feed-container {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+.autonomy-feed {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.feed-empty {
+  color: var(--muted);
+  padding: 8px 0;
+}
+
+.feed-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  flex-wrap: wrap;
+}
+
+.feed-time {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+.feed-type {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.feed-mission {
+  color: var(--warn);
+}
+
+.feed-goal {
+  color: var(--text);
+  flex: 1;
+  word-break: break-word;
+}
+
+.feed-status.completed {
+  color: var(--success);
+}
+
+.feed-status.failed {
+  color: var(--danger);
+}
+
+.feed-error {
+  color: var(--danger);
+  word-break: break-word;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;

@@ -97,6 +97,28 @@ export function getHealth(): Promise<HealthResponse> {
   return request("/api/health");
 }
 
+// ---------------------------------------------------------------------------
+// Daemon endpoints (Phase 11)
+// ---------------------------------------------------------------------------
+
+export interface DaemonStatus {
+  active: boolean;
+  mission_root: string;
+  stop_file: string;
+}
+
+export function getDaemonStatus(): Promise<DaemonStatus> {
+  return request("/api/daemon/status");
+}
+
+export function startDaemon(): Promise<{ started: boolean }> {
+  return request("/api/daemon/start", { method: "POST" });
+}
+
+export function stopDaemon(): Promise<{ stopped: boolean }> {
+  return request("/api/daemon/stop", { method: "POST" });
+}
+
 export { getBaseUrl, getWsUrl } from "./config";
 export { useEventStream } from "./useEventStream";
 export type { EventState } from "./useEventStream";

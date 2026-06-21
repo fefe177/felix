@@ -58,5 +58,23 @@ agent:
   max_iterations: 12
   max_repair_attempts: 2
 
+agent:
+  max_iterations: 12
+  max_repair_attempts: 2
+
+daemon:
+  enabled: false
+  idle_interval_s: 60
+  max_tasks_per_hour: 20
+  max_consecutive_failures: 5
+  stop_file: ~/localpilot-workspace/STOP
+  missions:
+    - organize
+    - research
+    - code
+  mission_root: ~/localpilot-workspace
+  reflect: true
+  research_browser: true
+
 # Multi-agent mode is opt-in; the single-agent path is the default.
 multi_agent: false
