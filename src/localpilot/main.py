@@ -213,7 +213,10 @@ async def _daemon_lifecycle(
         if once:
             result = await d.run_once(mission)
             if result is None:
-                typer.echo("Daemon wurde durch STOP-Datei abgebrochen.")
+                if d._should_stop():
+                    typer.echo("Daemon wurde durch STOP-Datei abgebrochen.")
+                else:
+                    typer.echo("Task fehlgeschlagen (LLM-Fehler oder Ausnahme – siehe Log).")
             else:
                 typer.echo(f"\nTask {result.task_id} – Status: {result.status}")
                 typer.echo(result.summary)
