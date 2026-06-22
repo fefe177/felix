@@ -6,7 +6,7 @@
 
     <groupId>eu.bieder</groupId>
     <artifactId>BigMC</artifactId>
-    <version>0.2.0</version>
+    <version>0.2.1</version>
     <packaging>jar</packaging>
 
     <name>BigMC</name>
@@ -36,12 +36,15 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- SQLite JDBC Treiber - wird in die JAR geshadet (kein externer DB-Server noetig) -->
+        <!-- SQLite JDBC Treiber - NICHT mehr ins JAR geshadet, sondern zur Laufzeit
+             ueber Papers "libraries" (siehe plugin.yml) geladen. Das vermeidet den
+             UnsatisfiedLinkError, den Papers Plugin-Remapper bei geshadeten
+             nativen Bibliotheken verursacht. Hier nur "provided" (Compile-Zeit). -->
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.47.1.0</version>
-            <scope>compile</scope>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Hinweis: NuVotifier (Phase 9) wird NICHT als Abhaengigkeit benoetigt.
@@ -64,31 +67,8 @@
                     <release>${java.version}</release>
                 </configuration>
             </plugin>
-
-            <!-- Shade-Plugin: SQLite-Treiber in die JAR packen + umbenennen (relocate) -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.6.0</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <createDependencyReducedPom>false</createDependencyReducedPom>
-                            <relocations>
-                                <!-- SQLite umziehen, damit es nicht mit anderen Plugins kollidiert -->
-                                <relocation>
-                                    <pattern>org.sqlite</pattern>
-                                    <shadedPattern>eu.bieder.bigmc.libs.sqlite</shadedPattern>
-                                </relocation>
-                            </relocations>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+            <!-- Kein Shade mehr noetig: SQLite kommt zur Laufzeit ueber Papers
+                 library-loader (plugin.yml -> libraries). -->
         </plugins>
 
         <resources>

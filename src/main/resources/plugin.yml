@@ -7,6 +7,12 @@ description: Survival-SMP Plugin im Stil von HugoSMP und DonutSMP.
 # NuVotifier ist optional - das Plugin laeuft auch ohne (Soft-Depend).
 softdepend: [Votifier, NuVotifier]
 
+# SQLite-Treiber zur Laufzeit von Paper laden lassen (von Maven Central).
+# So wird die native Bibliothek NICHT vom Plugin-Remapper angefasst -> kein
+# UnsatisfiedLinkError. Benoetigt beim ersten Start einmalig Internet.
+libraries:
+  - org.xerial:sqlite-jdbc:3.47.1.0
+
 commands:
   bigmc:
     description: BigMC-Hauptbefehl (Info & Reload).
