@@ -1,11 +1,16 @@
 name: Build BigMC
 
-# Baut das Plugin bei jedem Push und stellt die fertige BigMC.jar
-# als Download-Artefakt bereit. Laeuft auch manuell ueber "Run workflow".
+# Baut das Plugin bei jedem Push und stellt die fertige BigMC.jar bereit:
+#  - als Artefakt (im jeweiligen Lauf, .zip)
+#  - zusaetzlich als "latest"-Release zum direkten 1-Klick-Download (kein Entpacken)
+# Laeuft auch manuell ueber "Run workflow".
 on:
   push:
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -30,3 +35,15 @@ jobs:
           name: BigMC
           path: target/BigMC.jar
           if-no-files-found: error
+
+      # Auf dem Entwicklungs-Branch zusaetzlich ein "latest"-Release pflegen,
+      # damit die fertige BigMC.jar mit einem Klick (ohne ZIP) ladbar ist:
+      # Repo -> Releases -> "BigMC - neuester Build" -> BigMC.jar.
+      - name: Release "latest" aktualisieren
+        if: github.ref == 'refs/heads/claude/bigmc-minecraft-plugin-srqtf3'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: BigMC - neuester Build
+          body: Automatisch gebaute BigMC.jar des neuesten Commits. Einfach herunterladen und in den plugins-Ordner legen.
+          files: target/BigMC.jar
