@@ -89,7 +89,9 @@ public class QuestGUI implements Listener {
         else lore.add(msg.getRaw("quests.lore-incomplete"));
 
         Material icon = claimed ? Material.LIME_DYE : q.icon();
-        return GuiDesign.named(icon, "&a" + q.display(), lore);
+        ItemStack item = GuiDesign.named(icon, "&a" + q.display(), lore);
+        if (complete && !claimed) GuiDesign.glow(item); // abholbare Quest leuchtet
+        return item;
     }
 
     @EventHandler

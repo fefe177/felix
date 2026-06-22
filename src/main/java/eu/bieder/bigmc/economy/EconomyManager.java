@@ -212,6 +212,15 @@ public class EconomyManager {
         return format.format(amount) + symbol;
     }
 
+    /**
+     * Kurzes Format im DonutSMP-Stil, z.B. "$1.2k" - ideal fuer GUIs.
+     */
+    public String formatShort(double amount) {
+        String symbol = plugin.getConfigManager().getConfig()
+                .getString("economy.currency-symbol", "$");
+        return symbol + eu.bieder.bigmc.util.GuiDesign.shortNumber(amount);
+    }
+
     /** Rundet auf 2 Nachkommastellen (Cent-genau). */
     private double round(double value) {
         return Math.round(value * 100.0) / 100.0;

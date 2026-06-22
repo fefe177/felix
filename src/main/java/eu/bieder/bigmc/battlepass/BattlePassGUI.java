@@ -134,11 +134,15 @@ public class BattlePassGUI implements Listener {
         lore.add(msg.getRaw("battlepass.level-click"));
 
         Material icon;
-        if (!reached) icon = Material.GRAY_STAINED_GLASS_PANE;
-        else if (freeClaimed && (premClaimed || !premium)) icon = Material.LIME_STAINED_GLASS_PANE;
-        else icon = Material.YELLOW_STAINED_GLASS_PANE;
+        boolean claimable;
+        if (!reached) { icon = Material.GRAY_STAINED_GLASS_PANE; claimable = false; }
+        else if (freeClaimed && (premClaimed || !premium)) { icon = Material.LIME_STAINED_GLASS_PANE; claimable = false; }
+        else { icon = Material.YELLOW_STAINED_GLASS_PANE; claimable = true; }
 
-        return GuiDesign.named(icon, msg.getRaw("battlepass.level-name").replace("%level%", String.valueOf(level)), lore);
+        ItemStack item = GuiDesign.named(icon,
+                msg.getRaw("battlepass.level-name").replace("%level%", String.valueOf(level)), lore);
+        if (claimable) GuiDesign.glow(item); // abholbares Level leuchtet
+        return item;
     }
 
     private String rewardText(BattlePassReward r) {

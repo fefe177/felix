@@ -81,8 +81,10 @@ public class CosmeticsGUI implements Listener {
         // "Entfernen"-Option als ersten Slot der ersten Reihe
         int[] firstRow = GuiDesign.centeredSlots(1, Math.min(7, list.size() + 1));
         int slot0 = firstRow[0];
-        inv.setItem(slot0, GuiDesign.named(Material.BARRIER, msg.getRaw("cosmetics.none"),
-                List.of(equipped == null ? msg.getRaw("cosmetics.equipped") : msg.getRaw("cosmetics.click-equip"))));
+        ItemStack noneItem = GuiDesign.named(Material.BARRIER, msg.getRaw("cosmetics.none"),
+                List.of(equipped == null ? msg.getRaw("cosmetics.equipped") : msg.getRaw("cosmetics.click-equip")));
+        if (equipped == null) GuiDesign.glow(noneItem); // aktuell "nichts ausgeruestet" hervorheben
+        inv.setItem(slot0, noneItem);
         holder.slotCosmetic.put(slot0, null);
 
         // Cosmetics ab dem zweiten Slot der ersten Reihe, dann weitere Reihen
@@ -97,7 +99,9 @@ public class CosmeticsGUI implements Listener {
                 boolean isEquipped = cosmetic.id().equals(equipped);
                 List<String> lore = new ArrayList<>();
                 lore.add(isEquipped ? msg.getRaw("cosmetics.equipped") : msg.getRaw("cosmetics.click-equip"));
-                inv.setItem(rs, GuiDesign.named(cosmetic.icon(), cosmetic.display(), lore));
+                ItemStack item = GuiDesign.named(cosmetic.icon(), cosmetic.display(), lore);
+                if (isEquipped) GuiDesign.glow(item); // ausgeruestetes Cosmetic leuchtet
+                inv.setItem(rs, item);
                 holder.slotCosmetic.put(rs, cosmetic.id());
             }
         }

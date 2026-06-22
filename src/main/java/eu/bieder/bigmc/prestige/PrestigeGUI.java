@@ -58,14 +58,17 @@ public class PrestigeGUI implements Listener {
             inv.setItem(SLOT_PRESTIGE, GuiDesign.named(Material.BARRIER, msg.getRaw("prestige.max-button"), List.of()));
         } else {
             double cost = pm.costFor(level);
-            inv.setItem(SLOT_PRESTIGE, GuiDesign.named(Material.NETHER_STAR, msg.getRaw("prestige.button-name"),
+            var button = GuiDesign.named(Material.NETHER_STAR, msg.getRaw("prestige.button-name"),
                     List.of(
                             msg.getRaw("prestige.button-cost")
                                     .replace("%cost%", plugin.getEconomyManager().formatMoney(cost)),
                             msg.getRaw("prestige.button-next")
                                     .replace("%bonus%", String.format("%.1f", (level + 1) * pm.getSellBonusPercent())),
                             "",
-                            msg.getRaw("prestige.button-click"))));
+                            msg.getRaw("prestige.button-click")));
+            // Wenn bezahlbar: Button leuchtet als Hinweis
+            if (plugin.getEconomyManager().getBalance(player.getUniqueId()) >= cost) GuiDesign.glow(button);
+            inv.setItem(SLOT_PRESTIGE, button);
         }
         player.openInventory(inv);
     }

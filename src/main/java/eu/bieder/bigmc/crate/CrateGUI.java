@@ -87,7 +87,9 @@ public class CrateGUI implements Listener {
                         "",
                         msg.getRaw("crate.gui-open"),
                         msg.getRaw("crate.gui-preview"));
-                inv.setItem(slot, GuiDesign.named(crate.icon(), crate.display(), lore));
+                ItemStack crateItem = GuiDesign.named(crate.icon(), crate.display(), lore);
+                if (keys > 0) GuiDesign.glow(crateItem); // Crate mit Schluessel leuchtet
+                inv.setItem(slot, crateItem);
                 holder.slots.put(slot, crate);
             }
         }

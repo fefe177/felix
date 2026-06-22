@@ -78,8 +78,10 @@ public class DailyLoginGUI implements Listener {
             Material icon = day == currentDay
                     ? (canClaim ? Material.CHEST : Material.ENDER_CHEST)
                     : (day < currentDay ? Material.LIME_STAINED_GLASS_PANE : Material.GRAY_STAINED_GLASS_PANE);
-            inv.setItem(daySlots.get(day - 1),
-                    GuiDesign.named(icon, msg.getRaw("dailylogin.day-name").replace("%day%", String.valueOf(day)), lore));
+            var dayItem = GuiDesign.named(icon,
+                    msg.getRaw("dailylogin.day-name").replace("%day%", String.valueOf(day)), lore);
+            if (day == currentDay && canClaim) GuiDesign.glow(dayItem); // heute abholbar -> leuchtet
+            inv.setItem(daySlots.get(day - 1), dayItem);
         }
 
         // Streak-Info + Claim-Button
@@ -87,7 +89,8 @@ public class DailyLoginGUI implements Listener {
                 List.of(msg.getRaw("dailylogin.streak-lore")
                         .replace("%streak%", String.valueOf(dm.getStreak(player.getUniqueId()))))));
         if (canClaim) {
-            inv.setItem(SLOT_CLAIM, GuiDesign.named(Material.EMERALD, msg.getRaw("dailylogin.claim-button"), List.of()));
+            inv.setItem(SLOT_CLAIM, GuiDesign.glow(
+                    GuiDesign.named(Material.EMERALD, msg.getRaw("dailylogin.claim-button"), List.of())));
         } else {
             inv.setItem(SLOT_CLAIM, GuiDesign.named(Material.BARRIER, msg.getRaw("dailylogin.claimed-button"), List.of()));
         }
