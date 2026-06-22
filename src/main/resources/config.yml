@@ -466,16 +466,27 @@ spawn:
     yaw: 0.0
     pitch: 0.0
 
-# Random-Teleport (/rtp): zufaellige sichere Position in dieser Area.
+# Random-Teleport (/rtp): zufaellige sichere Position in der gewaehlten Dimension.
+# /rtp oeffnet ein Auswahl-Menue (Overworld / Nether / End); /rtp <dim> geht direkt.
 rtp:
-  # Zielwelt (Name aus dem Server-Ordner, meist "world")
+  # Overworld-Zielwelt (Name aus dem Server-Ordner, meist "world")
   world: "world"
-  # Zentrum der RTP-Area
+  # Nether-/End-Zielwelten (Standard-Namen von Paper). Leer/fehlend = automatisch
+  # die erste geladene Welt der passenden Dimension.
+  nether-world: "world_nether"
+  end-world: "world_the_end"
+  # Zentrum der RTP-Area (fuer alle Dimensionen)
   center-x: 0
   center-z: 0
-  # Spieler landen zwischen min- und max-radius vom Zentrum entfernt
+  # Overworld: Spieler landen zwischen min- und max-radius vom Zentrum entfernt
   min-radius: 500
   max-radius: 5000
+  # Nether: kleinere Radien (Nether-Koordinaten sind 1/8 der Overworld)
+  nether-min-radius: 100
+  nether-max-radius: 1500
+  # End: Radien um das Zentrum der End-Welt
+  end-min-radius: 100
+  end-max-radius: 1500
   # Cooldown zwischen zwei RTPs (Sekunden)
   cooldown-seconds: 60
   # Kosten pro RTP (0 = kostenlos)

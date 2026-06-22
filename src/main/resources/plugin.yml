@@ -118,8 +118,8 @@ commands:
     usage: /spawnbuild confirm
     permission: bigmc.spawn.admin
   rtp:
-    description: Zufaelliger Teleport in die Wildnis.
-    usage: /rtp
+    description: Zufaelliger Teleport in die Wildnis (Overworld/Nether/End).
+    usage: /rtp [overworld|nether|end]
     aliases: [wild, randomtp]
     permission: bigmc.rtp
   tpa:

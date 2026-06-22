@@ -1,17 +1,25 @@
 package eu.bieder.bigmc.rtp.command;
 
 import eu.bieder.bigmc.BigMC;
-import org.bukkit.Location;
+import eu.bieder.bigmc.rtp.RtpManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.command.TabCompleter;
 import org.bukkit.entity.Player;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
- * /rtp -> teleportiert an eine zufaellige sichere Position in der RTP-Area.
- * Cooldown und optionale Kosten aus der config.
+ * /rtp                       -> oeffnet das Auswahl-GUI (Dimension waehlen)
+ * /rtp overworld|nether|end  -> teleportiert direkt in die gewuenschte Dimension
+ *
+ * Cooldown und optionale Kosten kommen aus der config.
  */
-public class RtpCommand implements CommandExecutor {
+public class RtpCommand implements CommandExecutor, TabCompleter {
+
+    private static final List<String> DIMENSIONS = List.of("overworld", "nether", "end");
 
     private final BigMC plugin;
 
@@ -21,44 +29,31 @@ public class RtpCommand implements CommandExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        var msg = plugin.getMessageManager();
-
         if (!(sender instanceof Player player)) {
-            msg.send(sender, "general.player-only");
+            plugin.getMessageManager().send(sender, "general.player-only");
             return true;
         }
 
-        // Cooldown pruefen
-        long remaining = plugin.getRtpManager().getRemainingCooldown(player.getUniqueId());
-        if (remaining > 0 && !player.hasPermission("bigmc.rtp.bypass")) {
-            msg.send(player, "rtp.cooldown", "%seconds%", String.valueOf(remaining));
+        // Ohne Argument: GUI zur Dimensionswahl oeffnen
+        if (args.length == 0) {
+            plugin.getRtpGUI().open(player);
             return true;
         }
 
-        // Optionale Kosten abbuchen
-        double cost = plugin.getRtpManager().getCost();
-        if (cost > 0 && !plugin.getEconomyManager().withdraw(player.getUniqueId(), cost)) {
-            msg.send(player, "economy.not-enough-money");
-            return true;
-        }
-
-        msg.send(player, "rtp.searching");
-        Location target = plugin.getRtpManager().findSafeLocation();
-        if (target == null) {
-            // Kein sicherer Platz gefunden -> Kosten erstatten
-            if (cost > 0) {
-                plugin.getEconomyManager().deposit(player.getUniqueId(), cost);
-            }
-            msg.send(player, "rtp.no-location");
-            return true;
-        }
-
-        plugin.getRtpManager().markUsed(player.getUniqueId());
-        player.setFallDistance(0f);
-        player.teleport(target);
-        msg.send(player, "rtp.teleported",
-                "%x%", String.valueOf(target.getBlockX()),
-                "%z%", String.valueOf(target.getBlockZ()));
+        // Mit Argument: direkt in die gewaehlte Dimension teleportieren
+        RtpManager.Dimension dim = RtpManager.Dimension.fromArg(args[0]);
+        plugin.getRtpManager().attemptTeleport(player, dim);
         return true;
+    }
+
+    @Override
+    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+        List<String> result = new ArrayList<>();
+        if (args.length == 1) {
+            for (String dim : DIMENSIONS) {
+                if (dim.startsWith(args[0].toLowerCase())) result.add(dim);
+            }
+        }
+        return result;
     }
 }

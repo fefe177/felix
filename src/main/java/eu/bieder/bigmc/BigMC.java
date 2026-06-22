@@ -64,6 +64,7 @@ import eu.bieder.bigmc.rank.RankListener;
 import eu.bieder.bigmc.rank.RankManager;
 import eu.bieder.bigmc.rank.command.RankCommand;
 import eu.bieder.bigmc.rank.command.RanksCommand;
+import eu.bieder.bigmc.rtp.RtpGUI;
 import eu.bieder.bigmc.rtp.RtpManager;
 import eu.bieder.bigmc.rtp.command.RtpCommand;
 import eu.bieder.bigmc.season.SeasonManager;
@@ -146,6 +147,7 @@ public final class BigMC extends JavaPlugin {
     private SpawnManager spawnManager;
     private SpawnBuildGUI spawnBuildGUI;
     private RtpManager rtpManager;
+    private RtpGUI rtpGUI;
     private TpaManager tpaManager;
     private QuestManager questManager;
     private QuestGUI questGUI;
@@ -222,6 +224,7 @@ public final class BigMC extends JavaPlugin {
         this.spawnManager = new SpawnManager(this);           // Spawn + Schutzzone
         this.spawnBuildGUI = new SpawnBuildGUI(this);         // Spawn-Design-Auswahl
         this.rtpManager = new RtpManager(this);               // Random-Teleport
+        this.rtpGUI = new RtpGUI(this);
         this.tpaManager = new TpaManager(this);               // TPA-Anfragen
         this.sidebarManager = new SidebarManager(this);       // Sidebar-Scoreboard
         this.questManager = new QuestManager(this);           // Daily/Weekly Quests
@@ -261,6 +264,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new SpawnListener(this), this);
         getServer().getPluginManager().registerEvents(spawnBuildGUI, this);
         getServer().getPluginManager().registerEvents(new TpaListener(this), this);
+        getServer().getPluginManager().registerEvents(rtpGUI, this);
         getServer().getPluginManager().registerEvents(new QuestListener(this), this);
         getServer().getPluginManager().registerEvents(questGUI, this);
         getServer().getPluginManager().registerEvents(new BattlePassListener(this), this);
@@ -340,7 +344,9 @@ public final class BigMC extends JavaPlugin {
         getCommand("spawn").setExecutor(spawnCommand);
         getCommand("setspawn").setExecutor(spawnCommand);
         getCommand("spawnbuild").setExecutor(new SpawnBuildCommand(this));
-        getCommand("rtp").setExecutor(new RtpCommand(this));
+        RtpCommand rtpCommand = new RtpCommand(this);
+        getCommand("rtp").setExecutor(rtpCommand);
+        getCommand("rtp").setTabCompleter(rtpCommand);
         TpaCommand tpaCommand = new TpaCommand(this);
         getCommand("tpa").setExecutor(tpaCommand);
         getCommand("tpa").setTabCompleter(tpaCommand);
@@ -649,6 +655,10 @@ public final class BigMC extends JavaPlugin {
 
     public RtpManager getRtpManager() {
         return rtpManager;
+    }
+
+    public RtpGUI getRtpGUI() {
+        return rtpGUI;
     }
 
     public TpaManager getTpaManager() {

@@ -38,18 +38,52 @@ public class ShopGUI implements Listener {
     /** Slot des Zurueck-Buttons auf Kategorie-Seiten. */
     private static final int SLOT_BACK = 49;
 
+    /** Kauf-/Verkaufs-Mengen im Item-Detail-Menue. */
+    private static final int[] BUY_AMOUNTS = {1, 16, 64};
+    private static final int[] SELL_AMOUNTS = {1, 16, 64};
+    private static final int[] BUY_SLOTS = {10, 11, 12};
+    private static final int[] SELL_SLOTS = {14, 15, 16};
+    private static final int ITEM_INFO_SLOT = 4;
+    private static final int ITEM_SELL_ALL_SLOT = 22;
+    private static final int ITEM_BACK_SLOT = 18;
+    private static final int ITEM_BALANCE_SLOT = 26;
+
     /**
      * Marker-Holder: merkt sich, welche Slots welche Kategorie bzw.
      * welches Shop-Item anzeigen. categoryId == null bedeutet Hauptmenue.
      */
     public static class ShopHolder implements InventoryHolder {
         private final String categoryId;
+        private ShopManager.Category category; // gesetzt auf Kategorie-Seiten (fuer Detail-Aufruf)
         private final Map<Integer, ShopManager.Category> categorySlots = new HashMap<>();
         private final Map<Integer, ShopManager.ShopItem> itemSlots = new HashMap<>();
         private Inventory inventory;
 
         public ShopHolder(String categoryId) {
             this.categoryId = categoryId;
+        }
+
+        @Override
+        public Inventory getInventory() {
+            return inventory;
+        }
+    }
+
+    /**
+     * Marker-Holder fuer das Item-Detail-Menue (Kaufen/Verkaufen in Mengen).
+     * Merkt sich Slot -> Kauf-/Verkaufsmenge sowie das Item + die Kategorie
+     * (fuer den Zurueck-Button).
+     */
+    public static class ItemHolder implements InventoryHolder {
+        private final ShopManager.Category category;
+        private final ShopManager.ShopItem item;
+        private final Map<Integer, Integer> buySlots = new HashMap<>();
+        private final Map<Integer, Integer> sellSlots = new HashMap<>();
+        private Inventory inventory;
+
+        public ItemHolder(ShopManager.Category category, ShopManager.ShopItem item) {
+            this.category = category;
+            this.item = item;
         }
 
         @Override
@@ -124,6 +158,7 @@ public class ShopGUI implements Listener {
         MessageManager msg = plugin.getMessageManager();
 
         ShopHolder holder = new ShopHolder(category.id());
+        holder.category = category;
         Inventory inv = Bukkit.createInventory(holder, 54,
                 msg.getRaw("shop.gui-category-title").replace("%category%",
                         MessageManager.color(category.displayName())));
@@ -157,7 +192,7 @@ public class ShopGUI implements Listener {
         player.openInventory(inv);
     }
 
-    /** Baut die Anzeige eines Shop-Items mit Preis- und Klick-Lore. */
+    /** Baut die Anzeige eines Shop-Items in der Kategorie-Uebersicht (Klick = Detail). */
     private ItemStack buildItemDisplay(ShopManager.ShopItem item) {
         MessageManager msg = plugin.getMessageManager();
         List<String> lore = new ArrayList<>();
@@ -170,25 +205,112 @@ public class ShopGUI implements Listener {
                     .replace("%price%", plugin.getEconomyManager().formatMoney(item.sellPrice())));
         }
         lore.add("");
-        if (item.canBuy())  lore.add(msg.getRaw("shop.gui-lore-click-buy"));
-        if (item.canSell()) lore.add(msg.getRaw("shop.gui-lore-click-sell"));
+        lore.add(msg.getRaw("shop.gui-open"));
+        return GuiDesign.named(item.material(), "&f" + prettyName(item.material()), lore);
+    }
 
-        ItemStack stack = new ItemStack(item.material());
-        ItemMeta meta = stack.getItemMeta();
-        if (meta != null) {
-            meta.setLore(lore);
-            stack.setItemMeta(meta);
+    // ----- Item-Detail-Menue (Kaufen/Verkaufen in Mengen) -----
+
+    /**
+     * Oeffnet das Detail-Menue eines Items: Kauf- und Verkaufs-Buttons fuer
+     * verschiedene Mengen, "Alles verkaufen", aktueller Bestand und Kontostand.
+     */
+    public void openItem(Player player, ShopManager.Category category, ShopManager.ShopItem item) {
+        MessageManager msg = plugin.getMessageManager();
+        ItemHolder holder = new ItemHolder(category, item);
+        Inventory inv = Bukkit.createInventory(holder, 27,
+                msg.getRaw("shop.gui-item-title").replace("%item%", prettyName(item.material())));
+        holder.inventory = inv;
+        GuiDesign.fillBorder(inv);
+
+        // Info-Item oben mittig: Preise + aktueller Bestand
+        inv.setItem(ITEM_INFO_SLOT, buildItemInfo(player, item));
+
+        // Kauf-Buttons (nur wenn kaufbar)
+        if (item.canBuy()) {
+            for (int i = 0; i < BUY_AMOUNTS.length; i++) {
+                int amount = BUY_AMOUNTS[i];
+                inv.setItem(BUY_SLOTS[i], buildAmountButton(item.material(), amount,
+                        msg.getRaw("shop.gui-buy-amount").replace("%amount%", String.valueOf(amount)),
+                        item.buyPrice() * amount));
+                holder.buySlots.put(BUY_SLOTS[i], amount);
+            }
+        } else {
+            inv.setItem(11, GuiDesign.named(Material.GRAY_STAINED_GLASS_PANE,
+                    msg.getRaw("shop.gui-not-buyable"), List.of()));
         }
+
+        // Verkaufs-Buttons (nur wenn verkaufbar)
+        if (item.canSell()) {
+            for (int i = 0; i < SELL_AMOUNTS.length; i++) {
+                int amount = SELL_AMOUNTS[i];
+                inv.setItem(SELL_SLOTS[i], buildAmountButton(item.material(), amount,
+                        msg.getRaw("shop.gui-sell-amount").replace("%amount%", String.valueOf(amount)),
+                        item.sellPrice() * amount));
+                holder.sellSlots.put(SELL_SLOTS[i], amount);
+            }
+            int owned = countOwned(player, item.material());
+            inv.setItem(ITEM_SELL_ALL_SLOT, GuiDesign.named(Material.HOPPER,
+                    msg.getRaw("shop.gui-sell-all").replace("%amount%", String.valueOf(owned)),
+                    List.of(msg.getRaw("shop.gui-total")
+                            .replace("%price%", plugin.getEconomyManager().formatMoney(item.sellPrice() * owned)))));
+        } else {
+            inv.setItem(15, GuiDesign.named(Material.GRAY_STAINED_GLASS_PANE,
+                    msg.getRaw("shop.gui-not-sellable"), List.of()));
+        }
+
+        // Zurueck + Kontostand
+        inv.setItem(ITEM_BACK_SLOT, GuiDesign.named(Material.ARROW, msg.getRaw("shop.gui-back"), List.of()));
+        inv.setItem(ITEM_BALANCE_SLOT, buildBalanceHead(player));
+
+        player.openInventory(inv);
+    }
+
+    /** Info-Item im Detail-Menue: Name, Preise und aktueller Bestand im Inventar. */
+    private ItemStack buildItemInfo(Player player, ShopManager.ShopItem item) {
+        MessageManager msg = plugin.getMessageManager();
+        List<String> lore = new ArrayList<>();
+        if (item.canBuy()) {
+            lore.add(msg.getRaw("shop.gui-lore-buy")
+                    .replace("%price%", plugin.getEconomyManager().formatMoney(item.buyPrice())));
+        }
+        if (item.canSell()) {
+            lore.add(msg.getRaw("shop.gui-lore-sell")
+                    .replace("%price%", plugin.getEconomyManager().formatMoney(item.sellPrice())));
+        }
+        lore.add("");
+        lore.add(msg.getRaw("shop.gui-owned")
+                .replace("%amount%", String.valueOf(countOwned(player, item.material()))));
+        return GuiDesign.named(item.material(), "&f&l" + prettyName(item.material()), lore);
+    }
+
+    /** Baut einen Mengen-Button (Material mit Stapelgroesse + Gesamtpreis-Lore). */
+    private ItemStack buildAmountButton(Material material, int amount, String name, double total) {
+        MessageManager msg = plugin.getMessageManager();
+        ItemStack stack = GuiDesign.named(material, name,
+                List.of(msg.getRaw("shop.gui-total")
+                        .replace("%price%", plugin.getEconomyManager().formatMoney(total))));
+        stack.setAmount(Math.max(1, Math.min(64, amount)));
         return stack;
+    }
+
+    /** Zaehlt, wie viele "einfache" (nicht umbenannte) Items eines Typs der Spieler hat. */
+    private int countOwned(Player player, Material material) {
+        int count = 0;
+        for (ItemStack stack : player.getInventory().getStorageContents()) {
+            if (stack != null && stack.getType() == material && !stack.hasItemMeta()) {
+                count += stack.getAmount();
+            }
+        }
+        return count;
     }
 
     // ----- Klick-Verarbeitung -----
 
     @EventHandler
     public void onClick(InventoryClickEvent event) {
-        if (!(event.getView().getTopInventory().getHolder() instanceof ShopHolder holder)) {
-            return;
-        }
+        InventoryHolder top = event.getView().getTopInventory().getHolder();
+        if (!(top instanceof ShopHolder) && !(top instanceof ItemHolder)) return;
         // Im Shop ist jede Inventar-Aktion gesperrt (kein Item-Entnehmen moeglich)
         event.setCancelled(true);
 
@@ -197,6 +319,14 @@ public class ShopGUI implements Listener {
         if (event.getClickedInventory() != event.getView().getTopInventory()) return;
 
         int slot = event.getSlot();
+
+        // --- Item-Detail-Menue (Kaufen/Verkaufen in Mengen) ---
+        if (top instanceof ItemHolder ih) {
+            handleItemClick(player, ih, slot);
+            return;
+        }
+
+        ShopHolder holder = (ShopHolder) top;
 
         // --- Hauptmenue: Kategorie oeffnen ---
         if (holder.categoryId == null) {
@@ -217,19 +347,48 @@ public class ShopGUI implements Listener {
 
         ShopManager.ShopItem item = holder.itemSlots.get(slot);
         if (item == null) return;
+        // Klick auf ein Item -> Detail-Menue oeffnen
+        GuiDesign.soundClick(player);
+        openItem(player, holder.category, item);
+    }
 
-        int amount = event.isShiftClick() ? 64 : 1;
-        if (event.isLeftClick()) {
-            buy(player, item, amount);
-        } else if (event.isRightClick()) {
-            sell(player, item, amount);
+    /** Verarbeitet Klicks im Item-Detail-Menue. */
+    private void handleItemClick(Player player, ItemHolder holder, int slot) {
+        if (slot == ITEM_BACK_SLOT) {
+            GuiDesign.soundClick(player);
+            openCategory(player, holder.category);
+            return;
+        }
+        Integer buyAmount = holder.buySlots.get(slot);
+        if (buyAmount != null) {
+            buy(player, holder.item, buyAmount);
+            refreshItem(player, holder);
+            return;
+        }
+        Integer sellAmount = holder.sellSlots.get(slot);
+        if (sellAmount != null) {
+            sell(player, holder.item, sellAmount);
+            refreshItem(player, holder);
+            return;
+        }
+        if (slot == ITEM_SELL_ALL_SLOT && holder.item.canSell()) {
+            sell(player, holder.item, Integer.MAX_VALUE);
+            refreshItem(player, holder);
+        }
+    }
+
+    /** Baut das Detail-Menue neu auf (aktualisiert Bestand + Kontostand). */
+    private void refreshItem(Player player, ItemHolder holder) {
+        if (player.getOpenInventory().getTopInventory().getHolder() instanceof ItemHolder) {
+            openItem(player, holder.category, holder.item);
         }
     }
 
     @EventHandler
     public void onDrag(InventoryDragEvent event) {
         // Auch Drag-Aktionen im Shop komplett blockieren
-        if (event.getView().getTopInventory().getHolder() instanceof ShopHolder) {
+        InventoryHolder top = event.getView().getTopInventory().getHolder();
+        if (top instanceof ShopHolder || top instanceof ItemHolder) {
             event.setCancelled(true);
         }
     }
