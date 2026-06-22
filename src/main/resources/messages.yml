@@ -37,11 +37,11 @@ economy:
   baltop-empty: "&cEs gibt noch keine Konten."
 
 shop:
-  gui-main-title: "&8▎ &6&lSHOP"
+  gui-main-title: "&8▎ <g:#FFE259:#FFA751>&lSHOP</g>"
   gui-category-title: "&8▎ &6&l%category%"
   gui-category-lore: "&7Klicke zum Öffnen"
   gui-category-count: "&8• &7%count% Items"
-  gui-balance: "&6&lDEIN KONTO"
+  gui-balance: "<g:#F7971E:#FFD200>&lDEIN KONTO</g>"
   gui-balance-lore: "&8• &a%money%"
   gui-lore-buy: "&8• &7Kaufen &a%price% &8/ &7Stück"
   gui-lore-sell: "&8• &7Verkaufen &e%price% &8/ &7Stück"
@@ -62,14 +62,14 @@ shop:
   sell-all-nothing: "&cDu hast nichts Verkaufbares im Inventar."
 
 auction:
-  gui-title: "&8▎ &5&lAUKTIONSHAUS"
-  gui-confirm-title: "&8▎ &5&lKAUF BESTÄTIGEN"
-  gui-my-title: "&8▎ &5&lMEINE AUKTIONEN"
+  gui-title: "&8▎ <g:#C471F5:#7B4DFF>&lAUKTIONSHAUS</g>"
+  gui-confirm-title: "&8▎ <g:#C471F5:#7B4DFF>&lKAUF BESTÄTIGEN</g>"
+  gui-my-title: "&8▎ <g:#C471F5:#7B4DFF>&lMEINE AUKTIONEN</g>"
   gui-prev: "&e◀ Vorherige Seite"
   gui-next: "&eNächste Seite ▶"
   gui-page-info: "&8• &7Seite &e%page%&7/&e%maxpage% &8· &7%total% Angebote"
-  gui-my-auctions: "&5&lMEINE AUKTIONEN"
-  gui-collect: "&d&lABHOLFACH &7(&e%count%&7)"
+  gui-my-auctions: "<g:#C471F5:#7B4DFF>&lMEINE AUKTIONEN</g>"
+  gui-collect: "<g:#FF6CAB:#7366FF>&lABHOLFACH</g> &7(&e%count%&7)"
   gui-collect-lore: "&7Klicke, um Items abzuholen"
   gui-lore-price: "&8• &7Preis &a%price%"
   gui-lore-seller: "&8• &7Verkäufer &e%seller%"
@@ -211,8 +211,8 @@ admin:
   player-online-required: "&cDer Zielspieler muss online sein."
 
 leaderboard:
-  gui-title: "&8▎ &6&lRANGLISTEN"
-  category-title: "&8▎ &6&lTOP &8· &e%category%"
+  gui-title: "&8▎ <g:#F7971E:#FFD200>&lRANGLISTEN</g>"
+  category-title: "&8▎ <g:#F7971E:#FFD200>&lTOP</g> &8· &e%category%"
   category-lore: "&7Klicke für die Top 10"
   loading: "&7Lade Daten..."
   back: "&c◀ Zurück"
@@ -234,7 +234,7 @@ season:
   reward: "&aDu hast eine Season-Belohnung erhalten!"
 
 dailylogin:
-  gui-title: "&8▎ &a&lTÄGLICHE BELOHNUNG"
+  gui-title: "&8▎ <g:#11998E:#38EF7D>&lTÄGLICHE BELOHNUNG</g>"
   day-name: "&e&lTAG %day%"
   day-current: "&a➤ Heute fällig"
   day-past: "&8✔ Vergangen"
@@ -242,16 +242,16 @@ dailylogin:
   reward-money: "&8• &7Geld &a%money%"
   reward-shards: "&8• &7Shards &d%shards%"
   reward-item: "&8• &7Item &e%amount%x %item%"
-  streak-name: "&6&lDEINE LOGIN-SERIE"
+  streak-name: "<g:#F7971E:#FFD200>&lDEINE LOGIN-SERIE</g>"
   streak-lore: "&8• &7Serie &e%streak% Tage"
-  claim-button: "&a&l✔ BELOHNUNG ABHOLEN"
+  claim-button: "<g:#11998E:#38EF7D>&l✔ BELOHNUNG ABHOLEN</g>"
   claimed-button: "&8✔ Heute bereits abgeholt"
   claimed: "&aTag &e%day% &aabgeholt! Login-Serie: &e%streak%"
   already-claimed: "&cDu hast deine Belohnung heute schon abgeholt."
   reminder: "&aDeine tägliche Belohnung wartet! &7Hole sie mit &e/dailyreward &7ab."
 
 cosmetics:
-  gui-title: "&8▎ &d&lCOSMETICS"
+  gui-title: "&8▎ <g:#FF6CAB:#7366FF>&lCOSMETICS</g>"
   category-title: "&8▎ &d&l%category%"
   category-lore: "&7Klicke zum Öffnen"
   none: "&c✖ Keines / Entfernen"
@@ -261,11 +261,11 @@ cosmetics:
   back: "&c◀ Zurück"
 
 prestige:
-  gui-title: "&8▎ &d&lPRESTIGE"
-  info-name: "&d&lDEIN PRESTIGE"
+  gui-title: "&8▎ <g:#DA22FF:#9733EE>&lPRESTIGE</g>"
+  info-name: "<g:#DA22FF:#9733EE>&lDEIN PRESTIGE</g>"
   info-level: "&8• &7Level &e%level%&7/&e%max%"
   info-bonus: "&8• &7Verkaufs-Bonus &a+%bonus%%"
-  button-name: "&a&l⬆ PRESTIGE AUFSTEIGEN"
+  button-name: "<g:#56AB2F:#A8E063>&l⬆ PRESTIGE AUFSTEIGEN</g>"
   button-cost: "&8• &7Kosten &a%cost%"
   button-next: "&8• &7Neuer Bonus &a+%bonus%%"
   button-click: "&e▸ Klicke zum Aufsteigen!"
@@ -291,13 +291,13 @@ boss:
   list-entry: "&e%id% &7- %boss%"
 
 crate:
-  gui-title: "&8▎ &6&lCRATES"
+  gui-title: "&8▎ <g:#F7971E:#FFD200>&lCRATES</g>"
   gui-keys: "&8• &7Schlüssel &e%keys%"
   gui-open: "&a▸ Linksklick &7zum Öffnen"
   gui-preview: "&e▸ Rechtsklick &7für Vorschau"
-  preview-title: "&8▎ &6&lVORSCHAU &8· &e%crate%"
+  preview-title: "&8▎ <g:#F7971E:#FFD200>&lVORSCHAU</g> &8· &e%crate%"
   preview-chance: "&8• &7Chance &e%chance%%"
-  anim-title: "&8▎ &6&lCRATE WIRD GEÖFFNET"
+  anim-title: "&8▎ <g:#F7971E:#FFD200>&lCRATE WIRD GEÖFFNET</g>"
   back: "&c◀ Zurück"
   no-key: "&cDu hast keinen Schlüssel für die %crate%&c."
   won: "&aDu hast aus der %crate% &a%reward% &agewonnen!"
@@ -362,8 +362,8 @@ clan:
   chat-off: "&7Clan-Chat deaktiviert."
 
 battlepass:
-  gui-title: "&8▎ &6&lBATTLE PASS &8· &7Season %season%"
-  head-name: "&6&lBATTLE PASS"
+  gui-title: "&8▎ <g:#FFB75E:#ED8F03>&lBATTLE PASS</g> &8· &7Season %season%"
+  head-name: "<g:#FFB75E:#ED8F03>&lBATTLE PASS</g>"
   head-level: "&8• &7Level &e%level%&7/&e%max%"
   head-xp: "&8• &7XP &e%xp%&7/&e%need%"
   head-premium-yes: "&a✔ Premium aktiv"
@@ -389,9 +389,9 @@ battlepass:
   cannot-claim: "&cDiese Belohnung kannst du nicht abholen."
 
 quests:
-  gui-title: "&8▎ &a&lQUESTS"
-  daily-header: "&a&lTÄGLICHE QUESTS"
-  weekly-header: "&d&lWÖCHENTLICHE QUESTS"
+  gui-title: "&8▎ <g:#56AB2F:#A8E063>&lQUESTS</g>"
+  daily-header: "<g:#56AB2F:#A8E063>&lTÄGLICHE QUESTS</g>"
+  weekly-header: "<g:#DA22FF:#9733EE>&lWÖCHENTLICHE QUESTS</g>"
   lore-progress: "&8• &7Fortschritt &e%progress%&7/&e%amount%"
   lore-reward-money: "&8• &7Belohnung &a%money%"
   lore-reward-shards: "&8• &7Belohnung &d%shards%"
@@ -411,7 +411,7 @@ spawn:
   build-warning: "&e&lACHTUNG! &7Der Bau überschreibt alle Blöcke im Radius &c%radius% &7um dich. Stelle dich an einen freien Ort!"
   build-started: "&7Baue Spawn-Area..."
   build-done: "&aSpawn-Design %theme% &agebaut! Spawn & Schutzzone (&e%radius% &aBlöcke) gesetzt."
-  gui-title: "&8▎ &6&lSPAWN-DESIGN WÄHLEN"
+  gui-title: "&8▎ <g:#FFE259:#FFA751>&lSPAWN-DESIGN WÄHLEN</g>"
   gui-click: "&a▸ Klicke zum Bauen"
   gui-warn: "&c⚠ Überschreibt Blöcke - kein Undo!"
 
@@ -442,7 +442,7 @@ afk:
   zone-set: "&aAFK-Zone wurde auf deine Position gesetzt."
 
 spawner:
-  shop-title: "&8▎ &6&lSPAWNER-SHOP"
+  shop-title: "&8▎ <g:#F7971E:#FFD200>&lSPAWNER-SHOP</g>"
   shop-price: "&8• &7Preis &a%price%"
   shop-price-shards: "&8• &7Preis &d%price%"
   shop-click: "&a▸ Linksklick &7= 1 &8· &aRechtsklick &7= 8"
@@ -454,7 +454,7 @@ spawner:
   broken: "&7Spawner abgebaut - du hast &e%amount% &7Spawner zurückerhalten."
   not-owner: "&cDas ist nicht dein Spawner."
   gone: "&cDieser Spawner existiert nicht mehr."
-  gui-title: "&8▎ &6&lSPAWNER"
+  gui-title: "&8▎ <g:#F7971E:#FFD200>&lSPAWNER</g>"
   gui-stack: "&8• &7Stapel &e%stack%&7/&e%max%"
   gui-rate: "&8• &7Produktion &e%amount%x %item% &7alle &e%interval%s"
   gui-stored: "&8• &7Gespeichert &e%stored%"
