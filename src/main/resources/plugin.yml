@@ -196,6 +196,11 @@ commands:
     usage: /bigmcadmin season|battlepass|quest|crate|clan|prestige|reload ...
     aliases: [bmadmin]
     permission: bigmc.admin
+  menu:
+    description: Oeffnet das zentrale Hauptmenue mit allen Features.
+    usage: /menu
+    aliases: [bigmcmenu, hub]
+    permission: bigmc.menu
 
 permissions:
   bigmc.use:
@@ -351,3 +356,6 @@ permissions:
   bigmc.rank.admin:
     description: Raenge anderer Spieler setzen.
     default: op
+  bigmc.menu:
+    description: Das zentrale Hauptmenue oeffnen.
+    default: true

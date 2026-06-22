@@ -6,11 +6,12 @@ import eu.bieder.bigmc.rank.RankManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
 
 import java.util.List;
 
 /**
- * /ranks -> listet alle Raenge der Leiter mit Preis und Voraussetzungen auf.
+ * /ranks -> oeffnet die Rang-Leiter als GUI (Konsole: Text-Liste).
  */
 public class RanksCommand implements CommandExecutor {
 
@@ -27,6 +28,12 @@ public class RanksCommand implements CommandExecutor {
 
         if (ranks.isEmpty()) {
             msg.send(sender, "ranks.none-configured");
+            return true;
+        }
+
+        // Spieler bekommen ein GUI; die Konsole weiterhin die Text-Ausgabe.
+        if (sender instanceof Player player) {
+            plugin.getRanksGUI().open(player);
             return true;
         }
 

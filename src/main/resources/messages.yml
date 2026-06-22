@@ -539,3 +539,67 @@ ranks:
   unknown-rank: "&cUnbekannter Rang: &e%rank%"
   set-done: "&7Rang von &e%player% &7auf %rank% &7gesetzt."
   set-received: "&7Dein Rang wurde auf %rank% &7gesetzt."
+
+# Zentrales Hauptmenue (/menu)
+menu:
+  gui-title: "&8▎ <g:#00C6FF:#0072FF>&lMENÜ</g>"
+  lore: "&7▸ Klicke zum Öffnen"
+  close: "&c✖ Schließen"
+  shop: "<g:#FFE259:#FFA751>&lSHOP</g>"
+  ah: "<g:#C471F5:#7B4DFF>&lAUKTIONSHAUS</g>"
+  spawnershop: "&6&lSPAWNER-SHOP"
+  quests: "<g:#56AB2F:#A8E063>&lQUESTS</g>"
+  battlepass: "<g:#FFB75E:#ED8F03>&lBATTLE PASS</g>"
+  crate: "<g:#F7971E:#FFD200>&lCRATES</g>"
+  cosmetics: "<g:#FF6CAB:#7366FF>&lCOSMETICS</g>"
+  prestige: "<g:#DA22FF:#9733EE>&lPRESTIGE</g>"
+  clan: "&b&lCLAN"
+  leaderboard: "<g:#F7971E:#FFD200>&lRANGLISTEN</g>"
+  dailyreward: "<g:#11998E:#38EF7D>&lTÄGLICHE BELOHNUNG</g>"
+  stats: "&b&lSTATISTIKEN"
+  ranks: "&e&lRÄNGE"
+  vote: "&a&lVOTEN"
+  rtp: "&a&lZUFALLS-TELEPORT"
+  spawn: "&d&lSPAWN"
+  afk: "&7&lAFK-ZONE"
+  fly: "&f&lFLIEGEN"
+  shards: "&d&lSHARDS"
+  money: "<g:#F7971E:#FFD200>&lGELD &8(/baltop)</g>"
+  drill: "&b&lDRILL-SPITZHACKE"
+
+# Stats-GUI (/stats)
+statsgui:
+  gui-title: "&8▎ &b&lSTATS &8· &f%player%"
+  value: "&8• &f%value%"
+  kills: "&c&lKills"
+  deaths: "&7&lTode"
+  kd: "&e&lK/D"
+  duelwins: "&6&lDuell-Siege"
+  playtime: "&a&lSpielzeit"
+  money: "&6&lGeld"
+  shards: "&d&lShards"
+
+# Rang-GUI (/ranks)
+ranksgui:
+  gui-title: "&8▎ &e&lRÄNGE"
+  cost: "&8• &7Kosten &a%cost%"
+  req-playtime: "&8• &7Spielzeit &e%time%"
+  req-kills: "&8• &7Kills &e%kills%"
+  current: "&a✔ Aktueller Rang"
+  achieved: "&8✔ Freigeschaltet"
+  locked: "&7Noch nicht erreicht"
+  buy-name: "<g:#56AB2F:#A8E063>&l⬆ NÄCHSTEN RANG KAUFEN</g>"
+  buy-next: "&8• &7Nächster Rang %rank%"
+  buy-cost: "&8• &7Kosten &a%cost%"
+  max: "&8✔ Höchster Rang erreicht"
+
+# Vote-GUI (/vote)
+votegui:
+  gui-title: "&8▎ <g:#56AB2F:#A8E063>&lVOTEN</g>"
+  info-name: "&e&lDeine Votes"
+  total: "&8• &7Gesamt &e%total%"
+  pending: "&8• &7Ausstehend &e%pending%"
+  links-name: "&b&lVote-Links"
+  claim-name: "<g:#11998E:#38EF7D>&l✔ BELOHNUNGEN ABHOLEN</g>"
+  claim-lore: "&7Ausstehend: &e%pending%"
+  claim-none: "&7Keine ausstehenden Belohnungen"

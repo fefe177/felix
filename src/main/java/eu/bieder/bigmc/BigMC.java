@@ -80,6 +80,11 @@ import eu.bieder.bigmc.economy.command.PayCommand;
 import eu.bieder.bigmc.leaderboard.LeaderboardGUI;
 import eu.bieder.bigmc.leaderboard.LeaderboardManager;
 import eu.bieder.bigmc.leaderboard.command.LeaderboardCommand;
+import eu.bieder.bigmc.menu.MenuGUI;
+import eu.bieder.bigmc.menu.command.MenuCommand;
+import eu.bieder.bigmc.rank.RanksGUI;
+import eu.bieder.bigmc.stats.StatsGUI;
+import eu.bieder.bigmc.vote.VoteGUI;
 import eu.bieder.bigmc.shop.ShopGUI;
 import eu.bieder.bigmc.spawn.SpawnBuildGUI;
 import eu.bieder.bigmc.spawn.SpawnListener;
@@ -166,6 +171,10 @@ public final class BigMC extends JavaPlugin {
     private SeasonManager seasonManager;
     private LeaderboardManager leaderboardManager;
     private LeaderboardGUI leaderboardGUI;
+    private StatsGUI statsGUI;
+    private RanksGUI ranksGUI;
+    private VoteGUI voteGUI;
+    private MenuGUI menuGUI;
 
     @Override
     public void onEnable() {
@@ -244,6 +253,10 @@ public final class BigMC extends JavaPlugin {
         this.seasonManager = new SeasonManager(this);         // Season-System
         this.leaderboardManager = new LeaderboardManager(this); // Leaderboards
         this.leaderboardGUI = new LeaderboardGUI(this);
+        this.statsGUI = new StatsGUI(this);                   // Stats-GUI
+        this.ranksGUI = new RanksGUI(this);                   // Rang-GUI
+        this.voteGUI = new VoteGUI(this);                     // Vote-GUI
+        this.menuGUI = new MenuGUI(this);                     // Zentrales Hauptmenue
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -280,6 +293,10 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new DailyLoginListener(this), this);
         getServer().getPluginManager().registerEvents(dailyLoginGUI, this);
         getServer().getPluginManager().registerEvents(leaderboardGUI, this);
+        getServer().getPluginManager().registerEvents(statsGUI, this);
+        getServer().getPluginManager().registerEvents(ranksGUI, this);
+        getServer().getPluginManager().registerEvents(voteGUI, this);
+        getServer().getPluginManager().registerEvents(menuGUI, this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -378,6 +395,7 @@ public final class BigMC extends JavaPlugin {
         AdminCommand adminCommand = new AdminCommand(this);
         getCommand("bigmcadmin").setExecutor(adminCommand);
         getCommand("bigmcadmin").setTabCompleter(adminCommand);
+        getCommand("menu").setExecutor(new MenuCommand(this));
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -563,6 +581,22 @@ public final class BigMC extends JavaPlugin {
 
     public LeaderboardGUI getLeaderboardGUI() {
         return leaderboardGUI;
+    }
+
+    public StatsGUI getStatsGUI() {
+        return statsGUI;
+    }
+
+    public RanksGUI getRanksGUI() {
+        return ranksGUI;
+    }
+
+    public VoteGUI getVoteGUI() {
+        return voteGUI;
+    }
+
+    public MenuGUI getMenuGUI() {
+        return menuGUI;
     }
 
     public EconomyManager getEconomyManager() {

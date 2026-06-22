@@ -61,17 +61,14 @@ public class VoteCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        // /vote -> Links + Vote-Anzahl
+        // /vote -> Spieler bekommen ein GUI; die Konsole die Text-Ausgabe.
+        if (sender instanceof Player player) {
+            plugin.getVoteGUI().open(player);
+            return true;
+        }
         sender.sendMessage(msg.getRaw("vote.links-header"));
         for (String link : plugin.getConfigManager().getConfig().getStringList("vote.links")) {
             sender.sendMessage(MessageManager.color(link));
-        }
-        if (sender instanceof Player player) {
-            int total = plugin.getVoteRewardManager().getTotal(player.getName());
-            int pending = plugin.getVoteRewardManager().getPending(player.getName());
-            msg.send(player, "vote.your-votes",
-                    "%total%", String.valueOf(total),
-                    "%pending%", String.valueOf(pending));
         }
         return true;
     }

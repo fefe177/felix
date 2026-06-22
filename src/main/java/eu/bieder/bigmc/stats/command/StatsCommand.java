@@ -48,6 +48,12 @@ public class StatsCommand implements CommandExecutor, TabCompleter {
         }
         StatsManager.PlayerStats s = stats.get();
 
+        // Spieler bekommen ein GUI; die Konsole weiterhin die Text-Ausgabe.
+        if (sender instanceof Player viewer) {
+            plugin.getStatsGUI().open(viewer, s);
+            return true;
+        }
+
         // K/D berechnen (bei 0 Toden zaehlen die Kills direkt)
         double kd = s.deaths() == 0 ? s.kills() : (double) s.kills() / s.deaths();
         double balance = plugin.getEconomyManager().getBalance(s.uuid());
