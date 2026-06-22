@@ -481,6 +481,51 @@ body {
   white-space: nowrap;
 }
 
+.journal-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.journal-entry {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.journal-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.journal-ts {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.journal-goal {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.journal-lesson {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.journal-hint {
+  margin: 0;
+  color: var(--accent);
+  font-size: 13px;
+}
+
 .pref-row {
   display: flex;
   justify-content: space-between;

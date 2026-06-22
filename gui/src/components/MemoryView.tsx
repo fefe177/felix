@@ -10,13 +10,41 @@ import {
 } from "../api/client";
 import type { StrategyRecord, TaskBundle, TaskRecord } from "../types";
 
-type Tab = "tasks" | "preferences" | "strategies";
+type Tab = "tasks" | "journal" | "preferences" | "strategies";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "tasks", label: "Tasks" },
+  { id: "journal", label: "Gelerntes" },
   { id: "preferences", label: "Praeferenzen" },
   { id: "strategies", label: "Strategien" },
 ];
+
+/** A parsed `journal:<timestamp>` preference entry. */
+interface JournalEntry {
+  key: string;
+  ts: string;
+  goal: string;
+  status: string;
+  lesson: string;
+  hint: string | null;
+}
+
+/** Parse the `[ts] goal | status | lesson | hint: ...` format written by reflect(). */
+function parseJournalEntry(key: string, value: string): JournalEntry {
+  const tsMatch = /^\[([^\]]+)]\s*/.exec(value);
+  const ts = tsMatch ? tsMatch[1] : key.replace("journal:", "");
+  const rest = tsMatch ? value.slice(tsMatch[0].length) : value;
+  const parts = rest.split(" | ");
+  const hintPart = parts.find((p) => p.startsWith("hint: "));
+  return {
+    key,
+    ts,
+    goal: parts[0] ?? "",
+    status: parts[1] ?? "",
+    lesson: (hintPart ? parts.slice(2, -1) : parts.slice(2)).join(" | "),
+    hint: hintPart ? hintPart.slice("hint: ".length) : null,
+  };
+}
 
 function messageOf(error: unknown): string {
   return error instanceof ApiError ? error.message : "Unbekannter Fehler";
@@ -40,6 +68,7 @@ export function MemoryView() {
         ))}
       </div>
       {tab === "tasks" && <TasksTab />}
+      {tab === "journal" && <JournalTab />}
       {tab === "preferences" && <PreferencesTab />}
       {tab === "strategies" && <StrategiesTab />}
     </section>
@@ -131,6 +160,67 @@ function TasksTab() {
   );
 }
 
+/** What the autonomous daemon has learned: journal entries, newest first. */
+function JournalTab() {
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const prefs = await getPreferences();
+      const parsed = Object.entries(prefs)
+        .filter(([key]) => key.startsWith("journal:"))
+        .map(([key, value]) => parseJournalEntry(key, value))
+        .sort((a, b) => b.key.localeCompare(a.key));
+      setEntries(parsed);
+    } catch (err) {
+      setError(messageOf(err));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  return (
+    <div>
+      <div className="row-between">
+        <h3>Was der Daemon gelernt hat</h3>
+        <button className="btn btn-ghost" onClick={() => void load()}>
+          Aktualisieren
+        </button>
+      </div>
+      {error && <p className="error-text">{error}</p>}
+      {loading ? (
+        <p className="muted">Lade …</p>
+      ) : entries.length === 0 ? (
+        <p className="muted">
+          Noch keine Lektionen. Starte den autonomen Daemon im Autonomy-Tab.
+        </p>
+      ) : (
+        <ul className="journal-list">
+          {entries.map((entry) => (
+            <li key={entry.key} className="journal-entry">
+              <div className="journal-head">
+                <span className={`status-pill status-${entry.status}`}>{entry.status}</span>
+                <span className="journal-ts">{new Date(entry.ts).toLocaleString()}</span>
+              </div>
+              <p className="journal-goal">{entry.goal}</p>
+              {entry.lesson && <p className="journal-lesson">Lektion: {entry.lesson}</p>}
+              {entry.hint && <p className="journal-hint">Tipp fuer naechstes Mal: {entry.hint}</p>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function PreferencesTab() {
   const [prefs, setPrefs] = useState<Record<string, string>>({});
   const [key, setKey] = useState("");
@@ -140,7 +230,11 @@ function PreferencesTab() {
   const load = useCallback(async () => {
     setError(null);
     try {
-      setPrefs(await getPreferences());
+      const all = await getPreferences();
+      const withoutJournal = Object.fromEntries(
+        Object.entries(all).filter(([k]) => !k.startsWith("journal:")),
+      );
+      setPrefs(withoutJournal);
     } catch (err) {
       setError(messageOf(err));
     }
