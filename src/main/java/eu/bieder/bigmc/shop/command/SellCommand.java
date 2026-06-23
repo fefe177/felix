@@ -38,6 +38,11 @@ public class SellCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        // Ohne Argument: Verkaufs-GUI oeffnen
+        if (args.length == 0) {
+            plugin.getSellGUI().open(player);
+            return true;
+        }
         if (args.length != 1) {
             msg.send(player, "shop.sell-usage");
             return true;
@@ -46,6 +51,7 @@ public class SellCommand implements CommandExecutor, TabCompleter {
         switch (args[0].toLowerCase()) {
             case "hand" -> sellHand(player);
             case "all" -> sellAll(player);
+            case "gui", "menu" -> plugin.getSellGUI().open(player);
             default -> msg.send(player, "shop.sell-usage");
         }
         return true;

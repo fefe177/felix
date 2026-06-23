@@ -33,6 +33,7 @@ public class MenuGUI implements Listener {
     /** Reihenfolge der Eintraege im Menue (werden mittig in die Innenslots gelegt). */
     private static final List<Entry> ENTRIES = List.of(
             new Entry(Material.EMERALD,            "menu.shop",        "shop"),
+            new Entry(Material.HOPPER,             "menu.sell",        "sell"),
             new Entry(Material.GOLD_INGOT,         "menu.ah",          "ah"),
             new Entry(Material.SPAWNER,            "menu.spawnershop", "spawnershop"),
             new Entry(Material.WRITABLE_BOOK,      "menu.quests",      "quests"),
@@ -52,7 +53,9 @@ public class MenuGUI implements Listener {
             new Entry(Material.LODESTONE,          "menu.spawn",       "spawn"),
             new Entry(Material.CLOCK,              "menu.afk",         "afk"),
             new Entry(Material.AMETHYST_SHARD,     "menu.shards",      "shards"),
-            new Entry(Material.GOLD_NUGGET,        "menu.money",       "baltop"));
+            new Entry(Material.GOLD_NUGGET,        "menu.money",       "baltop"),
+            new Entry(Material.CRAFTING_TABLE,     "menu.craft",       "craft"),
+            new Entry(Material.CAULDRON,           "menu.trash",       "trash"));
 
     public static class Holder implements InventoryHolder {
         private final Map<Integer, String> commands = new HashMap<>();

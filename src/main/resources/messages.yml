@@ -452,6 +452,9 @@ tpa:
   denied: "&7Du hast die Anfrage abgelehnt."
   denied-notify: "&e%player% &chat deine Teleport-Anfrage abgelehnt."
   expired: "&cDeine Teleport-Anfrage ist abgelaufen."
+  auto-on: "&aAuto-Accept aktiviert - eingehende TPA-Anfragen werden automatisch angenommen."
+  auto-off: "&7Auto-Accept deaktiviert."
+  auto-accepted: "&e%player% &7wurde automatisch zu dir teleportiert (Auto-Accept)."
 
 afk:
   entered: "&7Du bist jetzt in der &dAFK-Zone&7. Du erhältst &d%amount% &7alle &e%interval%s&7. Zurück mit &e/afk"
@@ -540,6 +543,22 @@ ranks:
   set-done: "&7Rang von &e%player% &7auf %rank% &7gesetzt."
   set-received: "&7Dein Rang wurde auf %rank% &7gesetzt."
 
+# Verkaufs-GUI (/sell)
+sellgui:
+  gui-title: "&8▎ <g:#FFE259:#FFA751>&lVERKAUFEN</g>"
+  total-name: "&6&lGESAMTWERT"
+  total-value: "&8• &a%price%"
+  confirm: "&a&l✔ VERKAUFEN"
+  cancel: "&c&l✖ ABBRECHEN &7(Items zurück)"
+
+# QoL-Befehle (/trash, /rename)
+qol:
+  trash-title: "&8▎ &c&lMÜLLEIMER"
+  trash-warn: "&c&lACHTUNG! &7Alles, was du hier hineinlegst, ist beim Schließen &cunwiderruflich weg&7."
+  rename-usage: "&cVerwendung: /rename <name>"
+  rename-empty: "&cDu hast kein Item in der Hand."
+  renamed: "&aItem umbenannt."
+
 # Virtuelle Enderchest (/ec)
 enderchest:
   gui-title: "&8▎ <g:#DA22FF:#9733EE>&lENDERCHEST</g>"
@@ -571,6 +590,7 @@ menu:
   lore: "&7▸ Klicke zum Öffnen"
   close: "&c✖ Schließen"
   shop: "<g:#FFE259:#FFA751>&lSHOP</g>"
+  sell: "<g:#FFE259:#FFA751>&lVERKAUFEN</g>"
   ah: "<g:#C471F5:#7B4DFF>&lAUKTIONSHAUS</g>"
   spawnershop: "&6&lSPAWNER-SHOP"
   quests: "<g:#56AB2F:#A8E063>&lQUESTS</g>"
@@ -593,6 +613,8 @@ menu:
   shards: "&d&lSHARDS"
   money: "<g:#F7971E:#FFD200>&lGELD &8(/baltop)</g>"
   drill: "&b&lDRILL-SPITZHACKE"
+  craft: "&e&lWERKBANK"
+  trash: "&c&lMÜLLEIMER"
 
 # Stats-GUI (/stats)
 statsgui:

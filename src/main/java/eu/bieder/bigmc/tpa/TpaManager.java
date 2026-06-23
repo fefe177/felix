@@ -5,7 +5,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -22,12 +24,37 @@ public class TpaManager {
     /** Offene Anfragen: Ziel-UUID -> Anfragender. */
     private final Map<UUID, UUID> requests = new HashMap<>();
 
+    /** Spieler, die eingehende Anfragen automatisch annehmen (/tpauto). */
+    private final Set<UUID> autoAccept = new HashSet<>();
+
     public TpaManager(BigMC plugin) {
         this.plugin = plugin;
     }
 
+    /** Schaltet Auto-Accept fuer einen Spieler um. @return neuer Zustand. */
+    public boolean toggleAuto(UUID uuid) {
+        if (autoAccept.contains(uuid)) {
+            autoAccept.remove(uuid);
+            return false;
+        }
+        autoAccept.add(uuid);
+        return true;
+    }
+
+    public boolean isAuto(UUID uuid) {
+        return autoAccept.contains(uuid);
+    }
+
     /** Speichert eine Anfrage und laesst sie nach dem Timeout verfallen. */
     public void addRequest(Player requester, Player target) {
+        // Auto-Accept: sofort teleportieren, keine Anfrage noetig
+        if (autoAccept.contains(target.getUniqueId())) {
+            requester.setFallDistance(0f);
+            requester.teleport(target.getLocation());
+            plugin.getMessageManager().send(requester, "tpa.accepted-notify", "%player%", target.getName());
+            plugin.getMessageManager().send(target, "tpa.auto-accepted", "%player%", requester.getName());
+            return;
+        }
         requests.put(target.getUniqueId(), requester.getUniqueId());
 
         int timeout = plugin.getConfigManager().getConfig().getInt("tpa.timeout-seconds", 60);

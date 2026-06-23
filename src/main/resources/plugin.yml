@@ -226,6 +226,24 @@ commands:
     usage: /ec
     aliases: [enderchest, echest]
     permission: bigmc.ec
+  craft:
+    description: Oeffnet eine tragbare Werkbank.
+    usage: /craft
+    aliases: [workbench, wb]
+    permission: bigmc.craft
+  trash:
+    description: Oeffnet einen Muelleimer (Inhalt wird verworfen).
+    usage: /trash
+    aliases: [muell, dispose]
+    permission: bigmc.trash
+  rename:
+    description: Benennt das Item in der Hand um (Premium).
+    usage: /rename <name>
+    permission: bigmc.rename
+  tpauto:
+    description: Schaltet automatisches Annehmen von TPA-Anfragen um.
+    usage: /tpauto
+    permission: bigmc.tpa
 
 permissions:
   bigmc.use:
@@ -393,6 +411,15 @@ permissions:
   bigmc.ec:
     description: Die virtuelle Enderchest oeffnen.
     default: true
+  bigmc.craft:
+    description: Tragbare Werkbank oeffnen.
+    default: true
+  bigmc.trash:
+    description: Muelleimer oeffnen.
+    default: true
+  bigmc.rename:
+    description: Items umbenennen (Premium).
+    default: op
   bigmc.premium:
     description: Premium-Status (mehr Homes/Enderchest/Clan-Groesse/Farben).
     default: false

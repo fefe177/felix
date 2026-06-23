@@ -92,7 +92,12 @@ import eu.bieder.bigmc.enderchest.command.EnderchestCommand;
 import eu.bieder.bigmc.rank.RanksGUI;
 import eu.bieder.bigmc.stats.StatsGUI;
 import eu.bieder.bigmc.vote.VoteGUI;
+import eu.bieder.bigmc.shop.SellGUI;
 import eu.bieder.bigmc.shop.ShopGUI;
+import eu.bieder.bigmc.qol.command.CraftCommand;
+import eu.bieder.bigmc.qol.command.RenameCommand;
+import eu.bieder.bigmc.qol.command.TpAutoCommand;
+import eu.bieder.bigmc.qol.command.TrashCommand;
 import eu.bieder.bigmc.spawn.SpawnBuildGUI;
 import eu.bieder.bigmc.spawn.SpawnListener;
 import eu.bieder.bigmc.spawn.SpawnManager;
@@ -139,6 +144,7 @@ public final class BigMC extends JavaPlugin {
     private EconomyManager economyManager;
     private ShopManager shopManager;
     private ShopGUI shopGUI;
+    private SellGUI sellGUI;
     private AuctionManager auctionManager;
     private AuctionHouseGUI auctionHouseGUI;
     private OrderManager orderManager;
@@ -225,6 +231,7 @@ public final class BigMC extends JavaPlugin {
         this.economyManager = new EconomyManager(this);   // Phase 1: Wirtschaft
         this.shopManager = new ShopManager(this);         // Phase 2: Shops
         this.shopGUI = new ShopGUI(this);
+        this.sellGUI = new SellGUI(this);                 // Verkaufs-GUI (Items reinlegen)
         this.auctionManager = new AuctionManager(this);   // Phase 3: Auktionshaus
         this.auctionHouseGUI = new AuctionHouseGUI(this);
         this.orderManager = new OrderManager(this);       // Phase 4: Auftraege
@@ -276,6 +283,7 @@ public final class BigMC extends JavaPlugin {
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
         getServer().getPluginManager().registerEvents(shopGUI, this);
+        getServer().getPluginManager().registerEvents(sellGUI, this);
         getServer().getPluginManager().registerEvents(auctionHouseGUI, this);
         getServer().getPluginManager().registerEvents(new StatsListener(this), this);
         getServer().getPluginManager().registerEvents(new DuelListener(this), this);
@@ -420,6 +428,10 @@ public final class BigMC extends JavaPlugin {
         getCommand("delhome").setExecutor(homeCommand);
         getCommand("delhome").setTabCompleter(homeCommand);
         getCommand("ec").setExecutor(new EnderchestCommand(this));
+        getCommand("craft").setExecutor(new CraftCommand(this));
+        getCommand("trash").setExecutor(new TrashCommand(this));
+        getCommand("rename").setExecutor(new RenameCommand(this));
+        getCommand("tpauto").setExecutor(new TpAutoCommand(this));
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -649,6 +661,10 @@ public final class BigMC extends JavaPlugin {
 
     public ShopGUI getShopGUI() {
         return shopGUI;
+    }
+
+    public SellGUI getSellGUI() {
+        return sellGUI;
     }
 
     public AuctionManager getAuctionManager() {
