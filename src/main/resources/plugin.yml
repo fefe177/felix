@@ -207,6 +207,20 @@ commands:
     usage: /menu
     aliases: [bigmcmenu, hub]
     permission: bigmc.menu
+  home:
+    description: Oeffnet die Home-Liste oder teleportiert zu einem Home.
+    usage: /home [name]
+    aliases: [homes]
+    permission: bigmc.home
+  sethome:
+    description: Setzt ein Home an deiner aktuellen Position.
+    usage: /sethome <name>
+    permission: bigmc.sethome
+  delhome:
+    description: Loescht eines deiner Homes.
+    usage: /delhome <name>
+    aliases: [removehome]
+    permission: bigmc.home
 
 permissions:
   bigmc.use:
@@ -365,3 +379,21 @@ permissions:
   bigmc.menu:
     description: Das zentrale Hauptmenue oeffnen.
     default: true
+  bigmc.home:
+    description: Homes nutzen und anzeigen.
+    default: true
+  bigmc.sethome:
+    description: Homes setzen.
+    default: true
+  bigmc.premium:
+    description: Premium-Status (mehr Homes/Enderchest/Clan-Groesse/Farben).
+    default: false
+  bigmc.homes.6:
+    description: Erlaubt 6 Homes (Premium).
+    default: false
+  bigmc.enderchest.large:
+    description: 54-Slot-Enderchest (Premium).
+    default: false
+  bigmc.clan.size.30:
+    description: 30 Clan-Mitglieder (Premium).
+    default: false

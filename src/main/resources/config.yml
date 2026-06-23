@@ -494,6 +494,14 @@ rtp:
   # Wie viele Zufallspositionen maximal geprueft werden
   max-attempts: 25
 
+# Homes (/sethome, /home): persoenliche Teleport-Punkte.
+homes:
+  # Standard-Limit fuer normale Spieler
+  default-limit: 3
+  # Limit fuer Premium (Permission bigmc.premium). Zusaetzlich greifen
+  # bigmc.homes.<n>-Permissions (hoechster Wert gewinnt).
+  premium-limit: 6
+
 # Teleport-Anfragen (/tpa)
 tpa:
   # Sekunden, bis eine Anfrage verfaellt

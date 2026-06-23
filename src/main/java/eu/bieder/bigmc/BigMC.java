@@ -82,6 +82,10 @@ import eu.bieder.bigmc.leaderboard.LeaderboardManager;
 import eu.bieder.bigmc.leaderboard.command.LeaderboardCommand;
 import eu.bieder.bigmc.menu.MenuGUI;
 import eu.bieder.bigmc.menu.command.MenuCommand;
+import eu.bieder.bigmc.premium.PremiumService;
+import eu.bieder.bigmc.home.HomeManager;
+import eu.bieder.bigmc.home.HomesGUI;
+import eu.bieder.bigmc.home.command.HomeCommand;
 import eu.bieder.bigmc.rank.RanksGUI;
 import eu.bieder.bigmc.stats.StatsGUI;
 import eu.bieder.bigmc.vote.VoteGUI;
@@ -175,6 +179,9 @@ public final class BigMC extends JavaPlugin {
     private RanksGUI ranksGUI;
     private VoteGUI voteGUI;
     private MenuGUI menuGUI;
+    private PremiumService premiumService;
+    private HomeManager homeManager;
+    private HomesGUI homesGUI;
 
     @Override
     public void onEnable() {
@@ -257,6 +264,9 @@ public final class BigMC extends JavaPlugin {
         this.ranksGUI = new RanksGUI(this);                   // Rang-GUI
         this.voteGUI = new VoteGUI(this);                     // Vote-GUI
         this.menuGUI = new MenuGUI(this);                     // Zentrales Hauptmenue
+        this.premiumService = new PremiumService(this);       // Premium-/Perk-Grenzen
+        this.homeManager = new HomeManager(this);             // Homes
+        this.homesGUI = new HomesGUI(this);
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -297,6 +307,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(ranksGUI, this);
         getServer().getPluginManager().registerEvents(voteGUI, this);
         getServer().getPluginManager().registerEvents(menuGUI, this);
+        getServer().getPluginManager().registerEvents(homesGUI, this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -396,6 +407,12 @@ public final class BigMC extends JavaPlugin {
         getCommand("bigmcadmin").setExecutor(adminCommand);
         getCommand("bigmcadmin").setTabCompleter(adminCommand);
         getCommand("menu").setExecutor(new MenuCommand(this));
+        HomeCommand homeCommand = new HomeCommand(this);
+        getCommand("home").setExecutor(homeCommand);
+        getCommand("home").setTabCompleter(homeCommand);
+        getCommand("sethome").setExecutor(homeCommand);
+        getCommand("delhome").setExecutor(homeCommand);
+        getCommand("delhome").setTabCompleter(homeCommand);
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -597,6 +614,18 @@ public final class BigMC extends JavaPlugin {
 
     public MenuGUI getMenuGUI() {
         return menuGUI;
+    }
+
+    public PremiumService getPremiumService() {
+        return premiumService;
+    }
+
+    public HomeManager getHomeManager() {
+        return homeManager;
+    }
+
+    public HomesGUI getHomesGUI() {
+        return homesGUI;
     }
 
     public EconomyManager getEconomyManager() {

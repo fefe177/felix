@@ -540,6 +540,27 @@ ranks:
   set-done: "&7Rang von &e%player% &7auf %rank% &7gesetzt."
   set-received: "&7Dein Rang wurde auf %rank% &7gesetzt."
 
+# Homes (/home, /sethome, /delhome)
+home:
+  gui-title: "&8▎ <g:#FF6CAB:#7366FF>&lHOMES</g>"
+  gui-world: "&8• &7Welt &e%world%"
+  gui-coords: "&8• &7Position &e%x% %y% %z%"
+  gui-click-tp: "&a▸ Linksklick &7teleportiert"
+  gui-click-delete: "&c▸ Shift-Klick &7löscht"
+  gui-info-name: "&b&lDEINE HOMES"
+  gui-info-count: "&8• &7Homes &e%count%&7/&e%limit%"
+  gui-info-set: "&8• &7Setzen mit &e/sethome <name>"
+  set: "&aHome &e%name% &agesetzt."
+  updated: "&aHome &e%name% &awurde aktualisiert."
+  deleted: "&7Home &e%name% &7gelöscht."
+  not-found: "&cDu hast kein Home namens &e%name%&c."
+  teleported: "&7Teleportiert zu Home &e%name%&7."
+  world-missing: "&cDie Welt dieses Homes existiert nicht mehr."
+  limit-reached: "&cDu hast dein Home-Limit (&e%limit%&c) erreicht."
+  invalid-name: "&cUngültiger Name (nur Buchstaben, Zahlen, _ und -)."
+  sethome-usage: "&cVerwendung: /sethome <name>"
+  delhome-usage: "&cVerwendung: /delhome <name>"
+
 # Zentrales Hauptmenue (/menu)
 menu:
   gui-title: "&8▎ <g:#00C6FF:#0072FF>&lMENÜ</g>"
@@ -560,6 +581,7 @@ menu:
   ranks: "&e&lRÄNGE"
   vote: "&a&lVOTEN"
   rtp: "&a&lZUFALLS-TELEPORT"
+  home: "<g:#FF6CAB:#7366FF>&lHOMES</g>"
   spawn: "&d&lSPAWN"
   afk: "&7&lAFK-ZONE"
   fly: "&f&lFLIEGEN"
