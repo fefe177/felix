@@ -83,6 +83,9 @@ import eu.bieder.bigmc.leaderboard.command.LeaderboardCommand;
 import eu.bieder.bigmc.menu.MenuGUI;
 import eu.bieder.bigmc.menu.command.MenuCommand;
 import eu.bieder.bigmc.premium.PremiumService;
+import eu.bieder.bigmc.premium.PremiumJoinListener;
+import eu.bieder.bigmc.gems.GemsManager;
+import eu.bieder.bigmc.gems.command.GemsCommand;
 import eu.bieder.bigmc.home.HomeManager;
 import eu.bieder.bigmc.home.HomesGUI;
 import eu.bieder.bigmc.home.command.HomeCommand;
@@ -189,6 +192,7 @@ public final class BigMC extends JavaPlugin {
     private VoteGUI voteGUI;
     private MenuGUI menuGUI;
     private PremiumService premiumService;
+    private GemsManager gemsManager;
     private HomeManager homeManager;
     private HomesGUI homesGUI;
     private EnderchestManager enderchestManager;
@@ -276,6 +280,7 @@ public final class BigMC extends JavaPlugin {
         this.voteGUI = new VoteGUI(this);                     // Vote-GUI
         this.menuGUI = new MenuGUI(this);                     // Zentrales Hauptmenue
         this.premiumService = new PremiumService(this);       // Premium-/Perk-Grenzen
+        this.gemsManager = new GemsManager(this);             // Gems (Premium-Waehrung)
         this.homeManager = new HomeManager(this);             // Homes
         this.homesGUI = new HomesGUI(this);
         this.enderchestManager = new EnderchestManager(this); // Virtuelle Enderchest
@@ -322,6 +327,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(menuGUI, this);
         getServer().getPluginManager().registerEvents(homesGUI, this);
         getServer().getPluginManager().registerEvents(new EnderchestListener(this), this);
+        getServer().getPluginManager().registerEvents(new PremiumJoinListener(this), this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -432,6 +438,9 @@ public final class BigMC extends JavaPlugin {
         getCommand("trash").setExecutor(new TrashCommand(this));
         getCommand("rename").setExecutor(new RenameCommand(this));
         getCommand("tpauto").setExecutor(new TpAutoCommand(this));
+        GemsCommand gemsCommand = new GemsCommand(this);
+        getCommand("gems").setExecutor(gemsCommand);
+        getCommand("gems").setTabCompleter(gemsCommand);
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -637,6 +646,10 @@ public final class BigMC extends JavaPlugin {
 
     public PremiumService getPremiumService() {
         return premiumService;
+    }
+
+    public GemsManager getGemsManager() {
+        return gemsManager;
     }
 
     public HomeManager getHomeManager() {

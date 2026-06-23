@@ -543,6 +543,17 @@ ranks:
   set-done: "&7Rang von &e%player% &7auf %rank% &7gesetzt."
   set-received: "&7Dein Rang wurde auf %rank% &7gesetzt."
 
+# Gems (/gems) - Premium-Waehrung
+gems:
+  balance-own: "&7Deine Gems: &b%amount%"
+  balance-other: "&7Gems von &e%player%&7: &b%amount%"
+  received: "&b+%amount% &7Gems erhalten!"
+  admin-usage: "&cVerwendung: /gems [spieler] &7| &c/gems give|take|set <spieler> <anzahl>"
+  admin-given: "&7Du hast &e%player% &b%amount% &7gegeben."
+  admin-taken: "&7Du hast &e%player% &b%amount% &7abgezogen."
+  admin-take-failed: "&e%player% &chat nicht genug Gems dafür."
+  admin-set: "&7Gems von &e%player% &7auf &b%amount% &7gesetzt."
+
 # Verkaufs-GUI (/sell)
 sellgui:
   gui-title: "&8▎ <g:#FFE259:#FFA751>&lVERKAUFEN</g>"
@@ -611,6 +622,7 @@ menu:
   afk: "&7&lAFK-ZONE"
   fly: "&f&lFLIEGEN"
   shards: "&d&lSHARDS"
+  gems: "<g:#00C6FF:#0072FF>&lGEMS</g>"
   money: "<g:#F7971E:#FFD200>&lGELD &8(/baltop)</g>"
   drill: "&b&lDRILL-SPITZHACKE"
   craft: "&e&lWERKBANK"

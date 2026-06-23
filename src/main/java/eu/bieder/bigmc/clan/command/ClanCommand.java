@@ -110,7 +110,7 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         if (args.length != 2) { msg.send(player, "clan.invite-usage"); return; }
         Clan clan = requireRank(player, ClanRank.ADMIN);
         if (clan == null) return;
-        if (clan.memberCount() >= cm.maxMembers()) { msg.send(player, "clan.full"); return; }
+        if (clan.memberCount() >= cm.effectiveMaxMembers(clan)) { msg.send(player, "clan.full"); return; }
 
         Player target = Bukkit.getPlayerExact(args[1]);
         if (target == null) { msg.send(player, "general.player-not-found"); return; }
@@ -128,7 +128,7 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         Optional<Clan> inv = cm.getInvite(player.getUniqueId());
         if (inv.isEmpty()) { msg.send(player, "clan.no-invite"); return; }
         Clan clan = inv.get();
-        if (clan.memberCount() >= cm.maxMembers()) { msg.send(player, "clan.full"); return; }
+        if (clan.memberCount() >= cm.effectiveMaxMembers(clan)) { msg.send(player, "clan.full"); return; }
 
         cm.clearInvite(player.getUniqueId());
         cm.addMember(clan, player.getUniqueId(), player.getName(), ClanRank.MEMBER);
@@ -229,7 +229,7 @@ public class ClanCommand implements CommandExecutor, TabCompleter {
         player.sendMessage(msg.getRaw("clan.info-points").replace("%points%", String.valueOf(clan.getPoints())));
         player.sendMessage(msg.getRaw("clan.info-members")
                 .replace("%count%", String.valueOf(clan.memberCount()))
-                .replace("%max%", String.valueOf(cm.maxMembers())));
+                .replace("%max%", String.valueOf(cm.effectiveMaxMembers(clan))));
         for (var entry : clan.getMembers().entrySet()) {
             boolean online = Bukkit.getPlayer(entry.getKey()) != null;
             player.sendMessage(msg.getRaw("clan.info-member-line")

@@ -53,6 +53,7 @@ public class MenuGUI implements Listener {
             new Entry(Material.LODESTONE,          "menu.spawn",       "spawn"),
             new Entry(Material.CLOCK,              "menu.afk",         "afk"),
             new Entry(Material.AMETHYST_SHARD,     "menu.shards",      "shards"),
+            new Entry(Material.DIAMOND,            "menu.gems",        "gems"),
             new Entry(Material.GOLD_NUGGET,        "menu.money",       "baltop"),
             new Entry(Material.CRAFTING_TABLE,     "menu.craft",       "craft"),
             new Entry(Material.CAULDRON,           "menu.trash",       "trash"));

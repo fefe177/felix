@@ -152,6 +152,17 @@ public class ClanManager {
     public int minNameLength() { return plugin.getConfigManager().getConfig().getInt("clans.min-name-length", 3); }
     public int maxNameLength() { return plugin.getConfigManager().getConfig().getInt("clans.max-name-length", 12); }
     public int maxMembers() { return plugin.getConfigManager().getConfig().getInt("clans.max-members", 10); }
+
+    /**
+     * Effektives Mitglieder-Limit eines Clans. Premium-Besitzer (Permission
+     * bigmc.premium / bigmc.clan.size.30) erlauben groessere Clans. Ist der
+     * Besitzer offline, gilt das Standard-Limit.
+     */
+    public int effectiveMaxMembers(Clan clan) {
+        org.bukkit.entity.Player owner = plugin.getServer().getPlayer(clan.getOwner());
+        return owner != null ? plugin.getPremiumService().getClanSize(owner) : maxMembers();
+    }
+
     public long pointsPerKill() { return plugin.getConfigManager().getConfig().getLong("clans.points-per-kill", 1); }
 
     // ----- Mutationen -----

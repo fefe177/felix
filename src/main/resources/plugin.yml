@@ -244,6 +244,11 @@ commands:
     description: Schaltet automatisches Annehmen von TPA-Anfragen um.
     usage: /tpauto
     permission: bigmc.tpa
+  gems:
+    description: Zeigt/verwaltet Gems (Premium-Waehrung, Tebex).
+    usage: /gems [spieler] | /gems give|take|set <spieler> <anzahl>
+    aliases: [gem]
+    permission: bigmc.gems
 
 permissions:
   bigmc.use:
@@ -432,3 +437,12 @@ permissions:
   bigmc.clan.size.30:
     description: 30 Clan-Mitglieder (Premium).
     default: false
+  bigmc.join.full:
+    description: Auch auf vollen Server joinen (Premium).
+    default: false
+  bigmc.gems:
+    description: Den eigenen Gem-Stand ansehen.
+    default: true
+  bigmc.gems.admin:
+    description: Gems geben/abziehen/setzen (Tebex/Admin).
+    default: op
