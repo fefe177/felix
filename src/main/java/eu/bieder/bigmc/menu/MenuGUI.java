@@ -48,6 +48,7 @@ public class MenuGUI implements Listener {
             new Entry(Material.PAPER,              "menu.vote",        "vote"),
             new Entry(Material.COMPASS,            "menu.rtp",         "rtp"),
             new Entry(Material.RED_BED,            "menu.home",        "home"),
+            new Entry(Material.ENDER_CHEST,        "menu.enderchest",  "ec"),
             new Entry(Material.LODESTONE,          "menu.spawn",       "spawn"),
             new Entry(Material.CLOCK,              "menu.afk",         "afk"),
             new Entry(Material.AMETHYST_SHARD,     "menu.shards",      "shards"),

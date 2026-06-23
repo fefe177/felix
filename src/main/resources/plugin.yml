@@ -221,6 +221,11 @@ commands:
     usage: /delhome <name>
     aliases: [removehome]
     permission: bigmc.home
+  ec:
+    description: Oeffnet die virtuelle Enderchest (Premium 54 Slots).
+    usage: /ec
+    aliases: [enderchest, echest]
+    permission: bigmc.ec
 
 permissions:
   bigmc.use:
@@ -384,6 +389,9 @@ permissions:
     default: true
   bigmc.sethome:
     description: Homes setzen.
+    default: true
+  bigmc.ec:
+    description: Die virtuelle Enderchest oeffnen.
     default: true
   bigmc.premium:
     description: Premium-Status (mehr Homes/Enderchest/Clan-Groesse/Farben).

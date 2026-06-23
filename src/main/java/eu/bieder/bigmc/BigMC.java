@@ -86,6 +86,9 @@ import eu.bieder.bigmc.premium.PremiumService;
 import eu.bieder.bigmc.home.HomeManager;
 import eu.bieder.bigmc.home.HomesGUI;
 import eu.bieder.bigmc.home.command.HomeCommand;
+import eu.bieder.bigmc.enderchest.EnderchestManager;
+import eu.bieder.bigmc.enderchest.EnderchestListener;
+import eu.bieder.bigmc.enderchest.command.EnderchestCommand;
 import eu.bieder.bigmc.rank.RanksGUI;
 import eu.bieder.bigmc.stats.StatsGUI;
 import eu.bieder.bigmc.vote.VoteGUI;
@@ -182,6 +185,7 @@ public final class BigMC extends JavaPlugin {
     private PremiumService premiumService;
     private HomeManager homeManager;
     private HomesGUI homesGUI;
+    private EnderchestManager enderchestManager;
 
     @Override
     public void onEnable() {
@@ -267,6 +271,7 @@ public final class BigMC extends JavaPlugin {
         this.premiumService = new PremiumService(this);       // Premium-/Perk-Grenzen
         this.homeManager = new HomeManager(this);             // Homes
         this.homesGUI = new HomesGUI(this);
+        this.enderchestManager = new EnderchestManager(this); // Virtuelle Enderchest
 
         // 5. Listener registrieren
         getServer().getPluginManager().registerEvents(new PlayerJoinListener(this), this);
@@ -308,6 +313,7 @@ public final class BigMC extends JavaPlugin {
         getServer().getPluginManager().registerEvents(voteGUI, this);
         getServer().getPluginManager().registerEvents(menuGUI, this);
         getServer().getPluginManager().registerEvents(homesGUI, this);
+        getServer().getPluginManager().registerEvents(new EnderchestListener(this), this);
 
         // Votifier per Reflection anbinden (kein Compile-Bedarf, Soft-Depend).
         if (VotifierHook.register(this)) {
@@ -413,6 +419,7 @@ public final class BigMC extends JavaPlugin {
         getCommand("sethome").setExecutor(homeCommand);
         getCommand("delhome").setExecutor(homeCommand);
         getCommand("delhome").setTabCompleter(homeCommand);
+        getCommand("ec").setExecutor(new EnderchestCommand(this));
 
         // Bereits online befindliche Spieler laden (z.B. nach /reload)
         getServer().getOnlinePlayers().forEach(p -> {
@@ -626,6 +633,10 @@ public final class BigMC extends JavaPlugin {
 
     public HomesGUI getHomesGUI() {
         return homesGUI;
+    }
+
+    public EnderchestManager getEnderchestManager() {
+        return enderchestManager;
     }
 
     public EconomyManager getEconomyManager() {

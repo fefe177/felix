@@ -540,6 +540,10 @@ ranks:
   set-done: "&7Rang von &e%player% &7auf %rank% &7gesetzt."
   set-received: "&7Dein Rang wurde auf %rank% &7gesetzt."
 
+# Virtuelle Enderchest (/ec)
+enderchest:
+  gui-title: "&8▎ <g:#DA22FF:#9733EE>&lENDERCHEST</g>"
+
 # Homes (/home, /sethome, /delhome)
 home:
   gui-title: "&8▎ <g:#FF6CAB:#7366FF>&lHOMES</g>"
@@ -582,6 +586,7 @@ menu:
   vote: "&a&lVOTEN"
   rtp: "&a&lZUFALLS-TELEPORT"
   home: "<g:#FF6CAB:#7366FF>&lHOMES</g>"
+  enderchest: "<g:#DA22FF:#9733EE>&lENDERCHEST</g>"
   spawn: "&d&lSPAWN"
   afk: "&7&lAFK-ZONE"
   fly: "&f&lFLIEGEN"
