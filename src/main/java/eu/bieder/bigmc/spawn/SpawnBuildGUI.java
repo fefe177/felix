@@ -82,11 +82,8 @@ public class SpawnBuildGUI implements Listener {
         msg.send(player, "spawn.build-started");
         GuiDesign.soundSuccess(player);
 
-        new SpawnAreaBuilder(plugin).build(player.getLocation(), theme);
-
-        msg.send(player, "spawn.build-done",
-                "%theme%", MessageManager.color(theme.name),
-                "%radius%", String.valueOf(SpawnAreaBuilder.PROTECTION));
+        // Baut tick-weise; setzt Spawn + Schutzzone und meldet "fertig" selbst.
+        new SpawnAreaBuilder(plugin).build(player, theme);
     }
 
     @EventHandler
