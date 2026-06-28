@@ -9,6 +9,7 @@ lauffähig und hat (wo sinnvoll) Tests.
 | Tool | Sprache | Beschreibung |
 |------|---------|--------------|
 | [`dirstat`](apps/dirstat) | Python | Findet die größten Dateien & Ordner in einem Verzeichnis |
+| [`pwgen`](apps/pwgen) | Python | Erzeugt sichere Passwörter & Passphrasen mit Entropie-Anzeige |
 
 ## Tests ausführen
 
