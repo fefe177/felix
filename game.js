@@ -14,36 +14,67 @@ const TOTAL_WAVES = 20;
 const pxToWX = (x) => x / CELL - COLS / 2;
 const pxToWZ = (y) => y / CELL - ROWS / 2;
 
-// ---------- Pfad ----------
-const WAYPOINT_CELLS = [
-  [-1, 2], [16, 2], [16, 6], [3, 6], [3, 10], [20, 10],
+// ---------- Karten ----------
+// Jede Karte: Wegpunkte (achsenparallel, Start links / Ziel rechts) + Anhöhen.
+// Kürzerer Pfad = weniger Zeit zum Schießen = schwerer.
+const MAPS = [
+  {
+    name: 'Wiese', difficulty: 'Normal',
+    waypoints: [[-1, 2], [16, 2], [16, 6], [3, 6], [3, 10], [20, 10]],
+    hills: [
+      [15, 3], [15, 4], [9, 4], [9, 5], [5, 7], [9, 7], [15, 7], [4, 8], [12, 8],
+      [1, 3], [18, 5], [6, 11], [13, 11], [18, 12],
+    ],
+  },
+  {
+    name: 'Serpentinen', difficulty: 'Leicht',
+    waypoints: [[-1, 11], [4, 11], [4, 3], [8, 3], [8, 11], [12, 11], [12, 3], [16, 3], [16, 11], [20, 11]],
+    hills: [
+      [2, 5], [2, 9], [6, 5], [6, 9], [10, 5], [10, 9], [14, 5], [14, 9], [18, 5], [18, 9],
+      [1, 1], [18, 1], [6, 13], [13, 13],
+    ],
+  },
+  {
+    name: 'Schlucht', difficulty: 'Schwer',
+    waypoints: [[-1, 4], [6, 4], [6, 9], [13, 9], [13, 4], [20, 4]],
+    hills: [
+      [4, 2], [4, 6], [8, 6], [8, 11], [11, 2], [11, 6], [15, 2], [15, 6],
+      [2, 6], [17, 6], [2, 2], [17, 2], [6, 11], [13, 11],
+    ],
+  },
 ];
-const waypoints = WAYPOINT_CELLS.map(([c, r]) => ({
-  x: (c + 0.5) * CELL,
-  y: (r + 0.5) * CELL,
-}));
 
-const pathCells = new Set();
-for (let i = 0; i < WAYPOINT_CELLS.length - 1; i++) {
-  let [c1, r1] = WAYPOINT_CELLS[i];
-  const [c2, r2] = WAYPOINT_CELLS[i + 1];
-  const dc = Math.sign(c2 - c1), dr = Math.sign(r2 - r1);
-  while (c1 !== c2 || r1 !== r2) {
-    if (c1 >= 0 && c1 < COLS && r1 >= 0 && r1 < ROWS) pathCells.add(c1 + ',' + r1);
-    c1 += dc; r1 += dr;
-  }
-  if (c2 >= 0 && c2 < COLS && r2 >= 0 && r2 < ROWS) pathCells.add(c2 + ',' + r2);
-}
-
-// ---------- Anhöhen (erhöhte Plateaus) ----------
-// Manche Türme brauchen ebenen Boden, andere (Blitzturm, Wachturm) eine Anhöhe.
-const HILL_CELLS = [
-  [15, 3], [15, 4], [9, 4], [9, 5], [5, 7], [9, 7], [15, 7], [4, 8], [12, 8],
-  [1, 3], [18, 5], [6, 11], [13, 11], [18, 12],
-];
-const hillCells = new Set(HILL_CELLS.map(([c, r]) => c + ',' + r));
 const HILL_H = 0.35; // Plateauhöhe in Welteinheiten
+let currentMap = 0;
+let WAYPOINT_CELLS = [];
+let waypoints = [];
+let pathCells = new Set();
+let HILL_CELLS = [];
+let hillCells = new Set();
 const isHillCell = (cx, cy) => hillCells.has(cx + ',' + cy);
+
+function loadMapData(i) {
+  currentMap = i;
+  const m = MAPS[i];
+  WAYPOINT_CELLS = m.waypoints;
+  waypoints = WAYPOINT_CELLS.map(([c, r]) => ({
+    x: (c + 0.5) * CELL,
+    y: (r + 0.5) * CELL,
+  }));
+  pathCells = new Set();
+  for (let s = 0; s < WAYPOINT_CELLS.length - 1; s++) {
+    let [c1, r1] = WAYPOINT_CELLS[s];
+    const [c2, r2] = WAYPOINT_CELLS[s + 1];
+    const dc = Math.sign(c2 - c1), dr = Math.sign(r2 - r1);
+    while (c1 !== c2 || r1 !== r2) {
+      if (c1 >= 0 && c1 < COLS && r1 >= 0 && r1 < ROWS) pathCells.add(c1 + ',' + r1);
+      c1 += dc; r1 += dr;
+    }
+    if (c2 >= 0 && c2 < COLS && r2 >= 0 && r2 < ROWS) pathCells.add(c2 + ',' + r2);
+  }
+  HILL_CELLS = m.hills;
+  hillCells = new Set(HILL_CELLS.map(([c, r]) => c + ',' + r));
+}
 
 // ---------- Turmtypen ----------
 const TOWER_TYPES = {
@@ -234,43 +265,6 @@ const MAT = {
   mkFrame(0.3, ROWS + 0.6, -(COLS / 2 + 0.15), 0);
   mkFrame(0.3, ROWS + 0.6, COLS / 2 + 0.15, 0);
 
-  // Pfad-Kacheln
-  const tileGeo = new THREE.BoxGeometry(0.98, 0.14, 0.98);
-  const tileMatA = new THREE.MeshStandardMaterial({ color: 0x8a6d46, roughness: 0.9 });
-  const tileMatB = new THREE.MeshStandardMaterial({ color: 0x7f6440, roughness: 0.9 });
-  for (const key of pathCells) {
-    const [c, r] = key.split(',').map(Number);
-    const tile = new THREE.Mesh(tileGeo, (c + r) % 2 === 0 ? tileMatA : tileMatB);
-    tile.position.set(c - COLS / 2 + 0.5, 0.07, r - ROWS / 2 + 0.5);
-    tile.receiveShadow = true;
-    scene.add(tile);
-  }
-
-  // Anhöhen: erhöhte Plateaus mit Grasdecke und Felskante
-  const hillSide = new THREE.MeshStandardMaterial({ color: 0x6e6a5c, roughness: 0.95 });
-  const hillTop = new THREE.MeshStandardMaterial({ color: 0x3f6b47, roughness: 0.9 });
-  const hillGeo = new THREE.BoxGeometry(0.98, HILL_H, 0.98);
-  for (const [c, r] of HILL_CELLS) {
-    const hill = new THREE.Mesh(hillGeo, [hillSide, hillSide, hillTop, hillSide, hillSide, hillSide]);
-    hill.position.set(c - COLS / 2 + 0.5, HILL_H / 2, r - ROWS / 2 + 0.5);
-    hill.castShadow = hill.receiveShadow = true;
-    scene.add(hill);
-  }
-
-  // Start- und Zielportal
-  const mkPortal = (x, z, color) => {
-    const ring = new THREE.Mesh(
-      new THREE.TorusGeometry(0.55, 0.09, 10, 24),
-      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, roughness: 0.4 })
-    );
-    ring.position.set(x, 0.62, z);
-    ring.rotation.y = Math.PI / 2;
-    ring.castShadow = true;
-    scene.add(ring);
-  };
-  mkPortal(-(COLS / 2 + 0.35), pxToWZ(waypoints[0].y), 0x2fae53);
-  mkPortal(COLS / 2 + 0.35, pxToWZ(waypoints[waypoints.length - 1].y), 0xc93f3f);
-
   // Deko: Bäume und Felsen außerhalb des Spielfelds
   const treeSpots = [
     [-11.6, -6.4], [-11.3, -1.2], [-11.7, 4.0], [11.5, -5.2], [11.8, 0.6], [11.4, 5.8],
@@ -299,6 +293,69 @@ const MAT = {
     scene.add(rock);
   }
 })();
+
+// ---------- Kartenszene (Pfad, Anhöhen, Portale — pro Karte neu aufgebaut) ----------
+const mapGroup = new THREE.Group();
+scene.add(mapGroup);
+
+const MAPGFX = {
+  tileGeo: new THREE.BoxGeometry(0.98, 0.14, 0.98),
+  tileMatA: new THREE.MeshStandardMaterial({ color: 0x8a6d46, roughness: 0.9 }),
+  tileMatB: new THREE.MeshStandardMaterial({ color: 0x7f6440, roughness: 0.9 }),
+  hillGeo: new THREE.BoxGeometry(0.98, HILL_H, 0.98),
+  hillSide: new THREE.MeshStandardMaterial({ color: 0x6e6a5c, roughness: 0.95 }),
+  hillTop: new THREE.MeshStandardMaterial({ color: 0x3f6b47, roughness: 0.9 }),
+  portalGeo: new THREE.TorusGeometry(0.55, 0.09, 10, 24),
+  portalGreen: new THREE.MeshStandardMaterial({ color: 0x2fae53, emissive: 0x2fae53, emissiveIntensity: 0.6, roughness: 0.4 }),
+  portalRed: new THREE.MeshStandardMaterial({ color: 0xc93f3f, emissive: 0xc93f3f, emissiveIntensity: 0.6, roughness: 0.4 }),
+};
+
+function buildMapScene() {
+  for (const o of [...mapGroup.children]) mapGroup.remove(o);
+
+  // Pfad-Kacheln
+  for (const key of pathCells) {
+    const [c, r] = key.split(',').map(Number);
+    const tile = new THREE.Mesh(MAPGFX.tileGeo, (c + r) % 2 === 0 ? MAPGFX.tileMatA : MAPGFX.tileMatB);
+    tile.position.set(c - COLS / 2 + 0.5, 0.07, r - ROWS / 2 + 0.5);
+    tile.receiveShadow = true;
+    mapGroup.add(tile);
+  }
+
+  // Anhöhen: erhöhte Plateaus mit Grasdecke und Felskante
+  for (const [c, r] of HILL_CELLS) {
+    const hill = new THREE.Mesh(MAPGFX.hillGeo,
+      [MAPGFX.hillSide, MAPGFX.hillSide, MAPGFX.hillTop, MAPGFX.hillSide, MAPGFX.hillSide, MAPGFX.hillSide]);
+    hill.position.set(c - COLS / 2 + 0.5, HILL_H / 2, r - ROWS / 2 + 0.5);
+    hill.castShadow = hill.receiveShadow = true;
+    mapGroup.add(hill);
+  }
+
+  // Start- und Zielportal
+  const mkPortal = (x, z, mat) => {
+    const ring = new THREE.Mesh(MAPGFX.portalGeo, mat);
+    ring.position.set(x, 0.62, z);
+    ring.rotation.y = Math.PI / 2;
+    ring.castShadow = true;
+    mapGroup.add(ring);
+  };
+  mkPortal(-(COLS / 2 + 0.35), pxToWZ(waypoints[0].y), MAPGFX.portalGreen);
+  mkPortal(COLS / 2 + 0.35, pxToWZ(waypoints[waypoints.length - 1].y), MAPGFX.portalRed);
+}
+
+// Kartenwechsel (setzt das Spiel zurück)
+function loadMap(i) {
+  if (i === currentMap || !MAPS[i]) return;
+  if ((state.wave > 0 || (state.towers && state.towers.length > 0)) &&
+      !window.confirm('Karte wechseln? Das laufende Spiel wird neu gestartet.')) {
+    return;
+  }
+  try { localStorage.setItem('td3d-karte', String(i)); } catch (e) { /* egal */ }
+  loadMapData(i);
+  buildMapScene();
+  resetGame();
+  updateMapButtons();
+}
 
 // ---------- Turm-Modelle (das Aussehen wächst mit der Stufe) ----------
 const UP = new THREE.Vector3(0, 1, 0);
@@ -1560,7 +1617,27 @@ const el = {
   ovRestart: document.getElementById('ov-restart'),
   ovEndless: document.getElementById('ov-endless'),
   pauseOv: document.getElementById('pause-ov'),
+  mapBar: document.getElementById('map-bar'),
+  btnMusic: document.getElementById('btn-music'),
 };
+
+function buildMapBar() {
+  el.mapBar.innerHTML = '<span>Karte:</span>';
+  MAPS.forEach((m, i) => {
+    const btn = document.createElement('button');
+    btn.textContent = m.name + ' (' + m.difficulty + ')';
+    btn.dataset.map = i;
+    btn.addEventListener('click', () => { ensureAudio(); loadMap(i); });
+    el.mapBar.appendChild(btn);
+  });
+  updateMapButtons();
+}
+
+function updateMapButtons() {
+  for (const btn of el.mapBar.querySelectorAll('button')) {
+    btn.classList.toggle('selected', Number(btn.dataset.map) === currentMap);
+  }
+}
 
 function buildShop() {
   el.shop.innerHTML = '';
@@ -1977,6 +2054,35 @@ el.btnSound.addEventListener('click', () => {
   el.btnSound.textContent = muted ? '🔇' : '🔊';
 });
 
+// ---------- Hintergrundmusik (kleiner Chiptune-Loop, Am–F–C–G) ----------
+const music = { on: false, timer: null, step: 0 };
+const MUSIC_BASS = [45, 41, 36, 43]; // MIDI-Grundtöne der Akkorde
+const MUSIC_ARP = [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]];
+const midiFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+
+function musicStep() {
+  if (!audioCtx || muted) { music.step++; return; }
+  const bar = Math.floor(music.step / 8) % 4;
+  const pos = music.step % 8;
+  if (pos === 0) beep(midiFreq(MUSIC_BASS[bar]), 0.6, 'triangle', 0.05);
+  beep(midiFreq(MUSIC_ARP[bar][pos % 3] + (pos >= 4 ? 12 : 0)), 0.18, 'sine', 0.02);
+  music.step++;
+}
+
+function toggleMusic() {
+  ensureAudio();
+  music.on = !music.on;
+  el.btnMusic.classList.toggle('off', !music.on);
+  if (music.on) {
+    music.step = 0;
+    music.timer = setInterval(musicStep, 170);
+  } else {
+    clearInterval(music.timer);
+    music.timer = null;
+  }
+}
+el.btnMusic.addEventListener('click', toggleMusic);
+
 el.tpEnter.addEventListener('click', () => {
   ensureAudio();
   if (state.selectedTower) enterTower(state.selectedTower);
@@ -2040,6 +2146,14 @@ function loop(now) {
 }
 
 // ---------- Start ----------
+let savedMap = 0;
+try {
+  savedMap = parseInt(localStorage.getItem('td3d-karte') || '0', 10) || 0;
+  if (savedMap < 0 || savedMap >= MAPS.length) savedMap = 0;
+} catch (e) { savedMap = 0; }
+loadMapData(savedMap);
+buildMapScene();
+buildMapBar();
 buildShop();
 resetGame();
 requestAnimationFrame(loop);

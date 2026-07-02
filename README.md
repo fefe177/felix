@@ -17,6 +17,18 @@ python3 -m http.server 8000
 
 Gegner laufen in Wellen über den Pfad von links nach rechts. Baue Türme auf die freien Grasfelder, um sie aufzuhalten, bevor sie das Ziel erreichen. Überstehe alle **20 Wellen** — danach geht es optional im Endlosmodus weiter.
 
+## 🗺️ Karten
+
+Über die Leiste oben wählst du eine von **drei Karten** (die Wahl wird gespeichert; Wechsel startet das Spiel neu):
+
+| Karte | Schwierigkeit | Charakter |
+|---|---|---|
+| 🌿 Wiese | Normal | Klassische Doppelschleife mit langem Pfad |
+| 🐍 Serpentinen | Leicht | Enges Auf und Ab — Türme zwischen den Korridoren treffen mehrfach |
+| ⛰️ Schlucht | Schwer | Kurzer, direkter Pfad — wenig Zeit zum Schießen! |
+
+Dazu gibt es einen **Musik-Button** (🎵) mit einem kleinen Chiptune-Loop als Hintergrundmusik.
+
 ## Türme
 
 | Turm | Kosten | Gelände | Stärke |
@@ -89,7 +101,8 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen k
 - **Welle starten:** Button oben (oder `Enter`) — früher Start bringt Bonus-Gold!
 - **Pause:** `Leertaste` oder ⏸-Button
 - **Geschwindigkeit:** 1×/2×/3× umschaltbar
-- **Ton:** 🔊-Button (Soundeffekte per WebAudio)
+- **Ton:** 🔊-Button (Soundeffekte per WebAudio) · **Musik:** 🎵-Button
+- **Karte wechseln:** Kartenleiste über dem Spielfeld
 
 **Touch (Tablet/Handy):** Antippen baut/wählt aus, **zwei Finger ziehen** dreht die Kamera, **Pinch** zoomt. Im Wachturm: ein Finger zielt, Tippen schießt, Pinch zoomt.
 
