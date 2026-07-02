@@ -19,15 +19,21 @@ Gegner laufen in Wellen über den Pfad von links nach rechts. Baue Türme auf di
 
 ## Türme
 
-| Turm | Kosten | Stärke |
-|---|---|---|
-| 🏹 Bogenturm | 💰 50 | Schnell und günstig, Einzelziel — Holzturm mit drehbarer Armbrust |
-| 💣 Kanone | 💰 100 | Flächenschaden, langsames Feuer — Stahlkuppel mit schwenkbarem Rohr |
-| ❄️ Frostturm | 💰 70 | Verlangsamt Gegner — rotierender Eiskristall |
-| ⚡ Blitzturm | 💰 150 | Hohe Reichweite und hoher Schaden — Obelisk mit schwebender Energiekugel |
-| 🎯 Wachturm | 💰 120 | **Betretbar!** Selbst zielen und schießen in der Ego-Ansicht |
-| ☠️ Giftturm | 💰 90 | Vergiftet Gegner — Schaden über Zeit (brodelnder Kessel) |
-| ⛏️ Goldmine | 💰 100 | Kämpft nicht, erzeugt nach jeder Welle Gold |
+| Turm | Kosten | Gelände | Stärke |
+|---|---|---|---|
+| 🏹 Bogenturm | 💰 50 | überall | Schnell und günstig, Einzelziel — Holzturm mit drehbarer Armbrust |
+| 💣 Kanone | 💰 100 | nur Boden | Flächenschaden, langsames Feuer — Stahlkuppel mit schwenkbarem Rohr |
+| ❄️ Frostturm | 💰 70 | überall | Verlangsamt Gegner — rotierender Eiskristall |
+| ⚡ Blitzturm | 💰 150 | ⛰️ nur Anhöhe | Hohe Reichweite und hoher Schaden — Obelisk mit schwebender Energiekugel |
+| 🎯 Wachturm | 💰 120 | ⛰️ nur Anhöhe | **Betretbar!** Selbst zielen und schießen in der Ego-Ansicht |
+| ☠️ Giftturm | 💰 90 | nur Boden | Vergiftet Gegner — Schaden über Zeit (brodelnder Kessel) |
+| ⛏️ Goldmine | 💰 100 | nur Boden | Kämpft nicht, erzeugt nach jeder Welle Gold |
+
+## ⛰️ Anhöhen & Bauvorschau
+
+Auf der Karte gibt es **14 erhöhte Plateaus**. Schwere Türme (Kanone, Giftkessel, Goldmine) brauchen ebenen Boden, Fernkämpfer (Blitzturm, Wachturm) kommen **nur auf Anhöhen** — dafür bekommt **jeder** Turm auf einer Anhöhe **+10 % Reichweite** (bessere Sicht).
+
+Beim Bauen nimmst du den Turm „in die Hand": Ein **durchsichtiger Geister-Turm** folgt dem Mauszeiger über das Spielfeld, das Feld darunter leuchtet grün (bebaubar) oder rot. Passt das Gelände nicht, erklärt eine Meldung kurz warum („Nur auf Anhöhen ⛰️") — die Auswahl bleibt dabei in der Hand.
 
 Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate) oder für 70 % des investierten Golds **verkauft** werden. **Jede Ausbaustufe hat ihr eigenes 3D-Modell** — die Türme werden sichtbar größer und prächtiger:
 
@@ -75,7 +81,7 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen k
 
 ## Steuerung
 
-- **Turm bauen:** Turm im Shop anklicken (oder Tasten `1`–`7`), dann auf ein beliebiges freies Grasfeld klicken (alle 226 Felder außer dem Pfad sind bebaubar)
+- **Turm bauen:** Turm in der Leiste unten anklicken (oder Tasten `1`–`7`) — der Geister-Turm hängt am Zeiger — dann aufs Feld klicken (Gelände-Regel beachten!)
 - **Aufwerten/Verkaufen:** platzierten Turm anklicken
 - **Kamera drehen:** rechte Maustaste gedrückt halten und ziehen
 - **Zoom:** Mausrad · **Kamera zurücksetzen:** `R`

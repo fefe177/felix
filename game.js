@@ -35,6 +35,16 @@ for (let i = 0; i < WAYPOINT_CELLS.length - 1; i++) {
   if (c2 >= 0 && c2 < COLS && r2 >= 0 && r2 < ROWS) pathCells.add(c2 + ',' + r2);
 }
 
+// ---------- Anhöhen (erhöhte Plateaus) ----------
+// Manche Türme brauchen ebenen Boden, andere (Blitzturm, Wachturm) eine Anhöhe.
+const HILL_CELLS = [
+  [15, 3], [15, 4], [9, 4], [9, 5], [5, 7], [9, 7], [15, 7], [4, 8], [12, 8],
+  [1, 3], [18, 5], [6, 11], [13, 11], [18, 12],
+];
+const hillCells = new Set(HILL_CELLS.map(([c, r]) => c + ',' + r));
+const HILL_H = 0.35; // Plateauhöhe in Welteinheiten
+const isHillCell = (cx, cy) => hillCells.has(cx + ',' + cy);
+
 // ---------- Turmtypen ----------
 const TOWER_TYPES = {
   archer: {
@@ -44,7 +54,7 @@ const TOWER_TYPES = {
   },
   cannon: {
     name: 'Kanone', cost: 100, dmg: 34, range: 105, rate: 0.75,
-    projSpeed: 260, splash: 58, color: '#4a4a55',
+    projSpeed: 260, splash: 58, color: '#4a4a55', terrain: 'ground',
     desc: 'Flächenschaden, langsam',
   },
   frost: {
@@ -55,23 +65,23 @@ const TOWER_TYPES = {
   },
   bolt: {
     name: 'Blitzturm', cost: 150, dmg: 85, range: 190, rate: 0.55,
-    laser: true, color: '#6b4fa0',
+    laser: true, color: '#6b4fa0', terrain: 'hill',
     desc: 'Hohe Reichweite &amp; Schaden',
   },
   guard: {
     name: 'Wachturm', cost: 120, dmg: 22, range: 135, rate: 1.8,
-    projSpeed: 460, color: '#7a6a4f',
+    projSpeed: 460, color: '#7a6a4f', terrain: 'hill',
     arc: 0.5, // halber Öffnungswinkel des Automatik-Sektors (rad, ≈ ±29°)
     manual: { dmg: 50, rate: 3, range: 300 },
     desc: 'Betretbar — selbst zielen &amp; schießen!',
   },
   poison: {
     name: 'Giftturm', cost: 90, dmg: 5, range: 100, rate: 1.1,
-    projSpeed: 320, poison: { dps: 16, dur: 3 }, color: '#5a9e3f',
+    projSpeed: 320, poison: { dps: 16, dur: 3 }, color: '#5a9e3f', terrain: 'ground',
     desc: 'Gift: Schaden über Zeit',
   },
   mine: {
-    name: 'Goldmine', cost: 100, income: 15, color: '#b8912f',
+    name: 'Goldmine', cost: 100, income: 15, color: '#b8912f', terrain: 'ground',
     desc: 'Erzeugt Gold nach jeder Welle',
   },
 };
@@ -234,6 +244,17 @@ const MAT = {
     tile.position.set(c - COLS / 2 + 0.5, 0.07, r - ROWS / 2 + 0.5);
     tile.receiveShadow = true;
     scene.add(tile);
+  }
+
+  // Anhöhen: erhöhte Plateaus mit Grasdecke und Felskante
+  const hillSide = new THREE.MeshStandardMaterial({ color: 0x6e6a5c, roughness: 0.95 });
+  const hillTop = new THREE.MeshStandardMaterial({ color: 0x3f6b47, roughness: 0.9 });
+  const hillGeo = new THREE.BoxGeometry(0.98, HILL_H, 0.98);
+  for (const [c, r] of HILL_CELLS) {
+    const hill = new THREE.Mesh(hillGeo, [hillSide, hillSide, hillTop, hillSide, hillSide, hillSide]);
+    hill.position.set(c - COLS / 2 + 0.5, HILL_H / 2, r - ROWS / 2 + 0.5);
+    hill.castShadow = hill.receiveShadow = true;
+    scene.add(hill);
   }
 
   // Start- und Zielportal
@@ -518,7 +539,7 @@ function makeTowerMesh(type, level) {
 function rebuildTowerMesh(t) {
   scene.remove(t.mesh);
   t.mesh = makeTowerMesh(t.type, t.level);
-  t.mesh.position.set(t.cx - COLS / 2 + 0.5, 0, t.cy - ROWS / 2 + 0.5);
+  t.mesh.position.set(t.cx - COLS / 2 + 0.5, t.onHill ? HILL_H : 0, t.cy - ROWS / 2 + 0.5);
   scene.add(t.mesh);
   if (t.mesh.userData.turret) t.mesh.userData.turret.rotation.y = -t.angle;
   addEquipBadge(t); // Ausrüstungs-Anhänger bleibt über Stufen erhalten
@@ -690,6 +711,32 @@ function showRangeAt(x, z, rangePx) {
   rangeGroup.visible = true;
 }
 
+// Durchsichtiger Vorschau-Turm, der beim Bauen am Zeiger "in der Hand" liegt
+let ghost = null;
+function setGhost(type) {
+  if (ghost) {
+    scene.remove(ghost);
+    ghost.traverse((o) => {
+      if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); }
+    });
+    ghost = null;
+  }
+  if (!type) return;
+  ghost = makeTowerMesh(type, 1);
+  ghost.traverse((o) => {
+    if (o.isMesh) {
+      o.material = o.material.clone();
+      o.material.transparent = true;
+      o.material.opacity = 0.45;
+      o.material.depthWrite = false;
+      o.castShadow = false;
+      o.receiveShadow = false;
+    }
+  });
+  ghost.visible = false;
+  scene.add(ghost);
+}
+
 // ---------- Spielzustand ----------
 const state = {};
 
@@ -726,6 +773,7 @@ function resetGame() {
   state.victory = false;
   state.endless = false;
   state.buildType = null;
+  setGhost(null);
   state.selectedTower = null;
   state.hoverCell = null;
   hideOverlay();
@@ -968,7 +1016,8 @@ function towerStats(t) {
   const eq = t.equip ? EQUIP[t.equip] : null;
   return {
     dmg: base.dmg * LEVEL_MULT[li] * (eq && eq.dmg ? eq.dmg : 1),
-    range: base.range * RANGE_MULT[li] * (eq && eq.range ? eq.range : 1),
+    // Anhöhe = bessere Sicht: +10 % Reichweite
+    range: base.range * RANGE_MULT[li] * (eq && eq.range ? eq.range : 1) * (t.onHill ? 1.1 : 1),
     rate: base.rate * RATE_MULT[li] * (eq && eq.rate ? eq.rate : 1),
   };
 }
@@ -1011,14 +1060,15 @@ function angleToNearestPath(cx, cy) {
 function placeTower(cx, cy, type) {
   const cost = TOWER_TYPES[type].cost;
   if (state.gold < cost) return false;
-  if (!isBuildable(cx, cy)) return false;
+  if (!isBuildable(cx, cy, type)) return false;
   state.gold -= cost;
+  const onHill = isHillCell(cx, cy);
   const mesh = makeTowerMesh(type, 1);
-  mesh.position.set(cx - COLS / 2 + 0.5, 0, cy - ROWS / 2 + 0.5);
+  mesh.position.set(cx - COLS / 2 + 0.5, onHill ? HILL_H : 0, cy - ROWS / 2 + 0.5);
   scene.add(mesh);
   const guardAngle = type === 'guard' ? angleToNearestPath(cx, cy) : 0;
   state.towers.push({
-    type, cx, cy,
+    type, cx, cy, onHill,
     x: (cx + 0.5) * CELL,
     y: (cy + 0.5) * CELL,
     level: 1,
@@ -1037,10 +1087,17 @@ function placeTower(cx, cy, type) {
   return true;
 }
 
-function isBuildable(cx, cy) {
+function isBuildable(cx, cy, type) {
   if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) return false;
   if (pathCells.has(cx + ',' + cy)) return false;
-  return !state.towers.some(t => t.cx === cx && t.cy === cy);
+  if (state.towers.some(t => t.cx === cx && t.cy === cy)) return false;
+  if (type) {
+    const terr = TOWER_TYPES[type].terrain;
+    const hill = isHillCell(cx, cy);
+    if (terr === 'ground' && hill) return false; // schwere Türme nur auf ebenem Boden
+    if (terr === 'hill' && !hill) return false;  // Fernkämpfer brauchen die Anhöhe
+  }
+  return true;
 }
 
 function updateTowers(dt) {
@@ -1074,7 +1131,7 @@ function updateTowers(dt) {
       sfx.bolt();
     } else {
       const mesh = makeProjectileMesh(t.type);
-      mesh.position.set(pxToWX(t.x), t.mesh.userData.muzzleY || 0.6, pxToWZ(t.y));
+      mesh.position.set(pxToWX(t.x), (t.mesh.userData.muzzleY || 0.6) + (t.onHill ? HILL_H : 0), pxToWZ(t.y));
       scene.add(mesh);
       state.projectiles.push({
         x: t.x, y: t.y,
@@ -1100,7 +1157,7 @@ function updateTowers(dt) {
 
 // ---------- Blitzstrahlen ----------
 function addBeam(t, e) {
-  const from = new THREE.Vector3(pxToWX(t.x), t.mesh.userData.beamY || 1.18, pxToWZ(t.y));
+  const from = new THREE.Vector3(pxToWX(t.x), (t.mesh.userData.beamY || 1.18) + (t.onHill ? HILL_H : 0), pxToWZ(t.y));
   const to = new THREE.Vector3(pxToWX(e.x), ENEMY_TYPES[e.type].radius / CELL, pxToWZ(e.y));
   const pts = [from];
   const segs = 6;
@@ -1289,7 +1346,7 @@ document.addEventListener('pointerlockchange', () => {
 
 function updateFPCamera() {
   const t = state.controlled;
-  const eyeY = t.mesh.userData.eyeY || 1.2;
+  const eyeY = (t.mesh.userData.eyeY || 1.2) + (t.onHill ? HILL_H : 0);
   camera.position.set(pxToWX(t.x), eyeY, pxToWZ(t.y));
   const cp = Math.cos(fp.pitch);
   camera.lookAt(
@@ -1430,17 +1487,23 @@ function syncScene(rawDt) {
     }
   }
 
-  // Bauvorschau
+  // Bauvorschau (Geister-Turm folgt dem Zeiger)
+  if (ghost) ghost.visible = false;
   if (state.buildType && state.hoverCell) {
     const [cx, cy] = state.hoverCell;
-    const ok = isBuildable(cx, cy) && state.gold >= TOWER_TYPES[state.buildType].cost;
+    const hill = isHillCell(cx, cy);
+    const lift = hill ? HILL_H : 0;
+    const ok = isBuildable(cx, cy, state.buildType) && state.gold >= TOWER_TYPES[state.buildType].cost;
     guardArc.visible = false;
     cellHighlight.visible = true;
     cellHighlight.material.color.set(ok ? 0x5fd068 : 0xe85d5d);
-    cellHighlight.position.x = cx - COLS / 2 + 0.5;
-    cellHighlight.position.z = cy - ROWS / 2 + 0.5;
+    cellHighlight.position.set(cx - COLS / 2 + 0.5, 0.16 + lift, cy - ROWS / 2 + 0.5);
+    if (ghost) {
+      ghost.visible = true;
+      ghost.position.set(cx - COLS / 2 + 0.5, lift, cy - ROWS / 2 + 0.5);
+    }
     if (ok) {
-      showRangeAt(cx - COLS / 2 + 0.5, cy - ROWS / 2 + 0.5, TOWER_TYPES[state.buildType].range);
+      showRangeAt(cx - COLS / 2 + 0.5, cy - ROWS / 2 + 0.5, TOWER_TYPES[state.buildType].range * (hill ? 1.1 : 1));
     } else {
       rangeGroup.visible = false;
     }
@@ -1465,6 +1528,7 @@ function syncScene(rawDt) {
   if (state.selectedTower) {
     selectRing.visible = true;
     selectRing.position.x = pxToWX(state.selectedTower.x);
+    selectRing.position.y = 0.14 + (state.selectedTower.onHill ? HILL_H : 0);
     selectRing.position.z = pxToWZ(state.selectedTower.y);
   } else {
     selectRing.visible = false;
@@ -1505,9 +1569,10 @@ function buildShop() {
     const btn = document.createElement('button');
     btn.className = 'shop-btn';
     btn.dataset.type = key;
+    const terrTag = t.terrain === 'hill' ? ' · ⛰️ nur Anhöhe' : t.terrain === 'ground' ? ' · nur Boden' : '';
     btn.innerHTML =
       '<div>' + t.name + ' <span class="cost">💰' + t.cost + '</span></div>' +
-      '<small>' + t.desc + '</small>';
+      '<small>' + t.desc + terrTag + '</small>';
     btn.addEventListener('click', () => {
       ensureAudio();
       selectBuildType(state.buildType === key ? null : key);
@@ -1519,6 +1584,7 @@ function buildShop() {
 function selectBuildType(key) {
   if (state.controlled) return; // im Wachturm wird nicht gebaut
   state.buildType = key;
+  setGhost(key);
   state.selectedTower = null;
   hideTowerPanel();
   updateShopButtons();
@@ -1569,6 +1635,7 @@ function showTowerPanel(t) {
       'Schaden: ' + Math.round(s.dmg) + '<br>' +
       'Reichweite: ' + Math.round(s.range) + '<br>' +
       'Feuerrate: ' + s.rate.toFixed(2) + '/s' +
+      (t.onHill ? '<br>⛰️ Anhöhe: +10 % Reichweite' : '') +
       (t.type === 'poison' ? '<br>Gift: ' + Math.round(TOWER_TYPES.poison.poison.dps * LEVEL_MULT[t.level - 1]) + ' Schaden/s (3s)' : '') +
       (t.type === 'guard'
         ? '<br>Automatik nur im blauen Sektor<br>Manuell: ' + Math.round(TOWER_TYPES.guard.manual.dmg * LEVEL_MULT[t.level - 1] * (t.equip === 'ammo' ? EQUIP.ammo.dmg : 1)) + ' Schaden'
@@ -1690,11 +1757,20 @@ function primaryAction(evt) {
   if (state.gameOver && !state.victory) return;
   if (state.buildType) {
     const cell = pickCell(evt);
-    if (cell && placeTower(cell.cx, cell.cy, state.buildType)) {
+    if (!cell) { selectBuildType(null); return; }
+    if (placeTower(cell.cx, cell.cy, state.buildType)) {
       if (state.gold < TOWER_TYPES[state.buildType].cost) selectBuildType(null);
       else updateShopButtons();
     } else {
-      selectBuildType(null);
+      // Auswahl bleibt in der Hand — nur erklären, warum es hier nicht geht
+      const base = TOWER_TYPES[state.buildType];
+      const hill = isHillCell(cell.cx, cell.cy);
+      let msg = 'Feld belegt';
+      if (state.gold < base.cost) msg = 'Zu wenig Gold';
+      else if (pathCells.has(cell.cx + ',' + cell.cy)) msg = 'Nicht auf dem Pfad!';
+      else if (base.terrain === 'hill' && !hill) msg = 'Nur auf Anhöhen ⛰️';
+      else if (base.terrain === 'ground' && hill) msg = 'Nur auf ebenem Boden';
+      addFloater((cell.cx + 0.5) * CELL, (cell.cy + 0.5) * CELL, msg, '#e85d5d');
     }
     return;
   }
