@@ -473,11 +473,14 @@ function makeEnemyMesh(typeKey) {
   const t = ENEMY_TYPES[typeKey];
   const rw = t.radius / CELL; // Weltradius
   const g = new THREE.Group();
+  // Körperteile drehen sich in Laufrichtung, der Lebensbalken (direkt in g) nicht
+  const bodyG = new THREE.Group();
+  g.add(bodyG);
 
   const bodyMat = new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.6 });
   const body = new THREE.Mesh(enemyGeo(rw), bodyMat);
   body.castShadow = true;
-  g.add(body);
+  bodyG.add(body);
 
   // Augen (Blickrichtung +x)
   for (const side of [-1, 1]) {
@@ -487,14 +490,29 @@ function makeEnemyMesh(typeKey) {
     const pupil = new THREE.Mesh(eyeGeo, MAT.black);
     pupil.scale.setScalar(rw * 0.13);
     pupil.position.set(rw * 0.95, rw * 0.28, side * rw * 0.4);
-    g.add(eye, pupil);
+    bodyG.add(eye, pupil);
   }
 
   if (typeKey === 'boss') {
     const crown = new THREE.Mesh(new THREE.CylinderGeometry(rw * 0.62, rw * 0.5, rw * 0.5, 8), MAT.gold);
     crown.position.y = rw * 1.15;
     crown.castShadow = true;
-    g.add(crown);
+    bodyG.add(crown);
+  } else if (typeKey === 'tank') {
+    // Stahlhelm macht den Panzer sofort erkennbar
+    const helm = new THREE.Mesh(new THREE.SphereGeometry(rw * 0.85, 14, 10, 0, Math.PI * 2, 0, Math.PI / 2), MAT.metal);
+    helm.position.y = rw * 0.4;
+    helm.castShadow = true;
+    bodyG.add(helm);
+  } else if (typeKey === 'fast') {
+    // Heckflossen für die Flinken
+    for (const side of [-1, 1]) {
+      const fin = new THREE.Mesh(new THREE.ConeGeometry(rw * 0.22, rw * 0.9, 6), bodyMat);
+      fin.position.set(-rw * 0.75, rw * 0.15, side * rw * 0.45);
+      fin.rotation.z = Math.PI / 2 + 0.35;
+      fin.castShadow = true;
+      bodyG.add(fin);
+    }
   }
 
   // Lebensbalken (Billboard-Sprites)
@@ -513,7 +531,7 @@ function makeEnemyMesh(typeKey) {
   bg.position.y = barY; fg.position.y = barY;
   g.add(bg, fg);
 
-  g.userData = { body, bodyMat, bgMat, fgMat, fg, bw, rw, baseColor: t.color };
+  g.userData = { body, bodyG, bodyMat, bgMat, fgMat, fg, bw, rw, baseColor: t.color };
   return g;
 }
 
@@ -622,6 +640,7 @@ function resetGame() {
   if (state.controlled) exitTower();
   clearActors();
   state.controlled = null;
+  state.kills = 0;
   state.gold = 140;
   state.lives = 20;
   state.wave = 0;
@@ -733,16 +752,30 @@ function startWave() {
   updateUI();
 }
 
+// Beste Welle dauerhaft im Browser speichern
+function loadBest() {
+  try { return parseInt(localStorage.getItem('td3d-beste-welle') || '0', 10) || 0; }
+  catch (e) { return 0; }
+}
+function saveBest(w) {
+  try { if (w > loadBest()) localStorage.setItem('td3d-beste-welle', String(w)); }
+  catch (e) { /* z. B. Speicher blockiert — dann eben ohne Highscore */ }
+}
+function statsText(prefix) {
+  return prefix + ' · Abschüsse: ' + state.kills + ' · Beste Welle: ' + loadBest();
+}
+
 function endWave() {
   state.phase = 'build';
   const bonus = 25 + state.wave * 3;
   state.gold += bonus;
+  saveBest(state.wave);
   addFloater(W / 2, H / 2 - 40, 'Welle geschafft! +' + bonus + ' 💰', '#5fd068');
   if (state.wave >= TOTAL_WAVES && !state.endless) {
     state.victory = true;
     state.gameOver = true;
     sfx.win();
-    showOverlay('🏆 Sieg!', 'Du hast alle ' + TOTAL_WAVES + ' Wellen überstanden!', true);
+    showOverlay('🏆 Sieg!', statsText('Du hast alle ' + TOTAL_WAVES + ' Wellen überstanden!'), true);
   } else {
     state.autoTimer = 12;
   }
@@ -770,6 +803,7 @@ function spawnEnemy(typeKey) {
     slowFactor: 1,
     dist: 0,
     dead: false,
+    hitFlash: 0,
     dirX: 1, dirY: 0,
     wobble: Math.random() * Math.PI * 2,
     mesh,
@@ -808,7 +842,8 @@ function updateEnemies(dt) {
         state.lives = 0;
         state.gameOver = true;
         sfx.lose();
-        showOverlay('💀 Game Over', 'Du hast Welle ' + state.wave + ' erreicht.', false);
+        saveBest(state.wave - 1);
+        showOverlay('💀 Game Over', statsText('Du hast Welle ' + state.wave + ' erreicht'), false);
       }
       updateUI();
     }
@@ -824,9 +859,11 @@ function damageEnemy(e, dmg, slow) {
     e.slowT = Math.max(e.slowT, slow.dur);
     e.slowFactor = slow.factor;
   }
+  e.hitFlash = 1;
   if (e.hp <= 0) {
     e.dead = true;
     state.gold += e.reward;
+    state.kills++;
     sfx.death();
     addFloater(e.x, e.y - 14, '+' + e.reward, '#f5b942');
     spawnParticles(e.x, e.y, ENEMY_TYPES[e.type].color, e.type === 'boss' ? 26 : 12);
@@ -1226,9 +1263,14 @@ function syncScene(rawDt) {
     const rw = e.radius / CELL;
     const bob = Math.abs(Math.sin(e.wobble)) * 0.06;
     e.mesh.position.set(pxToWX(e.x), rw + bob, pxToWZ(e.y));
-    e.mesh.rotation.y = -Math.atan2(e.dirY, e.dirX);
+    e.mesh.userData.bodyG.rotation.y = -Math.atan2(e.dirY, e.dirX);
     // Verlangsamungs-Färbung
     e.mesh.userData.bodyMat.color.set(e.slowT > 0 ? SLOW_TINT : e.mesh.userData.baseColor);
+    // Treffer-Aufblitzen
+    if (e.hitFlash > 0) {
+      e.hitFlash = Math.max(0, e.hitFlash - rawDt * 6);
+      e.mesh.userData.bodyMat.emissive.setScalar(e.hitFlash * 0.5);
+    }
     // Lebensbalken
     const frac = Math.max(0, e.hp / e.maxHp);
     const fg = e.mesh.userData.fg;
@@ -1345,6 +1387,7 @@ function buildShop() {
 }
 
 function selectBuildType(key) {
+  if (state.controlled) return; // im Wachturm wird nicht gebaut
   state.buildType = key;
   state.selectedTower = null;
   hideTowerPanel();
@@ -1360,14 +1403,15 @@ function updateShopButtons() {
 }
 
 function updateWaveButton() {
+  const bossTag = (state.wave + 1) % 5 === 0 ? ' ⚠️ Boss!' : '';
   if (state.phase === 'wave') {
     el.btnWave.textContent = 'Welle ' + state.wave + ' läuft…';
     el.btnWave.disabled = true;
   } else if (state.autoTimer > 0) {
-    el.btnWave.textContent = 'Welle ' + (state.wave + 1) + ' (' + Math.ceil(state.autoTimer) + 's) — Bonus!';
+    el.btnWave.textContent = 'Welle ' + (state.wave + 1) + ' (' + Math.ceil(state.autoTimer) + 's) — Bonus!' + bossTag;
     el.btnWave.disabled = false;
   } else {
-    el.btnWave.textContent = state.wave === 0 ? 'Welle starten' : 'Nächste Welle';
+    el.btnWave.textContent = (state.wave === 0 ? 'Welle starten' : 'Nächste Welle') + bossTag;
     el.btnWave.disabled = false;
   }
 }
@@ -1470,8 +1514,59 @@ function pickTower(evt) {
 // Kamera-Orbit mit rechter Maustaste
 const orbit = { active: false, moved: 0, lastX: 0, lastY: 0 };
 
+// Touch-Gesten: 1 Finger = tippen/zielen, 2 Finger = Kamera drehen + Pinch-Zoom
+const touchPts = new Map();
+const pinch = { active: false, dist: 0, midX: 0, midY: 0 };
+
+function touchInfo() {
+  const pts = [...touchPts.values()];
+  const dx = pts[0].x - pts[1].x, dy = pts[0].y - pts[1].y;
+  return {
+    dist: Math.hypot(dx, dy),
+    midX: (pts[0].x + pts[1].x) / 2,
+    midY: (pts[0].y + pts[1].y) / 2,
+  };
+}
+
+// Linksklick/Tipp aufs Spielfeld: bauen oder Turm auswählen
+function primaryAction(evt) {
+  if (state.gameOver && !state.victory) return;
+  if (state.buildType) {
+    const cell = pickCell(evt);
+    if (cell && placeTower(cell.cx, cell.cy, state.buildType)) {
+      if (state.gold < TOWER_TYPES[state.buildType].cost) selectBuildType(null);
+      else updateShopButtons();
+    } else {
+      selectBuildType(null);
+    }
+    return;
+  }
+  const tower = pickTower(evt);
+  if (tower) {
+    state.selectedTower = tower;
+    showTowerPanel(tower);
+  } else {
+    state.selectedTower = null;
+    hideTowerPanel();
+  }
+}
+
 renderer.domElement.addEventListener('pointerdown', (evt) => {
   ensureAudio();
+  if (evt.pointerType === 'touch') {
+    touchPts.set(evt.pointerId, {
+      x: evt.clientX, y: evt.clientY,
+      moved: 0, gesture: false, t0: performance.now(),
+    });
+    renderer.domElement.setPointerCapture(evt.pointerId);
+    if (touchPts.size === 2) {
+      const i = touchInfo();
+      pinch.active = true;
+      pinch.dist = i.dist; pinch.midX = i.midX; pinch.midY = i.midY;
+      for (const p of touchPts.values()) p.gesture = true; // kein Tipp mehr aus dieser Geste
+    }
+    return;
+  }
   // Im Wachturm: linke Taste schießt (bzw. startet Ziel-Ziehen ohne Pointer-Lock)
   if (state.controlled) {
     if (evt.button === 2) { exitTower(); return; }
@@ -1496,30 +1591,39 @@ renderer.domElement.addEventListener('pointerdown', (evt) => {
     return;
   }
   if (evt.button !== 0) return;
-  if (state.gameOver && !state.victory) return;
-
-  if (state.buildType) {
-    const cell = pickCell(evt);
-    if (cell && placeTower(cell.cx, cell.cy, state.buildType)) {
-      if (state.gold < TOWER_TYPES[state.buildType].cost) selectBuildType(null);
-      else updateShopButtons();
-    } else {
-      selectBuildType(null);
-    }
-    return;
-  }
-
-  const tower = pickTower(evt);
-  if (tower) {
-    state.selectedTower = tower;
-    showTowerPanel(tower);
-  } else {
-    state.selectedTower = null;
-    hideTowerPanel();
-  }
+  primaryAction(evt);
 });
 
 renderer.domElement.addEventListener('pointermove', (evt) => {
+  if (evt.pointerType === 'touch') {
+    const p = touchPts.get(evt.pointerId);
+    if (!p) return;
+    const dx = evt.clientX - p.x, dy = evt.clientY - p.y;
+    p.moved += Math.abs(dx) + Math.abs(dy);
+    p.x = evt.clientX; p.y = evt.clientY;
+    if (pinch.active && touchPts.size === 2) {
+      const i = touchInfo();
+      const ratio = pinch.dist / Math.max(1, i.dist);
+      if (state.controlled) {
+        camera.fov = Math.min(70, Math.max(25, camera.fov * ratio));
+        camera.updateProjectionMatrix();
+      } else {
+        camCtl.radius = Math.min(28, Math.max(9, camCtl.radius * ratio));
+        camCtl.theta -= (i.midX - pinch.midX) * 0.005;
+        camCtl.phi = Math.min(1.25, Math.max(0.4, camCtl.phi - (i.midY - pinch.midY) * 0.004));
+        updateCamera();
+      }
+      pinch.dist = i.dist; pinch.midX = i.midX; pinch.midY = i.midY;
+    } else if (touchPts.size === 1) {
+      if (state.controlled) {
+        aimFP(dx * 1.8, dy * 1.8);
+      } else if (state.buildType) {
+        const cell = pickCell(evt);
+        state.hoverCell = cell ? [cell.cx, cell.cy] : null;
+      }
+    }
+    return;
+  }
   if (state.controlled) {
     if (fp.locked) {
       aimFP(evt.movementX || 0, evt.movementY || 0);
@@ -1549,7 +1653,21 @@ renderer.domElement.addEventListener('pointermove', (evt) => {
   state.hoverCell = cell ? [cell.cx, cell.cy] : null;
 });
 
+function onTouchEnd(evt) {
+  const p = touchPts.get(evt.pointerId);
+  touchPts.delete(evt.pointerId);
+  if (touchPts.size < 2) pinch.active = false;
+  if (evt.type === 'pointercancel' || !p) return;
+  // Kurzer Tipp ohne Geste = Klick
+  if (!p.gesture && p.moved < 12 && performance.now() - p.t0 < 600) {
+    if (state.controlled) manualShoot();
+    else primaryAction(evt);
+  }
+}
+renderer.domElement.addEventListener('pointercancel', onTouchEnd);
+
 renderer.domElement.addEventListener('pointerup', (evt) => {
+  if (evt.pointerType === 'touch') { onTouchEnd(evt); return; }
   if (state.controlled && fp.drag.active && evt.button === 0) {
     fp.drag.active = false;
     if (fp.drag.moved < 6) manualShoot(); // Tipp/Klick ohne Ziehen = Schuss

@@ -48,12 +48,12 @@ Der Wachturm ist etwas Besonderes: Man kann ihn **betreten und selbst steuern**.
 
 ## Gegner
 
-- **Normal** — Standardgegner
-- **Flink** (gelb) — schnell, aber schwach
-- **Panzer** (grün) — langsam, viele Lebenspunkte, kostet 2 Leben
+- **Normal** (rot) — Standardgegner
+- **Flink** (gelb, mit Heckflossen) — schnell, aber schwach
+- **Panzer** (grün, mit Stahlhelm) — langsam, viele Lebenspunkte, kostet 2 Leben
 - **Boss** (lila, mit Krone) — alle 5 Wellen, sehr zäh, kostet 5 Leben
 
-Die Lebenspunkte der Gegner steigen mit jeder Welle.
+Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen kurz auf, und der Wellen-Button warnt vor Bosswellen (⚠️). Deine **beste Welle** wird im Browser gespeichert und am Spielende zusammen mit den Abschüssen angezeigt.
 
 ## Steuerung
 
@@ -67,7 +67,7 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle.
 - **Geschwindigkeit:** 1×/2×/3× umschaltbar
 - **Ton:** 🔊-Button (Soundeffekte per WebAudio)
 
-Funktioniert mit Maus und Touch (Desktop, Tablet, Handy).
+**Touch (Tablet/Handy):** Antippen baut/wählt aus, **zwei Finger ziehen** dreht die Kamera, **Pinch** zoomt. Im Wachturm: ein Finger zielt, Tippen schießt, Pinch zoomt.
 
 ## Technik
 
