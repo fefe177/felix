@@ -255,98 +255,172 @@ const MAT = {
   }
 })();
 
-// ---------- Turm-Modelle ----------
-function makeTowerMesh(type) {
+// ---------- Turm-Modelle (das Aussehen wächst mit der Stufe) ----------
+const UP = new THREE.Vector3(0, 1, 0);
+
+function addPart(parent, geo, mat, x, y, z) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(x, y, z);
+  parent.add(m);
+  return m;
+}
+
+function makeTowerMesh(type, level) {
   const g = new THREE.Group();
   let turret = null;
+  const gun = new THREE.Group(); // innerer Träger für den Rückstoß
 
   if (type === 'archer') {
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.48, 0.35, 12), MAT.stone);
-    base.position.y = 0.175;
-    const mid = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.45, 12), MAT.wood);
-    mid.position.y = 0.55;
-    const platform = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.12, 12), MAT.woodLight);
-    platform.position.y = 0.83;
-    g.add(base, mid, platform);
+    // Stufe 1: Holzwarte · Stufe 2: mit Fahne & Goldband · Stufe 3: Steinturm mit Zinnen & Ballista
+    const h = [0, 0.83, 1.1, 1.38][level];
+    addPart(g, new THREE.CylinderGeometry(0.4, 0.5, 0.35, 12), level >= 3 ? MAT.stoneDark : MAT.stone, 0, 0.175, 0);
+    addPart(g, new THREE.CylinderGeometry(0.28, 0.36, h - 0.4, 12), level >= 3 ? MAT.stone : MAT.wood, 0, 0.3 + (h - 0.4) / 2, 0);
+    addPart(g, new THREE.CylinderGeometry(0.4, 0.29, 0.12, 12), level >= 3 ? MAT.stoneDark : MAT.woodLight, 0, h - 0.04, 0);
+    if (level >= 2) {
+      const band = addPart(g, new THREE.TorusGeometry(0.33, 0.035, 8, 18), MAT.gold, 0, 0.44, 0);
+      band.rotation.x = Math.PI / 2;
+      // Fahnenmast mit Wimpel
+      addPart(g, new THREE.CylinderGeometry(0.018, 0.018, 0.6, 6), MAT.metalLight, -0.28, h + 0.24, -0.28);
+      const flag = addPart(g, new THREE.ConeGeometry(0.09, 0.26, 4),
+        level >= 3 ? MAT.gold : new THREE.MeshStandardMaterial({ color: 0xc94f4f, roughness: 0.7 }),
+        -0.15, h + 0.46, -0.28);
+      flag.rotation.z = -Math.PI / 2;
+    }
+    if (level >= 3) {
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.26;
+        addPart(g, new THREE.BoxGeometry(0.12, 0.15, 0.12), MAT.stoneDark, Math.cos(a) * 0.35, h + 0.06, Math.sin(a) * 0.35);
+      }
+    }
+    // Armbrust / Ballista
+    const s = [0, 1, 1.18, 1.38][level];
     turret = new THREE.Group();
-    turret.position.y = 0.95;
-    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.09, 0.09), MAT.woodLight);
-    stock.position.x = 0.08;
-    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 8, 18, Math.PI), MAT.metalLight);
-    bow.position.x = 0.26;
+    turret.position.y = h + 0.12;
+    addPart(gun, new THREE.BoxGeometry(0.62 * s, 0.09, 0.09), MAT.woodLight, 0.08 * s, 0, 0);
+    if (level >= 2) addPart(gun, new THREE.BoxGeometry(0.46 * s, 0.07, 0.07), MAT.wood, 0.02, 0.08, 0);
+    const bow = addPart(gun, new THREE.TorusGeometry(0.22 * s, 0.035, 8, 18, Math.PI), MAT.metalLight, 0.26 * s, 0, 0);
     bow.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
-    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 8), MAT.gold);
-    tip.position.x = 0.42;
+    if (level >= 3) {
+      const bow2 = addPart(gun, new THREE.TorusGeometry(0.15 * s, 0.03, 8, 14, Math.PI), MAT.gold, 0.12 * s, 0, 0);
+      bow2.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
+    }
+    const tip = addPart(gun, new THREE.ConeGeometry(0.055 * s, 0.16 * s, 8), MAT.gold, 0.42 * s, 0, 0);
     tip.rotation.z = -Math.PI / 2;
-    turret.add(stock, bow, tip);
-    g.add(turret);
+    g.userData.muzzleY = h + 0.12;
   } else if (type === 'cannon') {
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.54, 0.3, 14), MAT.metal);
-    base.position.y = 0.15;
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 20), MAT.stoneDark);
-    ring.position.y = 0.31;
+    // Stufe 1: Kuppelgeschütz · Stufe 2: gepanzert mit Goldring · Stufe 3: Doppelrohr mit Goldkappe
+    const bs = [0, 1, 1.12, 1.22][level];
+    addPart(g, new THREE.CylinderGeometry(0.46 * bs, 0.54 * bs, 0.3, 14), MAT.metal, 0, 0.15, 0);
+    const ring = addPart(g, new THREE.TorusGeometry(0.42 * bs, 0.05, 8, 20), level >= 2 ? MAT.gold : MAT.stoneDark, 0, 0.31, 0);
     ring.rotation.x = Math.PI / 2;
-    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.33, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), MAT.metalLight);
-    dome.position.y = 0.3;
-    g.add(base, ring, dome);
+    addPart(g, new THREE.SphereGeometry(0.33 * bs, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), MAT.metalLight, 0, 0.3, 0);
+    if (level >= 2) {
+      // Panzerplatten an Flanken und Heck
+      for (const a of [Math.PI / 2, Math.PI, -Math.PI / 2]) {
+        const plate = addPart(g, new THREE.BoxGeometry(0.07, 0.26, 0.34), MAT.stoneDark, Math.cos(a) * 0.5 * bs, 0.2, Math.sin(a) * 0.5 * bs);
+        plate.rotation.y = -a;
+      }
+    }
+    if (level >= 3) addPart(g, new THREE.SphereGeometry(0.1, 10, 8), MAT.gold, 0, 0.3 + 0.33 * bs, 0);
     turret = new THREE.Group();
-    turret.position.y = 0.48;
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.6, 12), MAT.metal);
-    barrel.rotation.z = -Math.PI / 2;
-    barrel.position.x = 0.32;
-    const muzzle = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 14), MAT.gold);
-    muzzle.position.x = 0.6;
-    muzzle.rotation.y = Math.PI / 2;
-    turret.add(barrel, muzzle);
-    g.add(turret);
+    turret.position.y = 0.42 + 0.07 * level;
+    const len = [0, 0.6, 0.72, 0.72][level];
+    for (const z of (level >= 3 ? [-0.13, 0.13] : [0])) {
+      const barrel = addPart(gun, new THREE.CylinderGeometry(0.1, 0.13, len, 12), MAT.metal, 0.32, 0, z);
+      barrel.rotation.z = -Math.PI / 2;
+      const muzzle = addPart(gun, new THREE.TorusGeometry(0.12, 0.03, 8, 14), level >= 2 ? MAT.gold : MAT.metalLight, 0.32 + len / 2, 0, z);
+      muzzle.rotation.y = Math.PI / 2;
+      if (level >= 2) {
+        const band = addPart(gun, new THREE.TorusGeometry(0.125, 0.025, 8, 14), MAT.stoneDark, 0.16, 0, z);
+        band.rotation.y = Math.PI / 2;
+      }
+    }
+    g.userData.muzzleY = turret.position.y;
   } else if (type === 'frost') {
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.46, 0.4, 12), MAT.iceStone);
-    base.position.y = 0.2;
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.045, 8, 20), MAT.ice);
-    rim.position.y = 0.42;
+    // Stufe 1: Eiskristall · Stufe 2: kreisende Splitter · Stufe 3: Eiszacken & Lichtring
+    const bh = [0, 0.4, 0.5, 0.58][level];
+    addPart(g, new THREE.CylinderGeometry(0.38, 0.46, bh, 12), MAT.iceStone, 0, bh / 2, 0);
+    const rim = addPart(g, new THREE.TorusGeometry(0.33, 0.045, 8, 20), MAT.ice, 0, bh + 0.02, 0);
     rim.rotation.x = Math.PI / 2;
-    const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.27), MAT.ice);
-    crystal.position.y = 0.85;
-    crystal.userData.spin = true;
-    const c1 = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), MAT.ice);
-    c1.position.set(0.24, 0.5, -0.1);
-    const c2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), MAT.ice);
-    c2.position.set(-0.2, 0.48, 0.14);
-    g.add(base, rim, crystal, c1, c2);
+    const cs = [0, 0.27, 0.32, 0.38][level];
+    const cy = bh + 0.42 + cs * 0.6;
+    const crystal = addPart(g, new THREE.OctahedronGeometry(cs), MAT.ice, 0, cy, 0);
     g.userData.crystal = crystal;
+    addPart(g, new THREE.OctahedronGeometry(0.1), MAT.ice, 0.24, bh + 0.12, -0.1);
+    addPart(g, new THREE.OctahedronGeometry(0.08), MAT.ice, -0.2, bh + 0.1, 0.14);
+    if (level >= 2) {
+      const orbiter = new THREE.Group();
+      orbiter.position.y = cy;
+      const n = level >= 3 ? 3 : 2;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2;
+        addPart(orbiter, new THREE.OctahedronGeometry(0.09), MAT.ice, Math.cos(a) * 0.45, 0, Math.sin(a) * 0.45);
+      }
+      g.add(orbiter);
+      g.userData.orbiter = orbiter;
+    }
+    if (level >= 3) {
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2 + 0.3;
+        const spike = addPart(g, new THREE.ConeGeometry(0.09, 0.36, 6), MAT.ice, Math.cos(a) * 0.5, 0.16, Math.sin(a) * 0.5);
+        spike.quaternion.setFromUnitVectors(UP, new THREE.Vector3(Math.cos(a), 2.4, Math.sin(a)).normalize());
+      }
+      const halo = addPart(g, new THREE.TorusGeometry(0.5, 0.03, 8, 28), MAT.ice, 0, cy - 0.08, 0);
+      halo.rotation.x = Math.PI / 2;
+    }
+    g.userData.muzzleY = cy;
   } else if (type === 'bolt') {
-    const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.16, 0.55), MAT.stoneDark);
-    plinth.position.y = 0.08;
-    const obelisk = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.3, 0.85, 4), MAT.purple);
-    obelisk.position.y = 0.58;
-    const ring1 = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.028, 8, 16), MAT.gold);
-    ring1.position.y = 0.45;
-    ring1.rotation.x = Math.PI / 2;
-    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 12), MAT.orb);
-    orb.position.y = 1.18;
-    orb.userData.baseY = 1.18;
-    g.add(plinth, obelisk, ring1, orb);
+    // Stufe 1: Obelisk · Stufe 2: Ecksäulen & mehr Gold · Stufe 3: kreisende Funken-Orbs
+    const ph = [0, 0.55, 0.64, 0.72][level];
+    addPart(g, new THREE.BoxGeometry(ph, 0.16, ph), MAT.stoneDark, 0, 0.08, 0);
+    if (level >= 2) {
+      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        addPart(g, new THREE.BoxGeometry(0.09, 0.34, 0.09), MAT.purple, sx * (ph / 2 - 0.05), 0.3, sz * (ph / 2 - 0.05));
+        addPart(g, new THREE.SphereGeometry(0.05, 8, 6), MAT.orb, sx * (ph / 2 - 0.05), 0.51, sz * (ph / 2 - 0.05));
+      }
+    }
+    const oh = [0, 0.85, 1.0, 1.15][level];
+    addPart(g, new THREE.CylinderGeometry(0.13, 0.3, oh, 4), MAT.purple, 0, 0.16 + oh / 2, 0);
+    for (let i = 0; i < level; i++) {
+      const ring = addPart(g, new THREE.TorusGeometry(0.23 - i * 0.05, 0.028, 8, 16), MAT.gold, 0, 0.42 + i * 0.26, 0);
+      ring.rotation.x = Math.PI / 2;
+    }
+    const os = [0, 0.15, 0.17, 0.2][level];
+    const oy = 0.16 + oh + 0.14 + os;
+    const orb = addPart(g, new THREE.SphereGeometry(os, 16, 12), MAT.orb, 0, oy, 0);
+    orb.userData.baseY = oy;
     g.userData.orb = orb;
+    if (level >= 3) {
+      const orbiter = new THREE.Group();
+      orbiter.position.y = oy;
+      for (let i = 0; i < 3; i++) {
+        const a = (i / 3) * Math.PI * 2;
+        addPart(orbiter, new THREE.SphereGeometry(0.05, 8, 6), MAT.orb, Math.cos(a) * 0.34, 0, Math.sin(a) * 0.34);
+      }
+      g.add(orbiter);
+      g.userData.orbiter = orbiter;
+    }
+    g.userData.beamY = oy;
   }
 
+  if (turret) {
+    turret.add(gun);
+    g.add(turret);
+  }
   g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   g.userData.turret = turret;
-  g.userData.levelRings = [];
+  g.userData.gun = gun;
+  g.userData.level = level;
   return g;
 }
 
-function refreshTowerLevel(t) {
-  const g = t.mesh;
-  for (const r of g.userData.levelRings) g.remove(r);
-  g.userData.levelRings = [];
-  for (let i = 1; i < t.level; i++) {
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 8, 24), MAT.gold);
-    ring.position.y = 0.07 + (i - 1) * 0.12;
-    ring.rotation.x = Math.PI / 2;
-    ring.castShadow = true;
-    g.add(ring);
-    g.userData.levelRings.push(ring);
-  }
+// Nach einem Upgrade das Modell durch die nächste Ausbaustufe ersetzen
+function rebuildTowerMesh(t) {
+  scene.remove(t.mesh);
+  t.mesh = makeTowerMesh(t.type, t.level);
+  t.mesh.position.set(t.cx - COLS / 2 + 0.5, 0, t.cy - ROWS / 2 + 0.5);
+  scene.add(t.mesh);
+  if (t.mesh.userData.turret) t.mesh.userData.turret.rotation.y = -t.angle;
 }
 
 // ---------- Gegner-Modelle ----------
@@ -711,7 +785,7 @@ function placeTower(cx, cy, type) {
   if (state.gold < cost) return false;
   if (!isBuildable(cx, cy)) return false;
   state.gold -= cost;
-  const mesh = makeTowerMesh(type);
+  const mesh = makeTowerMesh(type, 1);
   mesh.position.set(cx - COLS / 2 + 0.5, 0, cy - ROWS / 2 + 0.5);
   scene.add(mesh);
   state.towers.push({
@@ -722,6 +796,7 @@ function placeTower(cx, cy, type) {
     cooldown: 0,
     invested: cost,
     angle: 0,
+    recoil: 0,
     mesh,
   });
   sfx.place();
@@ -750,6 +825,7 @@ function updateTowers(dt) {
     if (!best) continue;
     t.cooldown = 1 / s.rate;
     t.angle = Math.atan2(best.y - t.y, best.x - t.x);
+    t.recoil = 1;
     const base = TOWER_TYPES[t.type];
     if (base.laser) {
       damageEnemy(best, s.dmg);
@@ -757,7 +833,7 @@ function updateTowers(dt) {
       sfx.bolt();
     } else {
       const mesh = makeProjectileMesh(t.type);
-      mesh.position.set(pxToWX(t.x), t.type === 'cannon' ? 0.5 : 0.9, pxToWZ(t.y));
+      mesh.position.set(pxToWX(t.x), t.mesh.userData.muzzleY || 0.6, pxToWZ(t.y));
       scene.add(mesh);
       state.projectiles.push({
         x: t.x, y: t.y,
@@ -779,7 +855,7 @@ function updateTowers(dt) {
 
 // ---------- Blitzstrahlen ----------
 function addBeam(t, e) {
-  const from = new THREE.Vector3(pxToWX(t.x), 1.18, pxToWZ(t.y));
+  const from = new THREE.Vector3(pxToWX(t.x), t.mesh.userData.beamY || 1.18, pxToWZ(t.y));
   const to = new THREE.Vector3(pxToWX(e.x), ENEMY_TYPES[e.type].radius / CELL, pxToWZ(e.y));
   const pts = [from];
   const segs = 6;
@@ -970,14 +1046,21 @@ function syncScene(rawDt) {
     e.mesh.userData.fgMat.color.set(frac > 0.5 ? 0x5fd068 : frac > 0.25 ? 0xe8b64f : 0xe85d5d);
   }
 
-  // Türme (Geschütz drehen, Kristall/Orb animieren)
+  // Türme (Geschütz drehen, Rückstoß, Kristall/Orb animieren)
   for (const t of state.towers) {
-    const turret = t.mesh.userData.turret;
-    if (turret) turret.rotation.y = -t.angle;
-    const crystal = t.mesh.userData.crystal;
-    if (crystal) crystal.rotation.y += rawDt * 1.5;
-    const orb = t.mesh.userData.orb;
-    if (orb) orb.position.y = orb.userData.baseY + Math.sin(performance.now() / 400) * 0.06;
+    const ud = t.mesh.userData;
+    if (ud.turret) ud.turret.rotation.y = -t.angle;
+    if (t.recoil > 0) t.recoil = Math.max(0, t.recoil - rawDt * 5);
+    if (ud.gun) ud.gun.position.x = -0.14 * t.recoil;
+    if (ud.crystal) {
+      ud.crystal.rotation.y += rawDt * 1.5;
+      ud.crystal.scale.setScalar(1 + t.recoil * 0.3);
+    }
+    if (ud.orbiter) ud.orbiter.rotation.y += rawDt * 2.2;
+    if (ud.orb) {
+      ud.orb.position.y = ud.orb.userData.baseY + Math.sin(performance.now() / 400) * 0.06;
+      ud.orb.scale.setScalar(1 + t.recoil * 0.5);
+    }
   }
 
   // Projektile
@@ -1306,7 +1389,7 @@ el.tpUpgrade.addEventListener('click', () => {
   state.gold -= cost;
   t.invested += cost;
   t.level++;
-  refreshTowerLevel(t);
+  rebuildTowerMesh(t);
   sfx.upgrade();
   spawnParticles(t.x, t.y, 0xf5b942, 14);
   updateUI();

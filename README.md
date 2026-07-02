@@ -26,7 +26,14 @@ Gegner laufen in Wellen über den Pfad von links nach rechts. Baue Türme auf di
 | ❄️ Frostturm | 💰 70 | Verlangsamt Gegner — rotierender Eiskristall |
 | ⚡ Blitzturm | 💰 150 | Hohe Reichweite und hoher Schaden — Obelisk mit schwebender Energiekugel |
 
-Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate — sichtbar an goldenen Ringen am Sockel) oder für 70 % des investierten Golds **verkauft** werden.
+Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate) oder für 70 % des investierten Golds **verkauft** werden. **Jede Ausbaustufe hat ihr eigenes 3D-Modell** — die Türme werden sichtbar größer und prächtiger:
+
+- **Bogenturm:** Holzwarte → Turm mit Fahne und Goldband → Steinturm mit Zinnen, Goldwimpel und Ballista
+- **Kanone:** Kuppelgeschütz → gepanzert mit Goldring und längerem Rohr → Doppelrohr mit Goldkappe
+- **Frostturm:** Eiskristall → kreisende Eissplitter → Eiszacken-Kranz und Lichtring
+- **Blitzturm:** Obelisk mit Energiekugel → Ecksäulen und mehr Goldringe → kreisende Funken-Orbs
+
+Beim Feuern gibt es Rückstoß-Animationen (Armbrust und Kanonenrohr zucken zurück, Kristall und Energiekugel pulsieren).
 
 ## Gegner
 
