@@ -58,8 +58,15 @@ const TOWER_TYPES = {
     laser: true, color: '#6b4fa0',
     desc: 'Hohe Reichweite &amp; Schaden',
   },
+  guard: {
+    name: 'Wachturm', cost: 120, dmg: 22, range: 135, rate: 1.8,
+    projSpeed: 460, color: '#7a6a4f',
+    arc: 0.5, // halber Öffnungswinkel des Automatik-Sektors (rad, ≈ ±29°)
+    manual: { dmg: 50, rate: 3, range: 300 },
+    desc: 'Betretbar — selbst zielen &amp; schießen!',
+  },
 };
-const TOWER_KEYS = ['archer', 'cannon', 'frost', 'bolt'];
+const TOWER_KEYS = ['archer', 'cannon', 'frost', 'bolt', 'guard'];
 
 const LEVEL_MULT = [1, 1.6, 2.5];
 const RANGE_MULT = [1, 1.12, 1.25];
@@ -401,6 +408,36 @@ function makeTowerMesh(type, level) {
       g.userData.orbiter = orbiter;
     }
     g.userData.beamY = oy;
+  } else if (type === 'guard') {
+    // Begehbarer Wachturm: Kabine mit Sichtschlitz und Dach — wird pro Stufe höher
+    const h = [0, 0.7, 0.9, 1.1][level]; // Kabinenboden
+    addPart(g, new THREE.CylinderGeometry(0.4, 0.5, 0.35, 12), MAT.stoneDark, 0, 0.175, 0);
+    addPart(g, new THREE.CylinderGeometry(0.26, 0.34, h - 0.3, 10), level >= 3 ? MAT.stone : MAT.wood, 0, 0.3 + (h - 0.3) / 2, 0);
+    addPart(g, new THREE.BoxGeometry(0.62, 0.5, 0.62), level >= 3 ? MAT.stone : MAT.woodLight, 0, h + 0.25, 0);
+    // Sichtschlitz (Blickrichtung +x)
+    addPart(g, new THREE.BoxGeometry(0.05, 0.13, 0.42), MAT.black, 0.3, h + 0.33, 0);
+    const roof = addPart(g, new THREE.ConeGeometry(0.52, 0.42, 4),
+      level >= 2 ? new THREE.MeshStandardMaterial({ color: 0xa33d3d, roughness: 0.7 }) : MAT.wood,
+      0, h + 0.71, 0);
+    roof.rotation.y = Math.PI / 4;
+    if (level >= 2) {
+      const band = addPart(g, new THREE.TorusGeometry(0.32, 0.035, 8, 18), MAT.gold, 0, 0.45, 0);
+      band.rotation.x = Math.PI / 2;
+      addPart(g, new THREE.SphereGeometry(0.06, 8, 6), MAT.gold, 0, h + 0.96, 0);
+    }
+    if (level >= 3) {
+      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        addPart(g, new THREE.BoxGeometry(0.1, 0.12, 0.1), MAT.stoneDark, sx * 0.28, h + 0.55, sz * 0.28);
+      }
+    }
+    // Geschütz an der Kabinenfront
+    turret = new THREE.Group();
+    turret.position.y = h + 0.3;
+    addPart(gun, new THREE.BoxGeometry(0.5, 0.08, 0.08), MAT.metal, 0.4, 0, 0);
+    const tip = addPart(gun, new THREE.ConeGeometry(0.05, 0.12, 8), MAT.gold, 0.66, 0, 0);
+    tip.rotation.z = -Math.PI / 2;
+    g.userData.muzzleY = h + 0.3;
+    g.userData.eyeY = h + 0.42; // Augenhöhe in der Ego-Ansicht
   }
 
   if (turret) {
@@ -535,6 +572,32 @@ selectRing.position.y = 0.14;
 selectRing.visible = false;
 scene.add(selectRing);
 
+// Automatik-Sektor des Wachturms (Kreisausschnitt auf dem Boden)
+const guardArc = new THREE.Mesh(
+  new THREE.CircleGeometry(1, 24),
+  new THREE.MeshBasicMaterial({ color: 0x8fd0ff, transparent: true, opacity: 0.22, depthWrite: false, side: THREE.DoubleSide })
+);
+guardArc.rotation.x = -Math.PI / 2;
+guardArc.position.y = 0.17;
+guardArc.visible = false;
+scene.add(guardArc);
+
+function showGuardArc(t) {
+  const arc = TOWER_TYPES.guard.arc;
+  const key = t.guardAngle.toFixed(3);
+  if (guardArc.userData.key !== key) {
+    guardArc.geometry.dispose();
+    // Winkelabbildung: Logik-Winkel a -> Kreiswinkel -a (Z-Achse gespiegelt)
+    guardArc.geometry = new THREE.CircleGeometry(1, 24, -t.guardAngle - arc, arc * 2);
+    guardArc.userData.key = key;
+  }
+  const rw = (TOWER_TYPES.guard.range * RANGE_MULT[t.level - 1]) / CELL;
+  guardArc.position.x = pxToWX(t.x);
+  guardArc.position.z = pxToWZ(t.y);
+  guardArc.scale.set(rw, rw, 1);
+  guardArc.visible = true;
+}
+
 function showRangeAt(x, z, rangePx) {
   rangeGroup.position.x = x;
   rangeGroup.position.z = z;
@@ -556,7 +619,9 @@ function clearActors() {
 }
 
 function resetGame() {
+  if (state.controlled) exitTower();
   clearActors();
+  state.controlled = null;
   state.gold = 140;
   state.lives = 20;
   state.wave = 0;
@@ -617,6 +682,7 @@ const sfx = {
   cannon:  () => beep(140, 0.22, 'triangle', 0.09, -70),
   frost:   () => beep(880, 0.09, 'sine', 0.035, -300),
   bolt:    () => beep(1200, 0.12, 'sawtooth', 0.04, -900),
+  guard:   () => beep(700, 0.06, 'square', 0.05, -260),
   hit:     () => beep(300, 0.05, 'triangle', 0.03, -100),
   death:   () => beep(220, 0.15, 'sawtooth', 0.04, -140),
   place:   () => beep(600, 0.1, 'sine', 0.06, 200),
@@ -708,6 +774,7 @@ function spawnEnemy(typeKey) {
     wobble: Math.random() * Math.PI * 2,
     mesh,
   });
+  mesh.userData.enemy = state.enemies[state.enemies.length - 1];
 }
 
 function updateEnemies(dt) {
@@ -780,6 +847,18 @@ function towerStats(t) {
   };
 }
 
+// Blickrichtung zum nächstgelegenen Pfadfeld (Standard-Sektor des Wachturms)
+function angleToNearestPath(cx, cy) {
+  let bestD = Infinity, bestA = 0;
+  for (const key of pathCells) {
+    const [c, r] = key.split(',').map(Number);
+    const dx = c - cx, dy = r - cy;
+    const d = dx * dx + dy * dy;
+    if (d < bestD) { bestD = d; bestA = Math.atan2(dy, dx); }
+  }
+  return bestA;
+}
+
 function placeTower(cx, cy, type) {
   const cost = TOWER_TYPES[type].cost;
   if (state.gold < cost) return false;
@@ -788,6 +867,7 @@ function placeTower(cx, cy, type) {
   const mesh = makeTowerMesh(type, 1);
   mesh.position.set(cx - COLS / 2 + 0.5, 0, cy - ROWS / 2 + 0.5);
   scene.add(mesh);
+  const guardAngle = type === 'guard' ? angleToNearestPath(cx, cy) : 0;
   state.towers.push({
     type, cx, cy,
     x: (cx + 0.5) * CELL,
@@ -795,7 +875,9 @@ function placeTower(cx, cy, type) {
     level: 1,
     cooldown: 0,
     invested: cost,
-    angle: 0,
+    angle: guardAngle,
+    guardAngle,
+    manualCd: 0,
     recoil: 0,
     mesh,
   });
@@ -813,14 +895,22 @@ function isBuildable(cx, cy) {
 
 function updateTowers(dt) {
   for (const t of state.towers) {
+    if (t.manualCd > 0) t.manualCd -= dt;
     t.cooldown -= dt;
     if (t.cooldown > 0) continue;
+    if (t === state.controlled) continue; // im gesteuerten Turm schießt der Spieler selbst
     const s = towerStats(t);
     let best = null;
     for (const e of state.enemies) {
       if (e.dead) continue;
       const d = Math.hypot(e.x - t.x, e.y - t.y);
-      if (d <= s.range && (!best || e.dist > best.dist)) best = e;
+      if (d > s.range) continue;
+      if (t.type === 'guard') {
+        // Automatik nur im schmalen Sektor um die Wachrichtung
+        const da = Math.atan2(e.y - t.y, e.x - t.x) - t.guardAngle;
+        if (Math.abs(Math.atan2(Math.sin(da), Math.cos(da))) > TOWER_TYPES.guard.arc) continue;
+      }
+      if (!best || e.dist > best.dist) best = e;
     }
     if (!best) continue;
     t.cooldown = 1 / s.rate;
@@ -1000,6 +1090,106 @@ function updateFloaters(dt) {
   state.floaters = state.floaters.filter(f => f.ttl > 0);
 }
 
+// ---------- Wachturm-Steuerung (Ego-Ansicht) ----------
+const fp = { yaw: 0, pitch: 0.06, locked: false, drag: { active: false, moved: 0, lastX: 0, lastY: 0 } };
+
+function enterTower(t) {
+  if (state.controlled || t.type !== 'guard') return;
+  state.controlled = t;
+  state.buildType = null;
+  state.selectedTower = null;
+  hideTowerPanel();
+  updateShopButtons();
+  fp.yaw = t.guardAngle;
+  fp.pitch = 0.06;
+  t.mesh.visible = false;
+  camera.fov = 60;
+  camera.updateProjectionMatrix();
+  el.fpHud.style.display = 'block';
+  // Maus einfangen, wo möglich (sonst: Ziehen zum Zielen)
+  if (renderer.domElement.requestPointerLock) {
+    try { renderer.domElement.requestPointerLock(); } catch (e) { /* Fallback: Drag */ }
+  }
+}
+
+function exitTower() {
+  const t = state.controlled;
+  if (!t) return;
+  t.guardAngle = fp.yaw; // Blickrichtung wird zur neuen Wachrichtung
+  t.angle = fp.yaw;
+  state.controlled = null;
+  t.mesh.visible = true;
+  camera.fov = 42;
+  camera.updateProjectionMatrix();
+  el.fpHud.style.display = 'none';
+  if (document.pointerLockElement) document.exitPointerLock();
+  updateCamera();
+}
+
+document.addEventListener('pointerlockchange', () => {
+  const locked = document.pointerLockElement === renderer.domElement;
+  if (!locked && fp.locked && state.controlled) exitTower(); // Esc bei Pointer-Lock
+  fp.locked = locked;
+});
+
+function updateFPCamera() {
+  const t = state.controlled;
+  const eyeY = t.mesh.userData.eyeY || 1.2;
+  camera.position.set(pxToWX(t.x), eyeY, pxToWZ(t.y));
+  const cp = Math.cos(fp.pitch);
+  camera.lookAt(
+    camera.position.x + Math.cos(fp.yaw) * cp,
+    camera.position.y - Math.sin(fp.pitch),
+    camera.position.z + Math.sin(fp.yaw) * cp
+  );
+}
+
+function aimFP(dx, dy) {
+  fp.yaw += dx * 0.0032;
+  fp.pitch = Math.min(0.9, Math.max(-0.5, fp.pitch + dy * 0.0032));
+}
+
+const tracerFrom = new THREE.Vector3();
+const tracerTo = new THREE.Vector3();
+
+function manualShoot() {
+  const t = state.controlled;
+  if (!t || t.manualCd > 0 || state.paused || state.gameOver) return;
+  const m = TOWER_TYPES.guard.manual;
+  t.manualCd = 1 / m.rate;
+  const dmg = m.dmg * LEVEL_MULT[t.level - 1];
+  const rangeW = m.range / CELL;
+  camera.updateMatrixWorld(true); // Blickrichtung kann sich seit dem letzten Frame geändert haben
+  raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+  const meshes = [];
+  for (const e of state.enemies) if (e.mesh) meshes.push(e.mesh);
+  const hits = raycaster.intersectObjects(meshes, true);
+  tracerFrom.copy(camera.position);
+  tracerFrom.y -= 0.06;
+  let hitEnemy = null;
+  if (hits.length && hits[0].distance <= rangeW) {
+    let obj = hits[0].object;
+    while (obj && !(obj.userData && obj.userData.enemy)) obj = obj.parent;
+    if (obj && obj.userData.enemy && !obj.userData.enemy.dead) {
+      hitEnemy = obj.userData.enemy;
+      tracerTo.copy(hits[0].point);
+    }
+  }
+  if (!hitEnemy) {
+    tracerTo.copy(raycaster.ray.direction).multiplyScalar(rangeW).add(camera.position);
+  }
+  const geo = new THREE.BufferGeometry().setFromPoints([tracerFrom.clone(), tracerTo.clone()]);
+  const mat = new THREE.LineBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 1 });
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  state.beams.push({ line, ttl: 0.09, maxTtl: 0.09 });
+  sfx.guard();
+  if (hitEnemy) {
+    spawnParticles(hitEnemy.x, hitEnemy.y, 0xffd27a, 6);
+    damageEnemy(hitEnemy, dmg);
+  }
+}
+
 // ---------- Haupt-Update (Spiellogik) ----------
 function update(dt) {
   if (state.phase === 'wave') {
@@ -1078,6 +1268,7 @@ function syncScene(rawDt) {
   if (state.buildType && state.hoverCell) {
     const [cx, cy] = state.hoverCell;
     const ok = isBuildable(cx, cy) && state.gold >= TOWER_TYPES[state.buildType].cost;
+    guardArc.visible = false;
     cellHighlight.visible = true;
     cellHighlight.material.color.set(ok ? 0x5fd068 : 0xe85d5d);
     cellHighlight.position.x = cx - COLS / 2 + 0.5;
@@ -1091,9 +1282,12 @@ function syncScene(rawDt) {
     cellHighlight.visible = false;
     const t = state.selectedTower;
     showRangeAt(pxToWX(t.x), pxToWZ(t.y), towerStats(t).range);
+    if (t.type === 'guard') showGuardArc(t);
+    else guardArc.visible = false;
   } else {
     cellHighlight.visible = false;
     rangeGroup.visible = false;
+    guardArc.visible = false;
   }
 
   // Auswahlring
@@ -1119,8 +1313,11 @@ const el = {
   panel: document.getElementById('tower-panel'),
   tpName: document.getElementById('tp-name'),
   tpStats: document.getElementById('tp-stats'),
+  tpEnter: document.getElementById('tp-enter'),
   tpUpgrade: document.getElementById('tp-upgrade'),
   tpSell: document.getElementById('tp-sell'),
+  fpHud: document.getElementById('fp-hud'),
+  fpExit: document.getElementById('fp-exit'),
   overlay: document.getElementById('overlay'),
   ovTitle: document.getElementById('ov-title'),
   ovText: document.getElementById('ov-text'),
@@ -1193,7 +1390,11 @@ function showTowerPanel(t) {
   el.tpStats.innerHTML =
     'Schaden: ' + Math.round(s.dmg) + '<br>' +
     'Reichweite: ' + Math.round(s.range) + '<br>' +
-    'Feuerrate: ' + s.rate.toFixed(2) + '/s';
+    'Feuerrate: ' + s.rate.toFixed(2) + '/s' +
+    (t.type === 'guard'
+      ? '<br>Automatik nur im blauen Sektor<br>Manuell: ' + Math.round(TOWER_TYPES.guard.manual.dmg * LEVEL_MULT[t.level - 1]) + ' Schaden'
+      : '');
+  el.tpEnter.style.display = t.type === 'guard' ? '' : 'none';
   if (t.level < MAX_LEVEL) {
     const cost = upgradeCost(t.type, t.level);
     el.tpUpgrade.textContent = 'Aufwerten (💰' + cost + ')';
@@ -1224,6 +1425,7 @@ function sellValue(t) {
 }
 
 function showOverlay(title, text, isVictory) {
+  if (state.controlled) exitTower();
   el.ovTitle.textContent = title;
   el.ovText.textContent = text;
   el.ovEndless.style.display = isVictory ? '' : 'none';
@@ -1270,6 +1472,21 @@ const orbit = { active: false, moved: 0, lastX: 0, lastY: 0 };
 
 renderer.domElement.addEventListener('pointerdown', (evt) => {
   ensureAudio();
+  // Im Wachturm: linke Taste schießt (bzw. startet Ziel-Ziehen ohne Pointer-Lock)
+  if (state.controlled) {
+    if (evt.button === 2) { exitTower(); return; }
+    if (evt.button !== 0) return;
+    if (fp.locked) {
+      manualShoot();
+    } else {
+      fp.drag.active = true;
+      fp.drag.moved = 0;
+      fp.drag.lastX = evt.clientX;
+      fp.drag.lastY = evt.clientY;
+      renderer.domElement.setPointerCapture(evt.pointerId);
+    }
+    return;
+  }
   if (evt.button === 2) {
     orbit.active = true;
     orbit.moved = 0;
@@ -1303,6 +1520,19 @@ renderer.domElement.addEventListener('pointerdown', (evt) => {
 });
 
 renderer.domElement.addEventListener('pointermove', (evt) => {
+  if (state.controlled) {
+    if (fp.locked) {
+      aimFP(evt.movementX || 0, evt.movementY || 0);
+    } else if (fp.drag.active) {
+      const dx = evt.clientX - fp.drag.lastX;
+      const dy = evt.clientY - fp.drag.lastY;
+      fp.drag.moved += Math.abs(dx) + Math.abs(dy);
+      fp.drag.lastX = evt.clientX;
+      fp.drag.lastY = evt.clientY;
+      aimFP(dx * 1.6, dy * 1.6);
+    }
+    return;
+  }
   if (orbit.active) {
     const dx = evt.clientX - orbit.lastX;
     const dy = evt.clientY - orbit.lastY;
@@ -1320,6 +1550,11 @@ renderer.domElement.addEventListener('pointermove', (evt) => {
 });
 
 renderer.domElement.addEventListener('pointerup', (evt) => {
+  if (state.controlled && fp.drag.active && evt.button === 0) {
+    fp.drag.active = false;
+    if (fp.drag.moved < 6) manualShoot(); // Tipp/Klick ohne Ziehen = Schuss
+    return;
+  }
   if (evt.button === 2 && orbit.active) {
     orbit.active = false;
     if (orbit.moved < 6) {
@@ -1335,6 +1570,12 @@ renderer.domElement.addEventListener('pointerleave', () => { state.hoverCell = n
 
 renderer.domElement.addEventListener('wheel', (evt) => {
   evt.preventDefault();
+  if (state.controlled) {
+    // Zoom in der Ego-Ansicht (Zielfernrohr-Gefühl)
+    camera.fov = Math.min(70, Math.max(25, camera.fov + evt.deltaY * 0.02));
+    camera.updateProjectionMatrix();
+    return;
+  }
   camCtl.radius = Math.min(28, Math.max(9, camCtl.radius * (1 + evt.deltaY * 0.001)));
   updateCamera();
   if (state.selectedTower) showTowerPanel(state.selectedTower);
@@ -1344,6 +1585,7 @@ renderer.domElement.addEventListener('contextmenu', (evt) => evt.preventDefault(
 
 document.addEventListener('keydown', (evt) => {
   if (evt.code === 'Escape') {
+    if (state.controlled) { exitTower(); return; }
     selectBuildType(null);
     state.selectedTower = null;
     hideTowerPanel();
@@ -1357,6 +1599,7 @@ document.addEventListener('keydown', (evt) => {
   else if (evt.code === 'Digit2') selectBuildType('cannon');
   else if (evt.code === 'Digit3') selectBuildType('frost');
   else if (evt.code === 'Digit4') selectBuildType('bolt');
+  else if (evt.code === 'Digit5') selectBuildType('guard');
   else if (evt.code === 'Enter') { ensureAudio(); startWave(); updateUI(); }
 });
 
@@ -1380,6 +1623,13 @@ el.btnSound.addEventListener('click', () => {
   muted = !muted;
   el.btnSound.textContent = muted ? '🔇' : '🔊';
 });
+
+el.tpEnter.addEventListener('click', () => {
+  ensureAudio();
+  if (state.selectedTower) enterTower(state.selectedTower);
+});
+
+el.fpExit.addEventListener('click', () => exitTower());
 
 el.tpUpgrade.addEventListener('click', () => {
   const t = state.selectedTower;
@@ -1431,6 +1681,7 @@ function loop(now) {
   }
   syncScene(rawDt);
   updateFloaters(rawDt);
+  if (state.controlled) updateFPCamera();
   renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }

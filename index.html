@@ -99,6 +99,39 @@
     z-index: 6;
     pointer-events: none;
   }
+  #fp-hud {
+    position: absolute;
+    inset: 0;
+    display: none;
+    pointer-events: none;
+    z-index: 7;
+  }
+  #crosshair {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 28px;
+    font-weight: 300;
+    color: #fff;
+    text-shadow: 0 0 5px rgba(0,0,0,.9);
+  }
+  #fp-bar {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: rgba(20,28,45,.88);
+    border: 1px solid #3d4d6e;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 13px;
+    pointer-events: auto;
+    white-space: nowrap;
+  }
   #shop {
     display: flex;
     flex-wrap: wrap;
@@ -186,8 +219,16 @@
     <div id="tower-panel">
       <h3 id="tp-name">Turm</h3>
       <div class="row" id="tp-stats"></div>
+      <button id="tp-enter" style="display:none">🎯 Betreten &amp; steuern</button>
       <button id="tp-upgrade" class="primary">Aufwerten</button>
       <button id="tp-sell">Verkaufen</button>
+    </div>
+    <div id="fp-hud">
+      <div id="crosshair">+</div>
+      <div id="fp-bar">
+        <span>🎯 Klicken = Schießen · Maus = Zielen · Mausrad = Zoom</span>
+        <button id="fp-exit">Verlassen (Esc)</button>
+      </div>
     </div>
     <div id="overlay">
       <h2 id="ov-title">Game Over</h2>
@@ -200,7 +241,7 @@
   </div>
 
   <div id="shop"></div>
-  <div id="hint">Turm wählen &amp; auf freies Feld klicken · Turm anklicken zum Aufwerten/Verkaufen · Rechte Maustaste ziehen = Kamera drehen · Mausrad = Zoom · Tasten 1–4 = Türme, Esc = Abbrechen, Leertaste = Pause, R = Kamera zurücksetzen</div>
+  <div id="hint">Turm wählen &amp; auf freies Feld klicken · Turm anklicken zum Aufwerten/Verkaufen · Wachturm: „Betreten“ im Panel = selbst zielen &amp; schießen! · Rechte Maustaste ziehen = Kamera drehen · Mausrad = Zoom · Tasten 1–5 = Türme, Esc = Abbrechen, Leertaste = Pause, R = Kamera zurücksetzen</div>
 </div>
 <script src="vendor/three.min.js"></script>
 <script src="game.js"></script>

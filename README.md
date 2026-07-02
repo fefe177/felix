@@ -25,6 +25,7 @@ Gegner laufen in Wellen über den Pfad von links nach rechts. Baue Türme auf di
 | 💣 Kanone | 💰 100 | Flächenschaden, langsames Feuer — Stahlkuppel mit schwenkbarem Rohr |
 | ❄️ Frostturm | 💰 70 | Verlangsamt Gegner — rotierender Eiskristall |
 | ⚡ Blitzturm | 💰 150 | Hohe Reichweite und hoher Schaden — Obelisk mit schwebender Energiekugel |
+| 🎯 Wachturm | 💰 120 | **Betretbar!** Selbst zielen und schießen in der Ego-Ansicht |
 
 Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate) oder für 70 % des investierten Golds **verkauft** werden. **Jede Ausbaustufe hat ihr eigenes 3D-Modell** — die Türme werden sichtbar größer und prächtiger:
 
@@ -34,6 +35,16 @@ Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate) od
 - **Blitzturm:** Obelisk mit Energiekugel → Ecksäulen und mehr Goldringe → kreisende Funken-Orbs
 
 Beim Feuern gibt es Rückstoß-Animationen (Armbrust und Kanonenrohr zucken zurück, Kristall und Energiekugel pulsieren).
+
+## 🎯 Der Wachturm — selbst schießen!
+
+Der Wachturm ist etwas Besonderes: Man kann ihn **betreten und selbst steuern**.
+
+- **Betreten:** Wachturm anklicken → im Panel auf „🎯 Betreten &amp; steuern" klicken
+- **Drinnen:** Ego-Ansicht aus der Turmkabine — Maus zielt, **Klick schießt** (starker Einzelschuss), **Mausrad zoomt** wie ein Zielfernrohr
+- **Verlassen:** `Esc`, Rechtsklick oder der „Verlassen"-Button
+- **Automatik-Modus:** Ohne Spieler schießt der Wachturm von allein, aber **nur in einem schmalen Sektor** (±29°, als blauer Kreisausschnitt sichtbar). Die Richtung des Sektors ist die Blickrichtung, in der du den Turm verlassen hast — du entscheidest also, welchen Pfadabschnitt er bewacht!
+- Der manuelle Schuss macht deutlich mehr Schaden als die Automatik und wird pro Ausbaustufe stärker.
 
 ## Gegner
 
@@ -46,7 +57,7 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle.
 
 ## Steuerung
 
-- **Turm bauen:** Turm im Shop anklicken (oder Tasten `1`–`4`), dann auf ein freies Feld klicken
+- **Turm bauen:** Turm im Shop anklicken (oder Tasten `1`–`5`), dann auf ein freies Feld klicken
 - **Aufwerten/Verkaufen:** platzierten Turm anklicken
 - **Kamera drehen:** rechte Maustaste gedrückt halten und ziehen
 - **Zoom:** Mausrad · **Kamera zurücksetzen:** `R`
