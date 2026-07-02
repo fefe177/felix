@@ -1,6 +1,6 @@
-# 🏰 Turm-Verteidigung
+# 🏰 Turm-Verteidigung 3D
 
-Ein vollständiges Tower-Defense-Spiel im Browser — reines HTML5/JavaScript, keine Installation, keine Abhängigkeiten.
+Ein vollständiges Tower-Defense-Spiel im Browser mit echter **3D-Ansicht** (WebGL/Three.js) — Licht, Schatten, drehbare Kamera und detaillierte 3D-Turmmodelle. Keine Installation nötig; Three.js liegt lokal unter `vendor/` bei, das Spiel läuft also auch offline.
 
 ## Spielen
 
@@ -21,12 +21,12 @@ Gegner laufen in Wellen über den Pfad von links nach rechts. Baue Türme auf di
 
 | Turm | Kosten | Stärke |
 |---|---|---|
-| 🏹 Bogenturm | 💰 50 | Schnell und günstig, Einzelziel |
-| 💣 Kanone | 💰 100 | Flächenschaden, langsames Feuer |
-| ❄️ Frostturm | 💰 70 | Verlangsamt Gegner |
-| ⚡ Blitzturm | 💰 150 | Hohe Reichweite und hoher Schaden |
+| 🏹 Bogenturm | 💰 50 | Schnell und günstig, Einzelziel — Holzturm mit drehbarer Armbrust |
+| 💣 Kanone | 💰 100 | Flächenschaden, langsames Feuer — Stahlkuppel mit schwenkbarem Rohr |
+| ❄️ Frostturm | 💰 70 | Verlangsamt Gegner — rotierender Eiskristall |
+| ⚡ Blitzturm | 💰 150 | Hohe Reichweite und hoher Schaden — Obelisk mit schwebender Energiekugel |
 
-Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate) oder für 70 % des investierten Golds **verkauft** werden.
+Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate — sichtbar an goldenen Ringen am Sockel) oder für 70 % des investierten Golds **verkauft** werden.
 
 ## Gegner
 
@@ -41,10 +41,18 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle.
 
 - **Turm bauen:** Turm im Shop anklicken (oder Tasten `1`–`4`), dann auf ein freies Feld klicken
 - **Aufwerten/Verkaufen:** platzierten Turm anklicken
-- **Abbrechen:** `Esc` oder Rechtsklick
+- **Kamera drehen:** rechte Maustaste gedrückt halten und ziehen
+- **Zoom:** Mausrad · **Kamera zurücksetzen:** `R`
+- **Abbrechen:** `Esc` oder kurzer Rechtsklick
 - **Welle starten:** Button oben (oder `Enter`) — früher Start bringt Bonus-Gold!
 - **Pause:** `Leertaste` oder ⏸-Button
 - **Geschwindigkeit:** 1×/2×/3× umschaltbar
 - **Ton:** 🔊-Button (Soundeffekte per WebAudio)
 
 Funktioniert mit Maus und Touch (Desktop, Tablet, Handy).
+
+## Technik
+
+- **Three.js r128** (lokal in `vendor/`, kein CDN) mit Echtzeitschatten, Hemisphären- und Sonnenlicht sowie Nebel
+- Spiellogik läuft in 2D-Pfadkoordinaten, die 3D-Szene ist die Darstellung darüber — Turm-Platzierung per Raycasting auf das Spielfeld
+- Alle Modelle (Türme, Gegner, Bäume, Portale) sind prozedural aus Three.js-Grundkörpern gebaut, es werden keine externen Assets geladen

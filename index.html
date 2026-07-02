@@ -68,12 +68,36 @@
   button.primary:hover { background: #ffd06a; }
   button:disabled { opacity: .45; cursor: default; }
   #game-wrap { position: relative; width: 100%; max-width: 800px; }
-  canvas {
+  #game3d { border-radius: 10px; overflow: hidden; line-height: 0; }
+  #game3d canvas {
     display: block;
-    width: 100%;
-    background: #24402a;
-    border-radius: 10px;
+    width: 100% !important;
+    height: auto !important;
     cursor: crosshair;
+    touch-action: none;
+  }
+  .floater {
+    position: absolute;
+    pointer-events: none;
+    font-weight: 700;
+    font-size: 14px;
+    text-shadow: 1px 1px 2px rgba(0,0,0,.8);
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    z-index: 4;
+  }
+  #pause-ov {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(10,15,25,.55);
+    border-radius: 10px;
+    font-size: 36px;
+    font-weight: 700;
+    z-index: 6;
+    pointer-events: none;
   }
   #shop {
     display: flex;
@@ -157,7 +181,8 @@
   </div>
 
   <div id="game-wrap">
-    <canvas id="game" width="800" height="560"></canvas>
+    <div id="game3d"></div>
+    <div id="pause-ov">⏸ Pause</div>
     <div id="tower-panel">
       <h3 id="tp-name">Turm</h3>
       <div class="row" id="tp-stats"></div>
@@ -175,8 +200,9 @@
   </div>
 
   <div id="shop"></div>
-  <div id="hint">Turm wählen &amp; auf freies Feld klicken · Turm anklicken zum Aufwerten/Verkaufen · Tasten 1–4 = Türme, Esc = Abbrechen, Leertaste = Pause</div>
+  <div id="hint">Turm wählen &amp; auf freies Feld klicken · Turm anklicken zum Aufwerten/Verkaufen · Rechte Maustaste ziehen = Kamera drehen · Mausrad = Zoom · Tasten 1–4 = Türme, Esc = Abbrechen, Leertaste = Pause, R = Kamera zurücksetzen</div>
 </div>
+<script src="vendor/three.min.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

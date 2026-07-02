@@ -1,8 +1,8 @@
 'use strict';
 
 // ============================================================
-//  Turm-Verteidigung — komplettes Tower-Defense-Spiel
-//  Reines HTML5-Canvas, keine Abhängigkeiten.
+//  Turm-Verteidigung 3D — Tower-Defense mit Three.js (WebGL)
+//  Spiellogik in 2D-Pfadkoordinaten, Darstellung als 3D-Szene.
 // ============================================================
 
 // ---------- Grundkonstanten ----------
@@ -10,11 +10,11 @@ const COLS = 20, ROWS = 14, CELL = 40;
 const W = COLS * CELL, H = ROWS * CELL;
 const TOTAL_WAVES = 20;
 
-const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+// Pixel-Logikkoordinaten -> Weltkoordinaten (1 Zelle = 1 Einheit)
+const pxToWX = (x) => x / CELL - COLS / 2;
+const pxToWZ = (y) => y / CELL - ROWS / 2;
 
 // ---------- Pfad ----------
-// Wegpunkte in Zellkoordinaten (Zentrum der Zelle); Start/Ende außerhalb.
 const WAYPOINT_CELLS = [
   [-1, 2], [16, 2], [16, 6], [3, 6], [3, 10], [20, 10],
 ];
@@ -23,7 +23,6 @@ const waypoints = WAYPOINT_CELLS.map(([c, r]) => ({
   y: (r + 0.5) * CELL,
 }));
 
-// Zellen, die vom Pfad belegt sind (dort kann nicht gebaut werden)
 const pathCells = new Set();
 for (let i = 0; i < WAYPOINT_CELLS.length - 1; i++) {
   let [c1, r1] = WAYPOINT_CELLS[i];
@@ -40,29 +39,28 @@ for (let i = 0; i < WAYPOINT_CELLS.length - 1; i++) {
 const TOWER_TYPES = {
   archer: {
     name: 'Bogenturm', cost: 50, dmg: 12, range: 110, rate: 2.4,
-    projSpeed: 420, color: '#8b5a2b', accent: '#d9a066',
+    projSpeed: 420, color: '#8b5a2b',
     desc: 'Schnell, günstig, Einzelziel',
   },
   cannon: {
     name: 'Kanone', cost: 100, dmg: 34, range: 105, rate: 0.75,
-    projSpeed: 260, splash: 58, color: '#4a4a55', accent: '#8a8a99',
+    projSpeed: 260, splash: 58, color: '#4a4a55',
     desc: 'Flächenschaden, langsam',
   },
   frost: {
     name: 'Frostturm', cost: 70, dmg: 6, range: 95, rate: 1.4,
     projSpeed: 340, slow: { factor: 0.55, dur: 2.0 },
-    color: '#3d7ea6', accent: '#a8dcf0',
+    color: '#3d7ea6',
     desc: 'Verlangsamt Gegner',
   },
   bolt: {
     name: 'Blitzturm', cost: 150, dmg: 85, range: 190, rate: 0.55,
-    laser: true, color: '#6b4fa0', accent: '#c9a7ff',
+    laser: true, color: '#6b4fa0',
     desc: 'Hohe Reichweite &amp; Schaden',
   },
 };
 const TOWER_KEYS = ['archer', 'cannon', 'frost', 'bolt'];
 
-// Multiplikatoren pro Stufe (Stufe 1 = Basis, max. Stufe 3)
 const LEVEL_MULT = [1, 1.6, 2.5];
 const RANGE_MULT = [1, 1.12, 1.25];
 const RATE_MULT = [1, 1.15, 1.32];
@@ -74,20 +72,421 @@ function upgradeCost(type, level) {
 
 // ---------- Gegnertypen ----------
 const ENEMY_TYPES = {
-  normal: { hp: 34, speed: 55, reward: 6, radius: 12, lives: 1, color: '#c94f4f', dark: '#8a2f2f' },
-  fast:   { hp: 22, speed: 95, reward: 7, radius: 10, lives: 1, color: '#e8b64f', dark: '#a87c22' },
-  tank:   { hp: 110, speed: 36, reward: 12, radius: 15, lives: 2, color: '#5a7d5a', dark: '#37522f' },
-  boss:   { hp: 650, speed: 30, reward: 60, radius: 20, lives: 5, color: '#7a4fa0', dark: '#4d2d6e' },
+  normal: { hp: 34, speed: 55, reward: 6, radius: 12, lives: 1, color: 0xc94f4f },
+  fast:   { hp: 22, speed: 95, reward: 7, radius: 10, lives: 1, color: 0xe8b64f },
+  tank:   { hp: 110, speed: 36, reward: 12, radius: 15, lives: 2, color: 0x5a7d5a },
+  boss:   { hp: 650, speed: 30, reward: 60, radius: 20, lives: 5, color: 0x7a4fa0 },
 };
+const SLOW_TINT = 0x7ab8d9;
+
+// ============================================================
+//  Three.js — Szene, Kamera, Licht, Spielfeld
+// ============================================================
+const container = document.getElementById('game3d');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a2332);
+scene.fog = new THREE.Fog(0x1a2332, 28, 55);
+
+const camera = new THREE.PerspectiveCamera(42, 800 / 560, 0.1, 200);
+
+// Orbit-Kamera (rechte Maustaste = drehen, Mausrad = Zoom)
+const camCtl = { radius: 15.5, phi: 1.0, theta: 0 };
+const CAM_DEFAULT = { ...camCtl };
+const CAM_TARGET = new THREE.Vector3(0, 0, -1.1);
+
+function updateCamera() {
+  const { radius, phi, theta } = camCtl;
+  camera.position.set(
+    CAM_TARGET.x + radius * Math.sin(phi) * Math.sin(theta),
+    CAM_TARGET.y + radius * Math.cos(phi),
+    CAM_TARGET.z + radius * Math.sin(phi) * Math.cos(theta)
+  );
+  camera.lookAt(CAM_TARGET);
+}
+updateCamera();
+
+function resize() {
+  const w = container.clientWidth || 800;
+  const h = Math.round(w * 0.7);
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize);
+resize();
+
+// Licht
+scene.add(new THREE.HemisphereLight(0xbfd4e8, 0x33452e, 0.75));
+const sun = new THREE.DirectionalLight(0xfff2d9, 0.95);
+sun.position.set(12, 20, 6);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -13; sun.shadow.camera.right = 13;
+sun.shadow.camera.top = 10; sun.shadow.camera.bottom = -10;
+sun.shadow.camera.far = 60;
+sun.shadow.bias = -0.0004;
+scene.add(sun);
+
+// Gemeinsame Materialien
+const MAT = {
+  stone:     new THREE.MeshStandardMaterial({ color: 0x9094a3, roughness: 0.85 }),
+  stoneDark: new THREE.MeshStandardMaterial({ color: 0x5a5c68, roughness: 0.9 }),
+  wood:      new THREE.MeshStandardMaterial({ color: 0x7a5230, roughness: 0.8 }),
+  woodLight: new THREE.MeshStandardMaterial({ color: 0xa8794f, roughness: 0.75 }),
+  metal:     new THREE.MeshStandardMaterial({ color: 0x3c3c46, roughness: 0.45, metalness: 0.55 }),
+  metalLight:new THREE.MeshStandardMaterial({ color: 0x8a8a99, roughness: 0.4, metalness: 0.6 }),
+  gold:      new THREE.MeshStandardMaterial({ color: 0xf5b942, roughness: 0.35, metalness: 0.65 }),
+  ice:       new THREE.MeshStandardMaterial({ color: 0xa8dcf0, emissive: 0x2e7fae, roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.88 }),
+  iceStone:  new THREE.MeshStandardMaterial({ color: 0x5f7f9f, roughness: 0.7 }),
+  purple:    new THREE.MeshStandardMaterial({ color: 0x6b4fa0, roughness: 0.55 }),
+  orb:       new THREE.MeshStandardMaterial({ color: 0xc9a7ff, emissive: 0x8a5fff, emissiveIntensity: 0.9, roughness: 0.25 }),
+  darkBall:  new THREE.MeshStandardMaterial({ color: 0x24242c, roughness: 0.4, metalness: 0.4 }),
+  white:     new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }),
+  black:     new THREE.MeshStandardMaterial({ color: 0x181818, roughness: 0.5 }),
+  foliage:   new THREE.MeshStandardMaterial({ color: 0x1f4d2a, roughness: 0.9 }),
+  rock:      new THREE.MeshStandardMaterial({ color: 0x767a85, roughness: 0.95 }),
+};
+
+// Boden mit Schachbrett-Textur
+(function buildGround() {
+  const tex = (() => {
+    const c = document.createElement('canvas');
+    c.width = COLS * 8; c.height = ROWS * 8;
+    const g = c.getContext('2d');
+    for (let r = 0; r < ROWS; r++) {
+      for (let cc = 0; cc < COLS; cc++) {
+        g.fillStyle = (cc + r) % 2 === 0 ? '#2f5136' : '#2a4a31';
+        g.fillRect(cc * 8, r * 8, 8, 8);
+      }
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.magFilter = THREE.NearestFilter;
+    return t;
+  })();
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(COLS, ROWS),
+    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Umland
+  const skirt = new THREE.Mesh(
+    new THREE.PlaneGeometry(COLS + 14, ROWS + 14),
+    new THREE.MeshStandardMaterial({ color: 0x223d28, roughness: 1 })
+  );
+  skirt.rotation.x = -Math.PI / 2;
+  skirt.position.y = -0.03;
+  skirt.receiveShadow = true;
+  scene.add(skirt);
+
+  // Steinrahmen
+  const frameMat = MAT.stoneDark;
+  const mkFrame = (w, d, x, z) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, 0.3, d), frameMat);
+    m.position.set(x, 0.12, z);
+    m.castShadow = m.receiveShadow = true;
+    scene.add(m);
+  };
+  mkFrame(COLS + 0.6, 0.3, 0, -(ROWS / 2 + 0.15));
+  mkFrame(COLS + 0.6, 0.3, 0, ROWS / 2 + 0.15);
+  mkFrame(0.3, ROWS + 0.6, -(COLS / 2 + 0.15), 0);
+  mkFrame(0.3, ROWS + 0.6, COLS / 2 + 0.15, 0);
+
+  // Pfad-Kacheln
+  const tileGeo = new THREE.BoxGeometry(0.98, 0.14, 0.98);
+  const tileMatA = new THREE.MeshStandardMaterial({ color: 0x8a6d46, roughness: 0.9 });
+  const tileMatB = new THREE.MeshStandardMaterial({ color: 0x7f6440, roughness: 0.9 });
+  for (const key of pathCells) {
+    const [c, r] = key.split(',').map(Number);
+    const tile = new THREE.Mesh(tileGeo, (c + r) % 2 === 0 ? tileMatA : tileMatB);
+    tile.position.set(c - COLS / 2 + 0.5, 0.07, r - ROWS / 2 + 0.5);
+    tile.receiveShadow = true;
+    scene.add(tile);
+  }
+
+  // Start- und Zielportal
+  const mkPortal = (x, z, color) => {
+    const ring = new THREE.Mesh(
+      new THREE.TorusGeometry(0.55, 0.09, 10, 24),
+      new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.6, roughness: 0.4 })
+    );
+    ring.position.set(x, 0.62, z);
+    ring.rotation.y = Math.PI / 2;
+    ring.castShadow = true;
+    scene.add(ring);
+  };
+  mkPortal(-(COLS / 2 + 0.35), pxToWZ(waypoints[0].y), 0x2fae53);
+  mkPortal(COLS / 2 + 0.35, pxToWZ(waypoints[waypoints.length - 1].y), 0xc93f3f);
+
+  // Deko: Bäume und Felsen außerhalb des Spielfelds
+  const treeSpots = [
+    [-11.6, -6.4], [-11.3, -1.2], [-11.7, 4.0], [11.5, -5.2], [11.8, 0.6], [11.4, 5.8],
+    [-7.5, -8.4], [-2.0, -8.6], [3.5, -8.3], [8.5, -8.5],
+    [-8.5, 8.4], [-3.0, 8.6], [2.5, 8.3], [7.5, 8.5], [-11.4, 8.2], [11.6, -8.2],
+  ];
+  for (const [x, z] of treeSpots) {
+    const tree = new THREE.Group();
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.5, 6), MAT.wood);
+    trunk.position.y = 0.25;
+    const s = 0.8 + ((x * 13 + z * 7) % 10) / 20; // deterministische Größenvariation
+    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.2, 8), MAT.foliage);
+    leaf.position.y = 1.0;
+    trunk.castShadow = leaf.castShadow = true;
+    tree.add(trunk, leaf);
+    tree.scale.setScalar(s);
+    tree.position.set(x, 0, z);
+    scene.add(tree);
+  }
+  const rockSpots = [[-11.0, 2.5], [11.2, -2.8], [5.8, -8.6], [-5.5, 8.6]];
+  for (const [x, z] of rockSpots) {
+    const rock = new THREE.Mesh(new THREE.DodecahedronGeometry(0.28), MAT.rock);
+    rock.position.set(x, 0.18, z);
+    rock.rotation.set(x, z, x + z);
+    rock.castShadow = true;
+    scene.add(rock);
+  }
+})();
+
+// ---------- Turm-Modelle ----------
+function makeTowerMesh(type) {
+  const g = new THREE.Group();
+  let turret = null;
+
+  if (type === 'archer') {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.48, 0.35, 12), MAT.stone);
+    base.position.y = 0.175;
+    const mid = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.36, 0.45, 12), MAT.wood);
+    mid.position.y = 0.55;
+    const platform = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.3, 0.12, 12), MAT.woodLight);
+    platform.position.y = 0.83;
+    g.add(base, mid, platform);
+    turret = new THREE.Group();
+    turret.position.y = 0.95;
+    const stock = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.09, 0.09), MAT.woodLight);
+    stock.position.x = 0.08;
+    const bow = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.035, 8, 18, Math.PI), MAT.metalLight);
+    bow.position.x = 0.26;
+    bow.rotation.set(-Math.PI / 2, 0, -Math.PI / 2);
+    const tip = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.16, 8), MAT.gold);
+    tip.position.x = 0.42;
+    tip.rotation.z = -Math.PI / 2;
+    turret.add(stock, bow, tip);
+    g.add(turret);
+  } else if (type === 'cannon') {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.54, 0.3, 14), MAT.metal);
+    base.position.y = 0.15;
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.05, 8, 20), MAT.stoneDark);
+    ring.position.y = 0.31;
+    ring.rotation.x = Math.PI / 2;
+    const dome = new THREE.Mesh(new THREE.SphereGeometry(0.33, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), MAT.metalLight);
+    dome.position.y = 0.3;
+    g.add(base, ring, dome);
+    turret = new THREE.Group();
+    turret.position.y = 0.48;
+    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.6, 12), MAT.metal);
+    barrel.rotation.z = -Math.PI / 2;
+    barrel.position.x = 0.32;
+    const muzzle = new THREE.Mesh(new THREE.TorusGeometry(0.12, 0.03, 8, 14), MAT.gold);
+    muzzle.position.x = 0.6;
+    muzzle.rotation.y = Math.PI / 2;
+    turret.add(barrel, muzzle);
+    g.add(turret);
+  } else if (type === 'frost') {
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.46, 0.4, 12), MAT.iceStone);
+    base.position.y = 0.2;
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.33, 0.045, 8, 20), MAT.ice);
+    rim.position.y = 0.42;
+    rim.rotation.x = Math.PI / 2;
+    const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.27), MAT.ice);
+    crystal.position.y = 0.85;
+    crystal.userData.spin = true;
+    const c1 = new THREE.Mesh(new THREE.OctahedronGeometry(0.1), MAT.ice);
+    c1.position.set(0.24, 0.5, -0.1);
+    const c2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.08), MAT.ice);
+    c2.position.set(-0.2, 0.48, 0.14);
+    g.add(base, rim, crystal, c1, c2);
+    g.userData.crystal = crystal;
+  } else if (type === 'bolt') {
+    const plinth = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.16, 0.55), MAT.stoneDark);
+    plinth.position.y = 0.08;
+    const obelisk = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.3, 0.85, 4), MAT.purple);
+    obelisk.position.y = 0.58;
+    const ring1 = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.028, 8, 16), MAT.gold);
+    ring1.position.y = 0.45;
+    ring1.rotation.x = Math.PI / 2;
+    const orb = new THREE.Mesh(new THREE.SphereGeometry(0.15, 16, 12), MAT.orb);
+    orb.position.y = 1.18;
+    orb.userData.baseY = 1.18;
+    g.add(plinth, obelisk, ring1, orb);
+    g.userData.orb = orb;
+  }
+
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.userData.turret = turret;
+  g.userData.levelRings = [];
+  return g;
+}
+
+function refreshTowerLevel(t) {
+  const g = t.mesh;
+  for (const r of g.userData.levelRings) g.remove(r);
+  g.userData.levelRings = [];
+  for (let i = 1; i < t.level; i++) {
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.035, 8, 24), MAT.gold);
+    ring.position.y = 0.07 + (i - 1) * 0.12;
+    ring.rotation.x = Math.PI / 2;
+    ring.castShadow = true;
+    g.add(ring);
+    g.userData.levelRings.push(ring);
+  }
+}
+
+// ---------- Gegner-Modelle ----------
+const enemyGeoCache = {};
+function enemyGeo(rw) {
+  const key = rw.toFixed(3);
+  if (!enemyGeoCache[key]) enemyGeoCache[key] = new THREE.SphereGeometry(rw, 20, 14);
+  return enemyGeoCache[key];
+}
+const eyeGeo = new THREE.SphereGeometry(1, 10, 8);
+
+function makeEnemyMesh(typeKey) {
+  const t = ENEMY_TYPES[typeKey];
+  const rw = t.radius / CELL; // Weltradius
+  const g = new THREE.Group();
+
+  const bodyMat = new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.6 });
+  const body = new THREE.Mesh(enemyGeo(rw), bodyMat);
+  body.castShadow = true;
+  g.add(body);
+
+  // Augen (Blickrichtung +x)
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(eyeGeo, MAT.white);
+    eye.scale.setScalar(rw * 0.28);
+    eye.position.set(rw * 0.72, rw * 0.28, side * rw * 0.38);
+    const pupil = new THREE.Mesh(eyeGeo, MAT.black);
+    pupil.scale.setScalar(rw * 0.13);
+    pupil.position.set(rw * 0.95, rw * 0.28, side * rw * 0.4);
+    g.add(eye, pupil);
+  }
+
+  if (typeKey === 'boss') {
+    const crown = new THREE.Mesh(new THREE.CylinderGeometry(rw * 0.62, rw * 0.5, rw * 0.5, 8), MAT.gold);
+    crown.position.y = rw * 1.15;
+    crown.castShadow = true;
+    g.add(crown);
+  }
+
+  // Lebensbalken (Billboard-Sprites)
+  const bw = (t.radius * 2.2) / CELL;
+  const bgMat = new THREE.SpriteMaterial({ color: 0x101418, depthTest: false });
+  const fgMat = new THREE.SpriteMaterial({ color: 0x5fd068, depthTest: false });
+  const bg = new THREE.Sprite(bgMat);
+  bg.scale.set(bw, 0.09, 1);
+  bg.renderOrder = 10;
+  const fg = new THREE.Sprite(fgMat);
+  fg.center.set(0, 0.5);
+  fg.position.x = -bw / 2;
+  fg.scale.set(bw, 0.07, 1);
+  fg.renderOrder = 11;
+  const barY = rw * 2 + 0.28;
+  bg.position.y = barY; fg.position.y = barY;
+  g.add(bg, fg);
+
+  g.userData = { body, bodyMat, bgMat, fgMat, fg, bw, rw, baseColor: t.color };
+  return g;
+}
+
+function disposeEnemyMesh(g) {
+  scene.remove(g);
+  g.userData.bodyMat.dispose();
+  g.userData.bgMat.dispose();
+  g.userData.fgMat.dispose();
+}
+
+// ---------- Projektil-Modelle ----------
+const projGeos = {
+  archer: new THREE.ConeGeometry(0.05, 0.3, 8),
+  cannon: new THREE.SphereGeometry(0.13, 12, 10),
+  frost: new THREE.SphereGeometry(0.09, 12, 10),
+};
+const frostBallMat = new THREE.MeshStandardMaterial({ color: 0xa8dcf0, emissive: 0x4aa8d8, emissiveIntensity: 0.8, roughness: 0.3 });
+
+function makeProjectileMesh(type) {
+  if (type === 'cannon') return new THREE.Mesh(projGeos.cannon, MAT.darkBall);
+  if (type === 'frost') return new THREE.Mesh(projGeos.frost, frostBallMat);
+  return new THREE.Mesh(projGeos.archer, MAT.woodLight);
+}
+
+// ---------- Anzeigen: Reichweite, Bauvorschau, Auswahl ----------
+const rangeGroup = new THREE.Group();
+{
+  const disc = new THREE.Mesh(
+    new THREE.CircleGeometry(1, 48),
+    new THREE.MeshBasicMaterial({ color: 0xf5b942, transparent: true, opacity: 0.1, depthWrite: false })
+  );
+  disc.rotation.x = -Math.PI / 2;
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.97, 1, 48),
+    new THREE.MeshBasicMaterial({ color: 0xf5b942, transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  rangeGroup.add(disc, ring);
+  rangeGroup.position.y = 0.15;
+  rangeGroup.visible = false;
+  scene.add(rangeGroup);
+}
+
+const cellHighlight = new THREE.Mesh(
+  new THREE.PlaneGeometry(1, 1),
+  new THREE.MeshBasicMaterial({ color: 0x5fd068, transparent: true, opacity: 0.35, depthWrite: false })
+);
+cellHighlight.rotation.x = -Math.PI / 2;
+cellHighlight.position.y = 0.16;
+cellHighlight.visible = false;
+scene.add(cellHighlight);
+
+const selectRing = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.035, 8, 28), MAT.gold);
+selectRing.rotation.x = Math.PI / 2;
+selectRing.position.y = 0.14;
+selectRing.visible = false;
+scene.add(selectRing);
+
+function showRangeAt(x, z, rangePx) {
+  rangeGroup.position.x = x;
+  rangeGroup.position.z = z;
+  const rw = rangePx / CELL;
+  rangeGroup.scale.set(rw, 1, rw);
+  rangeGroup.visible = true;
+}
 
 // ---------- Spielzustand ----------
 const state = {};
 
+function clearActors() {
+  if (state.enemies) for (const e of state.enemies) if (e.mesh) disposeEnemyMesh(e.mesh);
+  if (state.towers) for (const t of state.towers) scene.remove(t.mesh);
+  if (state.projectiles) for (const p of state.projectiles) scene.remove(p.mesh);
+  if (state.beams) for (const b of state.beams) { scene.remove(b.line); b.line.geometry.dispose(); b.line.material.dispose(); }
+  if (state.particles) for (const p of state.particles) scene.remove(p.mesh);
+  if (state.floaters) for (const f of state.floaters) f.el.remove();
+}
+
 function resetGame() {
+  clearActors();
   state.gold = 140;
   state.lives = 20;
   state.wave = 0;
-  state.phase = 'build';      // 'build' | 'wave'
+  state.phase = 'build';
   state.enemies = [];
   state.towers = [];
   state.projectiles = [];
@@ -96,21 +495,23 @@ function resetGame() {
   state.floaters = [];
   state.spawnQueue = [];
   state.spawnTimer = 0;
-  state.autoTimer = -1;       // Countdown bis zur automatischen nächsten Welle
+  state.autoTimer = -1;
   state.speed = 1;
   state.paused = false;
   state.gameOver = false;
   state.victory = false;
   state.endless = false;
-  state.buildType = null;     // gewählter Turmtyp zum Bauen
-  state.selectedTower = null; // angeklickter Turm (Panel)
+  state.buildType = null;
+  state.selectedTower = null;
   state.hoverCell = null;
   hideOverlay();
   hideTowerPanel();
+  el.pauseOv.style.display = 'none';
+  el.btnPause.textContent = '⏸';
   updateUI();
 }
 
-// ---------- Sound (WebAudio, winzige Synth-Effekte) ----------
+// ---------- Sound (WebAudio) ----------
 let audioCtx = null;
 let muted = false;
 
@@ -178,11 +579,10 @@ function buildWave(w) {
 
 function startWave() {
   if (state.phase !== 'build' || state.gameOver) return;
-  // Bonus für frühen Start
   if (state.autoTimer > 0) {
     const bonus = Math.ceil(state.autoTimer) * 2;
     state.gold += bonus;
-    addFloater(W - 90, 30, '+' + bonus + ' 💰', '#f5b942');
+    addFloater(W - 120, 60, '+' + bonus + ' 💰', '#f5b942');
   }
   state.wave++;
   state.phase = 'wave';
@@ -213,6 +613,8 @@ function endWave() {
 function spawnEnemy(typeKey) {
   const t = ENEMY_TYPES[typeKey];
   const scale = waveHpScale(state.wave);
+  const mesh = makeEnemyMesh(typeKey);
+  scene.add(mesh);
   state.enemies.push({
     type: typeKey,
     x: waypoints[0].x,
@@ -228,7 +630,9 @@ function spawnEnemy(typeKey) {
     slowFactor: 1,
     dist: 0,
     dead: false,
+    dirX: 1, dirY: 0,
     wobble: Math.random() * Math.PI * 2,
+    mesh,
   });
 }
 
@@ -242,6 +646,7 @@ function updateEnemies(dt) {
       const tgt = waypoints[e.wp];
       const dx = tgt.x - e.x, dy = tgt.y - e.y;
       const d = Math.hypot(dx, dy);
+      if (d > 0.001) { e.dirX = dx / d; e.dirY = dy / d; }
       if (d <= move) {
         e.x = tgt.x; e.y = tgt.y;
         e.dist += d; move -= d;
@@ -254,11 +659,10 @@ function updateEnemies(dt) {
       }
     }
     if (e.wp >= waypoints.length) {
-      // Gegner ist durchgekommen
       e.dead = true;
       state.lives -= e.lives;
       sfx.leak();
-      addFloater(W - 40, waypoints[waypoints.length - 1].y, '-' + e.lives + ' ❤️', '#e85d5d');
+      addFloater(W - 60, waypoints[waypoints.length - 1].y, '-' + e.lives + ' ❤️', '#e85d5d');
       if (state.lives <= 0 && !state.gameOver) {
         state.lives = 0;
         state.gameOver = true;
@@ -268,6 +672,7 @@ function updateEnemies(dt) {
       updateUI();
     }
   }
+  for (const e of state.enemies) if (e.dead && e.mesh) { disposeEnemyMesh(e.mesh); e.mesh = null; }
   state.enemies = state.enemies.filter(e => !e.dead);
 }
 
@@ -283,7 +688,7 @@ function damageEnemy(e, dmg, slow) {
     state.gold += e.reward;
     sfx.death();
     addFloater(e.x, e.y - 14, '+' + e.reward, '#f5b942');
-    spawnParticles(e.x, e.y, ENEMY_TYPES[e.type].color, e.type === 'boss' ? 22 : 10);
+    spawnParticles(e.x, e.y, ENEMY_TYPES[e.type].color, e.type === 'boss' ? 26 : 12);
     updateUI();
   } else {
     sfx.hit();
@@ -306,6 +711,9 @@ function placeTower(cx, cy, type) {
   if (state.gold < cost) return false;
   if (!isBuildable(cx, cy)) return false;
   state.gold -= cost;
+  const mesh = makeTowerMesh(type);
+  mesh.position.set(cx - COLS / 2 + 0.5, 0, cy - ROWS / 2 + 0.5);
+  scene.add(mesh);
   state.towers.push({
     type, cx, cy,
     x: (cx + 0.5) * CELL,
@@ -314,8 +722,10 @@ function placeTower(cx, cy, type) {
     cooldown: 0,
     invested: cost,
     angle: 0,
+    mesh,
   });
   sfx.place();
+  spawnParticles((cx + 0.5) * CELL, (cy + 0.5) * CELL, 0xf5b942, 10);
   updateUI();
   return true;
 }
@@ -331,7 +741,6 @@ function updateTowers(dt) {
     t.cooldown -= dt;
     if (t.cooldown > 0) continue;
     const s = towerStats(t);
-    // Ziel: Gegner, der am weitesten auf dem Pfad ist und in Reichweite liegt
     let best = null;
     for (const e of state.enemies) {
       if (e.dead) continue;
@@ -343,11 +752,13 @@ function updateTowers(dt) {
     t.angle = Math.atan2(best.y - t.y, best.x - t.x);
     const base = TOWER_TYPES[t.type];
     if (base.laser) {
-      // Sofortiger Blitzstrahl
       damageEnemy(best, s.dmg);
-      state.beams.push({ x1: t.x, y1: t.y, x2: best.x, y2: best.y, ttl: 0.12, color: base.accent });
+      addBeam(t, best);
       sfx.bolt();
     } else {
+      const mesh = makeProjectileMesh(t.type);
+      mesh.position.set(pxToWX(t.x), t.type === 'cannon' ? 0.5 : 0.9, pxToWZ(t.y));
+      scene.add(mesh);
       state.projectiles.push({
         x: t.x, y: t.y,
         target: best,
@@ -357,12 +768,36 @@ function updateTowers(dt) {
         splash: base.splash || 0,
         slow: base.slow || null,
         type: t.type,
+        mesh,
       });
       if (t.type === 'cannon') sfx.cannon();
       else if (t.type === 'frost') sfx.frost();
       else sfx.shoot();
     }
   }
+}
+
+// ---------- Blitzstrahlen ----------
+function addBeam(t, e) {
+  const from = new THREE.Vector3(pxToWX(t.x), 1.18, pxToWZ(t.y));
+  const to = new THREE.Vector3(pxToWX(e.x), ENEMY_TYPES[e.type].radius / CELL, pxToWZ(e.y));
+  const pts = [from];
+  const segs = 6;
+  for (let i = 1; i < segs; i++) {
+    const f = i / segs;
+    pts.push(new THREE.Vector3(
+      from.x + (to.x - from.x) * f + (Math.random() - 0.5) * 0.3,
+      from.y + (to.y - from.y) * f + (Math.random() - 0.5) * 0.3,
+      from.z + (to.z - from.z) * f + (Math.random() - 0.5) * 0.3
+    ));
+  }
+  pts.push(to);
+  const geo = new THREE.BufferGeometry().setFromPoints(pts);
+  const mat = new THREE.LineBasicMaterial({ color: 0xc9a7ff, transparent: true, opacity: 1 });
+  const line = new THREE.Line(geo, mat);
+  scene.add(line);
+  state.beams.push({ line, ttl: 0.14, maxTtl: 0.14 });
+  spawnParticles(e.x, e.y, 0xc9a7ff, 6);
 }
 
 // ---------- Projektile ----------
@@ -373,10 +808,9 @@ function updateProjectiles(dt) {
     const d = Math.hypot(dx, dy);
     const step = p.speed * dt;
     if (d <= step + 6) {
-      // Einschlag
       p.hit = true;
       if (p.splash > 0) {
-        spawnParticles(p.tx, p.ty, '#ffb347', 14);
+        spawnParticles(p.tx, p.ty, 0xffb347, 16);
         for (const e of state.enemies) {
           if (!e.dead && Math.hypot(e.x - p.tx, e.y - p.ty) <= p.splash + e.radius) {
             damageEnemy(e, p.dmg, p.slow);
@@ -388,47 +822,109 @@ function updateProjectiles(dt) {
     } else {
       p.x += (dx / d) * step;
       p.y += (dy / d) * step;
-      // Ziel weg und kein Flächenschaden -> Projektil verpufft am Zielort
-      if ((!p.target || p.target.dead) && !p.splash && d < 4) p.hit = true;
     }
   }
+  for (const p of state.projectiles) if (p.hit && p.mesh) { scene.remove(p.mesh); p.mesh = null; }
   state.projectiles = state.projectiles.filter(p => !p.hit);
-  for (const b of state.beams) b.ttl -= dt;
+
+  for (const b of state.beams) {
+    b.ttl -= dt;
+    if (b.ttl <= 0) {
+      scene.remove(b.line);
+      b.line.geometry.dispose();
+      b.line.material.dispose();
+    } else {
+      b.line.material.opacity = b.ttl / b.maxTtl;
+    }
+  }
   state.beams = state.beams.filter(b => b.ttl > 0);
 }
 
-// ---------- Partikel & schwebende Texte ----------
-function spawnParticles(x, y, color, n) {
+// ---------- Partikel (3D) ----------
+const particleGeo = new THREE.SphereGeometry(1, 8, 6);
+const particleMatCache = {};
+function particleMat(color) {
+  if (!particleMatCache[color]) {
+    particleMatCache[color] = new THREE.MeshBasicMaterial({ color });
+  }
+  return particleMatCache[color];
+}
+
+function spawnParticles(xPx, yPx, color, n) {
+  const wx = pxToWX(xPx), wz = pxToWZ(yPx);
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2;
-    const v = 40 + Math.random() * 120;
+    const v = 1 + Math.random() * 2.5;
+    const mesh = new THREE.Mesh(particleGeo, particleMat(color));
+    const size = 0.04 + Math.random() * 0.07;
+    mesh.scale.setScalar(size);
+    mesh.position.set(wx, 0.3 + Math.random() * 0.3, wz);
+    scene.add(mesh);
     state.particles.push({
-      x, y,
-      vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+      mesh, size,
+      vx: Math.cos(a) * v,
+      vy: 1.5 + Math.random() * 2.5,
+      vz: Math.sin(a) * v,
       ttl: 0.4 + Math.random() * 0.4,
       maxTtl: 0.8,
-      r: 2 + Math.random() * 3,
-      color,
     });
   }
 }
 
-function addFloater(x, y, text, color) {
-  state.floaters.push({ x, y, text, color, ttl: 1.4 });
-}
-
 function updateParticles(dt) {
   for (const p of state.particles) {
-    p.x += p.vx * dt; p.y += p.vy * dt;
-    p.vx *= 0.92; p.vy *= 0.92;
+    p.vy -= 9 * dt;
+    p.mesh.position.x += p.vx * dt;
+    p.mesh.position.y = Math.max(0.03, p.mesh.position.y + p.vy * dt);
+    p.mesh.position.z += p.vz * dt;
     p.ttl -= dt;
+    p.mesh.scale.setScalar(Math.max(0.001, p.size * (p.ttl / p.maxTtl)));
+    if (p.ttl <= 0) scene.remove(p.mesh);
   }
   state.particles = state.particles.filter(p => p.ttl > 0);
-  for (const f of state.floaters) { f.y -= 28 * dt; f.ttl -= dt; }
+}
+
+// ---------- Schwebende Texte (HTML-Overlay) ----------
+const wrap = document.getElementById('game-wrap');
+
+function addFloater(xPx, yPx, text, color) {
+  const div = document.createElement('div');
+  div.className = 'floater';
+  div.textContent = text;
+  div.style.color = color;
+  wrap.appendChild(div);
+  state.floaters.push({
+    el: div,
+    pos: new THREE.Vector3(pxToWX(xPx), 0.8, pxToWZ(yPx)),
+    ttl: 1.4,
+  });
+}
+
+const projVec = new THREE.Vector3();
+function worldToScreen(v) {
+  projVec.copy(v).project(camera);
+  const r = renderer.domElement.getBoundingClientRect();
+  return {
+    x: (projVec.x * 0.5 + 0.5) * r.width,
+    y: (-projVec.y * 0.5 + 0.5) * r.height,
+    behind: projVec.z > 1,
+  };
+}
+
+function updateFloaters(dt) {
+  for (const f of state.floaters) {
+    f.ttl -= dt;
+    f.pos.y += 0.9 * dt;
+    if (f.ttl <= 0) { f.el.remove(); continue; }
+    const s = worldToScreen(f.pos);
+    f.el.style.left = s.x + 'px';
+    f.el.style.top = s.y + 'px';
+    f.el.style.opacity = Math.min(1, f.ttl);
+  }
   state.floaters = state.floaters.filter(f => f.ttl > 0);
 }
 
-// ---------- Haupt-Update ----------
+// ---------- Haupt-Update (Spiellogik) ----------
 function update(dt) {
   if (state.phase === 'wave') {
     if (state.spawnQueue.length > 0) {
@@ -452,251 +948,78 @@ function update(dt) {
   updateParticles(dt);
 }
 
-// ---------- Zeichnen ----------
-function draw() {
-  ctx.clearRect(0, 0, W, H);
+// ---------- Szene synchronisieren (jeden Frame) ----------
+const upVec = new THREE.Vector3(0, 1, 0);
+const tmpDir = new THREE.Vector3();
 
-  // Gras (Schachbrett)
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      ctx.fillStyle = (c + r) % 2 === 0 ? '#2c4a32' : '#28452e';
-      ctx.fillRect(c * CELL, r * CELL, CELL, CELL);
-    }
+function syncScene(rawDt) {
+  // Gegner
+  for (const e of state.enemies) {
+    if (!e.mesh) continue;
+    e.wobble += rawDt * 7;
+    const rw = e.radius / CELL;
+    const bob = Math.abs(Math.sin(e.wobble)) * 0.06;
+    e.mesh.position.set(pxToWX(e.x), rw + bob, pxToWZ(e.y));
+    e.mesh.rotation.y = -Math.atan2(e.dirY, e.dirX);
+    // Verlangsamungs-Färbung
+    e.mesh.userData.bodyMat.color.set(e.slowT > 0 ? SLOW_TINT : e.mesh.userData.baseColor);
+    // Lebensbalken
+    const frac = Math.max(0, e.hp / e.maxHp);
+    const fg = e.mesh.userData.fg;
+    fg.scale.x = Math.max(0.001, e.mesh.userData.bw * frac);
+    e.mesh.userData.fgMat.color.set(frac > 0.5 ? 0x5fd068 : frac > 0.25 ? 0xe8b64f : 0xe85d5d);
   }
 
-  // Pfad
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#6e5637';
-  ctx.lineWidth = CELL * 0.86;
-  drawPathLine();
-  ctx.strokeStyle = '#8a6d46';
-  ctx.lineWidth = CELL * 0.68;
-  drawPathLine();
+  // Türme (Geschütz drehen, Kristall/Orb animieren)
+  for (const t of state.towers) {
+    const turret = t.mesh.userData.turret;
+    if (turret) turret.rotation.y = -t.angle;
+    const crystal = t.mesh.userData.crystal;
+    if (crystal) crystal.rotation.y += rawDt * 1.5;
+    const orb = t.mesh.userData.orb;
+    if (orb) orb.position.y = orb.userData.baseY + Math.sin(performance.now() / 400) * 0.06;
+  }
 
-  // Start-/Zielmarkierung
-  const sp = waypoints[0], ep = waypoints[waypoints.length - 1];
-  ctx.fillStyle = '#5fd068';
-  ctx.beginPath(); ctx.arc(2, sp.y, 14, -Math.PI / 2, Math.PI / 2); ctx.fill();
-  ctx.fillStyle = '#e85d5d';
-  ctx.beginPath(); ctx.arc(W - 2, ep.y, 14, Math.PI / 2, -Math.PI / 2); ctx.fill();
+  // Projektile
+  for (const p of state.projectiles) {
+    if (!p.mesh) continue;
+    const y = p.type === 'archer' ? 0.85 : 0.5;
+    p.mesh.position.set(pxToWX(p.x), y, pxToWZ(p.y));
+    if (p.type === 'archer') {
+      tmpDir.set(p.tx - p.x, 0, p.ty - p.y).normalize();
+      p.mesh.quaternion.setFromUnitVectors(upVec, tmpDir);
+    }
+  }
 
   // Bauvorschau
   if (state.buildType && state.hoverCell) {
     const [cx, cy] = state.hoverCell;
     const ok = isBuildable(cx, cy) && state.gold >= TOWER_TYPES[state.buildType].cost;
-    ctx.fillStyle = ok ? 'rgba(95,208,104,.35)' : 'rgba(232,93,93,.35)';
-    ctx.fillRect(cx * CELL, cy * CELL, CELL, CELL);
+    cellHighlight.visible = true;
+    cellHighlight.material.color.set(ok ? 0x5fd068 : 0xe85d5d);
+    cellHighlight.position.x = cx - COLS / 2 + 0.5;
+    cellHighlight.position.z = cy - ROWS / 2 + 0.5;
     if (ok) {
-      drawRange((cx + 0.5) * CELL, (cy + 0.5) * CELL, TOWER_TYPES[state.buildType].range);
+      showRangeAt(cx - COLS / 2 + 0.5, cy - ROWS / 2 + 0.5, TOWER_TYPES[state.buildType].range);
+    } else {
+      rangeGroup.visible = false;
     }
-  }
-
-  // Reichweite des ausgewählten Turms
-  if (state.selectedTower) {
+  } else if (state.selectedTower) {
+    cellHighlight.visible = false;
     const t = state.selectedTower;
-    drawRange(t.x, t.y, towerStats(t).range);
-  }
-
-  // Türme
-  for (const t of state.towers) drawTower(t);
-
-  // Gegner
-  for (const e of state.enemies) drawEnemy(e);
-
-  // Projektile
-  for (const p of state.projectiles) drawProjectile(p);
-
-  // Blitzstrahlen
-  for (const b of state.beams) {
-    ctx.strokeStyle = b.color;
-    ctx.lineWidth = 3;
-    ctx.globalAlpha = Math.min(1, b.ttl / 0.12);
-    ctx.beginPath();
-    // Gezackter Blitz
-    const segs = 5;
-    ctx.moveTo(b.x1, b.y1);
-    for (let i = 1; i < segs; i++) {
-      const f = i / segs;
-      const mx = b.x1 + (b.x2 - b.x1) * f + (Math.random() - 0.5) * 10;
-      const my = b.y1 + (b.y2 - b.y1) * f + (Math.random() - 0.5) * 10;
-      ctx.lineTo(mx, my);
-    }
-    ctx.lineTo(b.x2, b.y2);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
-
-  // Partikel
-  for (const p of state.particles) {
-    ctx.globalAlpha = Math.max(0, p.ttl / p.maxTtl);
-    ctx.fillStyle = p.color;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-
-  // Schwebende Texte
-  ctx.font = 'bold 14px "Segoe UI", sans-serif';
-  ctx.textAlign = 'center';
-  for (const f of state.floaters) {
-    ctx.globalAlpha = Math.min(1, f.ttl);
-    ctx.fillStyle = 'rgba(0,0,0,.6)';
-    ctx.fillText(f.text, f.x + 1, f.y + 1);
-    ctx.fillStyle = f.color;
-    ctx.fillText(f.text, f.x, f.y);
-  }
-  ctx.globalAlpha = 1;
-
-  // Pause-Hinweis
-  if (state.paused && !state.gameOver) {
-    ctx.fillStyle = 'rgba(10,15,25,.55)';
-    ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#e8edf5';
-    ctx.font = 'bold 36px "Segoe UI", sans-serif';
-    ctx.fillText('⏸ Pause', W / 2, H / 2);
-  }
-}
-
-function drawPathLine() {
-  ctx.beginPath();
-  ctx.moveTo(waypoints[0].x, waypoints[0].y);
-  for (let i = 1; i < waypoints.length; i++) ctx.lineTo(waypoints[i].x, waypoints[i].y);
-  ctx.stroke();
-}
-
-function drawRange(x, y, range) {
-  ctx.fillStyle = 'rgba(245,185,66,.08)';
-  ctx.strokeStyle = 'rgba(245,185,66,.5)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.arc(x, y, range, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-}
-
-function drawTower(t) {
-  const base = TOWER_TYPES[t.type];
-  const { x, y } = t;
-  // Sockel
-  ctx.fillStyle = '#3a3a45';
-  ctx.beginPath();
-  ctx.arc(x, y, 15, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = base.color;
-  ctx.beginPath();
-  ctx.arc(x, y, 12, 0, Math.PI * 2);
-  ctx.fill();
-  // Rohr / Aufsatz Richtung Ziel
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(t.angle);
-  ctx.fillStyle = base.accent;
-  if (t.type === 'cannon') {
-    ctx.fillRect(0, -4, 17, 8);
-  } else if (t.type === 'frost') {
-    ctx.beginPath();
-    ctx.moveTo(16, 0); ctx.lineTo(4, -6); ctx.lineTo(4, 6);
-    ctx.closePath(); ctx.fill();
-  } else if (t.type === 'bolt') {
-    ctx.beginPath();
-    ctx.arc(0, 0, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillRect(0, -2.5, 15, 5);
+    showRangeAt(pxToWX(t.x), pxToWZ(t.y), towerStats(t).range);
   } else {
-    ctx.fillRect(0, -2.5, 15, 5);
+    cellHighlight.visible = false;
+    rangeGroup.visible = false;
   }
-  ctx.restore();
-  // Stufen-Punkte
-  ctx.fillStyle = '#f5b942';
-  for (let i = 0; i < t.level; i++) {
-    ctx.beginPath();
-    ctx.arc(x - 8 + i * 8, y + 15, 2.6, 0, Math.PI * 2);
-    ctx.fill();
-  }
+
   // Auswahlring
-  if (state.selectedTower === t) {
-    ctx.strokeStyle = '#f5b942';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, 18, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-}
-
-function drawEnemy(e) {
-  const t = ENEMY_TYPES[e.type];
-  e.wobble += 0.15;
-  const wob = Math.sin(e.wobble) * 1.5;
-  // Schatten
-  ctx.fillStyle = 'rgba(0,0,0,.3)';
-  ctx.beginPath();
-  ctx.ellipse(e.x, e.y + e.radius * 0.8, e.radius * 0.9, e.radius * 0.4, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // Körper
-  ctx.fillStyle = e.slowT > 0 ? '#7ab8d9' : t.color;
-  ctx.strokeStyle = t.dark;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(e.x, e.y + wob, e.radius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  // Augen
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  ctx.arc(e.x - e.radius * 0.35, e.y + wob - 2, e.radius * 0.22, 0, Math.PI * 2);
-  ctx.arc(e.x + e.radius * 0.35, e.y + wob - 2, e.radius * 0.22, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = '#222';
-  ctx.beginPath();
-  ctx.arc(e.x - e.radius * 0.3, e.y + wob - 2, e.radius * 0.1, 0, Math.PI * 2);
-  ctx.arc(e.x + e.radius * 0.4, e.y + wob - 2, e.radius * 0.1, 0, Math.PI * 2);
-  ctx.fill();
-  // Boss-Krone
-  if (e.type === 'boss') {
-    ctx.fillStyle = '#f5b942';
-    ctx.beginPath();
-    const bx = e.x, by = e.y + wob - e.radius - 3;
-    ctx.moveTo(bx - 10, by);
-    ctx.lineTo(bx - 10, by - 8);
-    ctx.lineTo(bx - 5, by - 3);
-    ctx.lineTo(bx, by - 9);
-    ctx.lineTo(bx + 5, by - 3);
-    ctx.lineTo(bx + 10, by - 8);
-    ctx.lineTo(bx + 10, by);
-    ctx.closePath();
-    ctx.fill();
-  }
-  // Lebensbalken
-  const bw = e.radius * 2.2;
-  const frac = Math.max(0, e.hp / e.maxHp);
-  ctx.fillStyle = 'rgba(0,0,0,.55)';
-  ctx.fillRect(e.x - bw / 2, e.y - e.radius - 10, bw, 5);
-  ctx.fillStyle = frac > 0.5 ? '#5fd068' : frac > 0.25 ? '#e8b64f' : '#e85d5d';
-  ctx.fillRect(e.x - bw / 2, e.y - e.radius - 10, bw * frac, 5);
-}
-
-function drawProjectile(p) {
-  if (p.type === 'cannon') {
-    ctx.fillStyle = '#2e2e35';
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 5.5, 0, Math.PI * 2);
-    ctx.fill();
-  } else if (p.type === 'frost') {
-    ctx.fillStyle = '#a8dcf0';
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-    ctx.fill();
+  if (state.selectedTower) {
+    selectRing.visible = true;
+    selectRing.position.x = pxToWX(state.selectedTower.x);
+    selectRing.position.z = pxToWZ(state.selectedTower.y);
   } else {
-    // Pfeil
-    const a = Math.atan2(p.ty - p.y, p.tx - p.x);
-    ctx.strokeStyle = '#d9a066';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(p.x - Math.cos(a) * 7, p.y - Math.sin(a) * 7);
-    ctx.lineTo(p.x + Math.cos(a) * 7, p.y + Math.sin(a) * 7);
-    ctx.stroke();
+    selectRing.visible = false;
   }
 }
 
@@ -720,6 +1043,7 @@ const el = {
   ovText: document.getElementById('ov-text'),
   ovRestart: document.getElementById('ov-restart'),
   ovEndless: document.getElementById('ov-endless'),
+  pauseOv: document.getElementById('pause-ov'),
 };
 
 function buildShop() {
@@ -797,13 +1121,12 @@ function showTowerPanel(t) {
   }
   el.tpSell.textContent = 'Verkaufen (+💰' + sellValue(t) + ')';
 
-  // Panel neben dem Turm positionieren (in CSS-Pixeln)
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = rect.width / W, scaleY = rect.height / H;
-  let px = t.x * scaleX + 24;
-  let py = t.y * scaleY - 40;
-  px = Math.min(px, rect.width - 185);
-  py = Math.max(4, Math.min(py, rect.height - 150));
+  const rect = renderer.domElement.getBoundingClientRect();
+  const s2 = worldToScreen(new THREE.Vector3(pxToWX(t.x), 1.2, pxToWZ(t.y)));
+  let px = s2.x + 20;
+  let py = s2.y - 60;
+  px = Math.min(Math.max(4, px), rect.width - 185);
+  py = Math.max(4, Math.min(py, rect.height - 160));
   el.panel.style.left = px + 'px';
   el.panel.style.top = py + 'px';
   el.panel.style.display = 'flex';
@@ -829,28 +1152,55 @@ function hideOverlay() {
 }
 
 // ---------- Eingaben ----------
-function canvasCell(evt) {
-  const rect = canvas.getBoundingClientRect();
-  const x = (evt.clientX - rect.left) * (W / rect.width);
-  const y = (evt.clientY - rect.top) * (H / rect.height);
-  return { x, y, cx: Math.floor(x / CELL), cy: Math.floor(y / CELL) };
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+const hitPoint = new THREE.Vector3();
+
+function pickCell(evt) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((evt.clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((evt.clientY - r.top) / r.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  if (!raycaster.ray.intersectPlane(groundPlane, hitPoint)) return null;
+  const cx = Math.floor(hitPoint.x + COLS / 2);
+  const cy = Math.floor(hitPoint.z + ROWS / 2);
+  if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) return null;
+  return { cx, cy };
 }
 
-canvas.addEventListener('pointermove', (evt) => {
-  const { cx, cy } = canvasCell(evt);
-  state.hoverCell = (cx >= 0 && cx < COLS && cy >= 0 && cy < ROWS) ? [cx, cy] : null;
-});
+function pickTower(evt) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.x = ((evt.clientX - r.left) / r.width) * 2 - 1;
+  ndc.y = -((evt.clientY - r.top) / r.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  const meshes = state.towers.map(t => t.mesh);
+  const hits = raycaster.intersectObjects(meshes, true);
+  if (hits.length === 0) return null;
+  let obj = hits[0].object;
+  while (obj && !state.towers.some(t => t.mesh === obj)) obj = obj.parent;
+  return state.towers.find(t => t.mesh === obj) || null;
+}
 
-canvas.addEventListener('pointerleave', () => { state.hoverCell = null; });
+// Kamera-Orbit mit rechter Maustaste
+const orbit = { active: false, moved: 0, lastX: 0, lastY: 0 };
 
-canvas.addEventListener('pointerdown', (evt) => {
+renderer.domElement.addEventListener('pointerdown', (evt) => {
   ensureAudio();
+  if (evt.button === 2) {
+    orbit.active = true;
+    orbit.moved = 0;
+    orbit.lastX = evt.clientX;
+    orbit.lastY = evt.clientY;
+    renderer.domElement.setPointerCapture(evt.pointerId);
+    return;
+  }
+  if (evt.button !== 0) return;
   if (state.gameOver && !state.victory) return;
-  const { x, y, cx, cy } = canvasCell(evt);
 
   if (state.buildType) {
-    if (placeTower(cx, cy, state.buildType)) {
-      // Turmtyp bleibt gewählt, solange Gold reicht (schnelles Bauen)
+    const cell = pickCell(evt);
+    if (cell && placeTower(cell.cx, cell.cy, state.buildType)) {
       if (state.gold < TOWER_TYPES[state.buildType].cost) selectBuildType(null);
       else updateShopButtons();
     } else {
@@ -859,23 +1209,55 @@ canvas.addEventListener('pointerdown', (evt) => {
     return;
   }
 
-  // Turm anklicken?
-  const clicked = state.towers.find(t => Math.hypot(t.x - x, t.y - y) <= 18);
-  if (clicked) {
-    state.selectedTower = clicked;
-    showTowerPanel(clicked);
+  const tower = pickTower(evt);
+  if (tower) {
+    state.selectedTower = tower;
+    showTowerPanel(tower);
   } else {
     state.selectedTower = null;
     hideTowerPanel();
   }
 });
 
-canvas.addEventListener('contextmenu', (evt) => {
-  evt.preventDefault();
-  selectBuildType(null);
-  state.selectedTower = null;
-  hideTowerPanel();
+renderer.domElement.addEventListener('pointermove', (evt) => {
+  if (orbit.active) {
+    const dx = evt.clientX - orbit.lastX;
+    const dy = evt.clientY - orbit.lastY;
+    orbit.moved += Math.abs(dx) + Math.abs(dy);
+    orbit.lastX = evt.clientX;
+    orbit.lastY = evt.clientY;
+    camCtl.theta -= dx * 0.005;
+    camCtl.phi = Math.min(1.25, Math.max(0.4, camCtl.phi - dy * 0.004));
+    updateCamera();
+    if (state.selectedTower) showTowerPanel(state.selectedTower);
+    return;
+  }
+  const cell = pickCell(evt);
+  state.hoverCell = cell ? [cell.cx, cell.cy] : null;
 });
+
+renderer.domElement.addEventListener('pointerup', (evt) => {
+  if (evt.button === 2 && orbit.active) {
+    orbit.active = false;
+    if (orbit.moved < 6) {
+      // Rechtsklick ohne Ziehen = Abbrechen/Abwählen
+      selectBuildType(null);
+      state.selectedTower = null;
+      hideTowerPanel();
+    }
+  }
+});
+
+renderer.domElement.addEventListener('pointerleave', () => { state.hoverCell = null; });
+
+renderer.domElement.addEventListener('wheel', (evt) => {
+  evt.preventDefault();
+  camCtl.radius = Math.min(28, Math.max(9, camCtl.radius * (1 + evt.deltaY * 0.001)));
+  updateCamera();
+  if (state.selectedTower) showTowerPanel(state.selectedTower);
+}, { passive: false });
+
+renderer.domElement.addEventListener('contextmenu', (evt) => evt.preventDefault());
 
 document.addEventListener('keydown', (evt) => {
   if (evt.code === 'Escape') {
@@ -885,6 +1267,9 @@ document.addEventListener('keydown', (evt) => {
   } else if (evt.code === 'Space') {
     evt.preventDefault();
     togglePause();
+  } else if (evt.code === 'KeyR') {
+    Object.assign(camCtl, CAM_DEFAULT);
+    updateCamera();
   } else if (evt.code === 'Digit1') selectBuildType('archer');
   else if (evt.code === 'Digit2') selectBuildType('cannon');
   else if (evt.code === 'Digit3') selectBuildType('frost');
@@ -898,6 +1283,7 @@ function togglePause() {
   if (state.gameOver) return;
   state.paused = !state.paused;
   el.btnPause.textContent = state.paused ? '▶' : '⏸';
+  el.pauseOv.style.display = state.paused ? 'flex' : 'none';
 }
 el.btnPause.addEventListener('click', () => { ensureAudio(); togglePause(); });
 
@@ -920,8 +1306,9 @@ el.tpUpgrade.addEventListener('click', () => {
   state.gold -= cost;
   t.invested += cost;
   t.level++;
+  refreshTowerLevel(t);
   sfx.upgrade();
-  spawnParticles(t.x, t.y, '#f5b942', 12);
+  spawnParticles(t.x, t.y, 0xf5b942, 14);
   updateUI();
 });
 
@@ -929,6 +1316,7 @@ el.tpSell.addEventListener('click', () => {
   const t = state.selectedTower;
   if (!t) return;
   state.gold += sellValue(t);
+  scene.remove(t.mesh);
   state.towers = state.towers.filter(x => x !== t);
   state.selectedTower = null;
   hideTowerPanel();
@@ -949,11 +1337,6 @@ el.ovEndless.addEventListener('click', () => {
   updateUI();
 });
 
-// Panel bei Fenstergröße neu positionieren
-window.addEventListener('resize', () => {
-  if (state.selectedTower) showTowerPanel(state.selectedTower);
-});
-
 // ---------- Spielschleife ----------
 let lastTime = performance.now();
 
@@ -961,10 +1344,11 @@ function loop(now) {
   const rawDt = Math.min((now - lastTime) / 1000, 0.05);
   lastTime = now;
   if (!state.paused && !(state.gameOver && !state.victory)) {
-    // Bei mehrfacher Geschwindigkeit in kleinen Schritten simulieren
     for (let i = 0; i < state.speed; i++) update(rawDt);
   }
-  draw();
+  syncScene(rawDt);
+  updateFloaters(rawDt);
+  renderer.render(scene, camera);
   requestAnimationFrame(loop);
 }
 
