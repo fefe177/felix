@@ -65,8 +65,24 @@ const TOWER_TYPES = {
     manual: { dmg: 50, rate: 3, range: 300 },
     desc: 'Betretbar — selbst zielen &amp; schießen!',
   },
+  poison: {
+    name: 'Giftturm', cost: 90, dmg: 5, range: 100, rate: 1.1,
+    projSpeed: 320, poison: { dps: 16, dur: 3 }, color: '#5a9e3f',
+    desc: 'Gift: Schaden über Zeit',
+  },
+  mine: {
+    name: 'Goldmine', cost: 100, income: 15, color: '#b8912f',
+    desc: 'Erzeugt Gold nach jeder Welle',
+  },
 };
-const TOWER_KEYS = ['archer', 'cannon', 'frost', 'bolt', 'guard'];
+const TOWER_KEYS = ['archer', 'cannon', 'frost', 'bolt', 'guard', 'poison', 'mine'];
+
+// ---------- Ausrüstung (ein Gegenstand pro Turm) ----------
+const EQUIP = {
+  scope:  { icon: '🔭', name: 'Zielfernrohr',     cost: 60,  range: 1.25, color: 0x5da9e8 },
+  loader: { icon: '⚙️', name: 'Schnelllader',     cost: 80,  rate: 1.3,   color: 0xe8a44f },
+  ammo:   { icon: '💥', name: 'Schwere Munition', cost: 100, dmg: 1.35,   color: 0xe85d5d },
+};
 
 const LEVEL_MULT = [1, 1.6, 2.5];
 const RANGE_MULT = [1, 1.12, 1.25];
@@ -85,6 +101,7 @@ const ENEMY_TYPES = {
   boss:   { hp: 650, speed: 30, reward: 60, radius: 20, lives: 5, color: 0x7a4fa0 },
 };
 const SLOW_TINT = 0x7ab8d9;
+const POISON_TINT = 0x8cc45f;
 
 // ============================================================
 //  Three.js — Szene, Kamera, Licht, Spielfeld
@@ -438,6 +455,52 @@ function makeTowerMesh(type, level) {
     tip.rotation.z = -Math.PI / 2;
     g.userData.muzzleY = h + 0.3;
     g.userData.eyeY = h + 0.42; // Augenhöhe in der Ego-Ansicht
+  } else if (type === 'poison') {
+    // Giftkessel: brodelnder Trank — Stufe 2 mit Goldrand, Stufe 3 mit Dornenkranz
+    const bh = [0, 0.18, 0.24, 0.3][level];
+    addPart(g, new THREE.CylinderGeometry(0.36, 0.44, bh * 2, 12), MAT.stoneDark, 0, bh, 0);
+    addPart(g, new THREE.CylinderGeometry(0.34, 0.24, 0.42, 12), MAT.metal, 0, bh * 2 + 0.21, 0);
+    const brew = new THREE.MeshStandardMaterial({ color: 0x6fdc4f, emissive: 0x3f9e2a, emissiveIntensity: 0.8, roughness: 0.4 });
+    addPart(g, new THREE.CylinderGeometry(0.29, 0.29, 0.05, 12), brew, 0, bh * 2 + 0.42, 0);
+    if (level >= 2) {
+      const rim = addPart(g, new THREE.TorusGeometry(0.33, 0.035, 8, 18), MAT.gold, 0, bh * 2 + 0.42, 0);
+      rim.rotation.x = Math.PI / 2;
+    }
+    if (level >= 3) {
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2;
+        const thorn = addPart(g, new THREE.ConeGeometry(0.06, 0.28, 6), brew, Math.cos(a) * 0.42, bh * 2 + 0.3, Math.sin(a) * 0.42);
+        thorn.quaternion.setFromUnitVectors(UP, new THREE.Vector3(Math.cos(a), 1.6, Math.sin(a)).normalize());
+      }
+    }
+    // Blubberblasen kreisen über dem Kessel
+    const orbiter = new THREE.Group();
+    orbiter.position.y = bh * 2 + 0.55;
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      addPart(orbiter, new THREE.SphereGeometry(0.04 + i * 0.012, 8, 6), brew, Math.cos(a) * 0.16, i * 0.07, Math.sin(a) * 0.16);
+    }
+    g.add(orbiter);
+    g.userData.orbiter = orbiter;
+    g.userData.muzzleY = bh * 2 + 0.5;
+  } else if (type === 'mine') {
+    // Goldmine: Erzhaufen mit Nuggets — mehr Gold pro Stufe
+    const r1 = addPart(g, new THREE.DodecahedronGeometry(0.34), MAT.rock, -0.08, 0.2, 0.05);
+    r1.rotation.set(0.5, 1.1, 0.2);
+    const r2 = addPart(g, new THREE.DodecahedronGeometry(0.24), MAT.rock, 0.22, 0.15, -0.16);
+    r2.rotation.set(1.2, 0.3, 0.8);
+    const r3 = addPart(g, new THREE.DodecahedronGeometry(0.18), MAT.rock, 0.02, 0.12, 0.3);
+    r3.rotation.set(0.2, 2.1, 1.4);
+    const spots = [[0.02, 0.44, 0.0], [-0.24, 0.28, -0.1], [0.3, 0.26, 0.1], [-0.08, 0.22, 0.32]];
+    for (let i = 0; i <= level && i < spots.length; i++) {
+      const nug = addPart(g, new THREE.OctahedronGeometry(0.08 + level * 0.015), MAT.gold, spots[i][0], spots[i][1], spots[i][2]);
+      nug.rotation.set(i, i * 2, i * 0.7);
+    }
+    if (level >= 3) {
+      addPart(g, new THREE.OctahedronGeometry(0.16),
+        new THREE.MeshStandardMaterial({ color: 0xffd875, emissive: 0xcf9a2c, emissiveIntensity: 0.5, roughness: 0.3 }),
+        0.0, 0.58, 0.0);
+    }
   }
 
   if (turret) {
@@ -458,6 +521,7 @@ function rebuildTowerMesh(t) {
   t.mesh.position.set(t.cx - COLS / 2 + 0.5, 0, t.cy - ROWS / 2 + 0.5);
   scene.add(t.mesh);
   if (t.mesh.userData.turret) t.mesh.userData.turret.rotation.y = -t.angle;
+  addEquipBadge(t); // Ausrüstungs-Anhänger bleibt über Stufen erhalten
 }
 
 // ---------- Gegner-Modelle ----------
@@ -549,10 +613,12 @@ const projGeos = {
   frost: new THREE.SphereGeometry(0.09, 12, 10),
 };
 const frostBallMat = new THREE.MeshStandardMaterial({ color: 0xa8dcf0, emissive: 0x4aa8d8, emissiveIntensity: 0.8, roughness: 0.3 });
+const poisonBallMat = new THREE.MeshStandardMaterial({ color: 0x6fdc4f, emissive: 0x3f9e2a, emissiveIntensity: 0.8, roughness: 0.3 });
 
 function makeProjectileMesh(type) {
   if (type === 'cannon') return new THREE.Mesh(projGeos.cannon, MAT.darkBall);
   if (type === 'frost') return new THREE.Mesh(projGeos.frost, frostBallMat);
+  if (type === 'poison') return new THREE.Mesh(projGeos.frost, poisonBallMat);
   return new THREE.Mesh(projGeos.archer, MAT.woodLight);
 }
 
@@ -700,6 +766,7 @@ const sfx = {
   shoot:   () => beep(520, 0.07, 'square', 0.025, -180),
   cannon:  () => beep(140, 0.22, 'triangle', 0.09, -70),
   frost:   () => beep(880, 0.09, 'sine', 0.035, -300),
+  poison:  () => beep(240, 0.14, 'sine', 0.05, 160),
   bolt:    () => beep(1200, 0.12, 'sawtooth', 0.04, -900),
   guard:   () => beep(700, 0.06, 'square', 0.05, -260),
   hit:     () => beep(300, 0.05, 'triangle', 0.03, -100),
@@ -715,13 +782,14 @@ const sfx = {
 
 // ---------- Wellen ----------
 function waveHpScale(w) {
-  return 1 + (w - 1) * 0.32 + Math.pow(Math.max(0, w - 8), 1.6) * 0.05;
+  // Linear bis ~Welle 8, danach zieht die Kurve an — Welle 20 ≈ 11,5×
+  return 1 + (w - 1) * 0.32 + Math.pow(Math.max(0, w - 8), 1.6) * 0.08;
 }
 
 function buildWave(w) {
   const queue = [];
   const isBossWave = w % 5 === 0;
-  let count = Math.min(6 + w * 2, 42);
+  let count = Math.min(6 + w * 2, 46);
   if (isBossWave) count = Math.max(4, Math.floor(count * 0.6));
   for (let i = 0; i < count; i++) {
     let type = 'normal';
@@ -769,6 +837,13 @@ function endWave() {
   state.phase = 'build';
   const bonus = 25 + state.wave * 3;
   state.gold += bonus;
+  // Goldminen schütten aus
+  for (const t of state.towers) {
+    if (t.type !== 'mine') continue;
+    const inc = Math.round(TOWER_TYPES.mine.income * LEVEL_MULT[t.level - 1]);
+    state.gold += inc;
+    addFloater(t.x, t.y, '+' + inc + ' 💰', '#f5b942');
+  }
   saveBest(state.wave);
   addFloater(W / 2, H / 2 - 40, 'Welle geschafft! +' + bonus + ' 💰', '#5fd068');
   if (state.wave >= TOTAL_WAVES && !state.endless) {
@@ -801,6 +876,8 @@ function spawnEnemy(typeKey) {
     lives: t.lives,
     slowT: 0,
     slowFactor: 1,
+    poisonT: 0,
+    poisonDps: 0,
     dist: 0,
     dead: false,
     hitFlash: 0,
@@ -815,6 +892,11 @@ function updateEnemies(dt) {
   for (const e of state.enemies) {
     if (e.dead) continue;
     if (e.slowT > 0) e.slowT -= dt;
+    if (e.poisonT > 0) {
+      e.poisonT -= dt;
+      e.hp -= e.poisonDps * dt;
+      if (e.hp <= 0) { killEnemy(e); continue; }
+    }
     const spd = e.speed * (e.slowT > 0 ? e.slowFactor : 1);
     let move = spd * dt;
     while (move > 0 && e.wp < waypoints.length) {
@@ -852,36 +934,66 @@ function updateEnemies(dt) {
   state.enemies = state.enemies.filter(e => !e.dead);
 }
 
-function damageEnemy(e, dmg, slow) {
+function killEnemy(e) {
+  if (e.dead) return;
+  e.dead = true;
+  state.gold += e.reward;
+  state.kills++;
+  sfx.death();
+  addFloater(e.x, e.y - 14, '+' + e.reward, '#f5b942');
+  spawnParticles(e.x, e.y, ENEMY_TYPES[e.type].color, e.type === 'boss' ? 26 : 12);
+  updateUI();
+}
+
+function damageEnemy(e, dmg, slow, poison) {
   if (e.dead) return;
   e.hp -= dmg;
   if (slow) {
     e.slowT = Math.max(e.slowT, slow.dur);
     e.slowFactor = slow.factor;
   }
-  e.hitFlash = 1;
-  if (e.hp <= 0) {
-    e.dead = true;
-    state.gold += e.reward;
-    state.kills++;
-    sfx.death();
-    addFloater(e.x, e.y - 14, '+' + e.reward, '#f5b942');
-    spawnParticles(e.x, e.y, ENEMY_TYPES[e.type].color, e.type === 'boss' ? 26 : 12);
-    updateUI();
-  } else {
-    sfx.hit();
+  if (poison) {
+    e.poisonT = Math.max(e.poisonT, poison.dur);
+    e.poisonDps = Math.max(e.poisonDps, poison.dps);
   }
+  e.hitFlash = 1;
+  if (e.hp <= 0) killEnemy(e);
+  else sfx.hit();
 }
 
 // ---------- Türme ----------
 function towerStats(t) {
   const base = TOWER_TYPES[t.type];
   const li = t.level - 1;
+  const eq = t.equip ? EQUIP[t.equip] : null;
   return {
-    dmg: base.dmg * LEVEL_MULT[li],
-    range: base.range * RANGE_MULT[li],
-    rate: base.rate * RATE_MULT[li],
+    dmg: base.dmg * LEVEL_MULT[li] * (eq && eq.dmg ? eq.dmg : 1),
+    range: base.range * RANGE_MULT[li] * (eq && eq.range ? eq.range : 1),
+    rate: base.rate * RATE_MULT[li] * (eq && eq.rate ? eq.rate : 1),
   };
+}
+
+function addEquipBadge(t) {
+  if (!t.equip) return;
+  const eq = EQUIP[t.equip];
+  const badge = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.09),
+    new THREE.MeshStandardMaterial({ color: eq.color, emissive: eq.color, emissiveIntensity: 0.5, roughness: 0.3 })
+  );
+  badge.position.set(0.42, 0.55, 0.42);
+  t.mesh.add(badge);
+  t.mesh.userData.badge = badge;
+}
+
+function equipTower(t, key) {
+  if (t.equip || t.type === 'mine' || !EQUIP[key] || state.gold < EQUIP[key].cost) return;
+  state.gold -= EQUIP[key].cost;
+  t.invested += EQUIP[key].cost;
+  t.equip = key;
+  addEquipBadge(t);
+  sfx.upgrade();
+  spawnParticles(t.x, t.y, EQUIP[key].color, 10);
+  updateUI();
 }
 
 // Blickrichtung zum nächstgelegenen Pfadfeld (Standard-Sektor des Wachturms)
@@ -916,6 +1028,7 @@ function placeTower(cx, cy, type) {
     guardAngle,
     manualCd: 0,
     recoil: 0,
+    equip: null,
     mesh,
   });
   sfx.place();
@@ -932,6 +1045,7 @@ function isBuildable(cx, cy) {
 
 function updateTowers(dt) {
   for (const t of state.towers) {
+    if (t.type === 'mine') continue; // Goldminen kämpfen nicht
     if (t.manualCd > 0) t.manualCd -= dt;
     t.cooldown -= dt;
     if (t.cooldown > 0) continue;
@@ -970,11 +1084,15 @@ function updateTowers(dt) {
         dmg: s.dmg,
         splash: base.splash || 0,
         slow: base.slow || null,
+        poison: base.poison
+          ? { dps: base.poison.dps * LEVEL_MULT[t.level - 1], dur: base.poison.dur }
+          : null,
         type: t.type,
         mesh,
       });
       if (t.type === 'cannon') sfx.cannon();
       else if (t.type === 'frost') sfx.frost();
+      else if (t.type === 'poison') sfx.poison();
       else sfx.shoot();
     }
   }
@@ -1016,11 +1134,11 @@ function updateProjectiles(dt) {
         spawnParticles(p.tx, p.ty, 0xffb347, 16);
         for (const e of state.enemies) {
           if (!e.dead && Math.hypot(e.x - p.tx, e.y - p.ty) <= p.splash + e.radius) {
-            damageEnemy(e, p.dmg, p.slow);
+            damageEnemy(e, p.dmg, p.slow, p.poison);
           }
         }
       } else if (p.target && !p.target.dead) {
-        damageEnemy(p.target, p.dmg, p.slow);
+        damageEnemy(p.target, p.dmg, p.slow, p.poison);
       }
     } else {
       p.x += (dx / d) * step;
@@ -1194,7 +1312,7 @@ function manualShoot() {
   if (!t || t.manualCd > 0 || state.paused || state.gameOver) return;
   const m = TOWER_TYPES.guard.manual;
   t.manualCd = 1 / m.rate;
-  const dmg = m.dmg * LEVEL_MULT[t.level - 1];
+  const dmg = m.dmg * LEVEL_MULT[t.level - 1] * (t.equip === 'ammo' ? EQUIP.ammo.dmg : 1);
   const rangeW = m.range / CELL;
   camera.updateMatrixWorld(true); // Blickrichtung kann sich seit dem letzten Frame geändert haben
   raycaster.setFromCamera({ x: 0, y: 0 }, camera);
@@ -1264,8 +1382,10 @@ function syncScene(rawDt) {
     const bob = Math.abs(Math.sin(e.wobble)) * 0.06;
     e.mesh.position.set(pxToWX(e.x), rw + bob, pxToWZ(e.y));
     e.mesh.userData.bodyG.rotation.y = -Math.atan2(e.dirY, e.dirX);
-    // Verlangsamungs-Färbung
-    e.mesh.userData.bodyMat.color.set(e.slowT > 0 ? SLOW_TINT : e.mesh.userData.baseColor);
+    // Status-Färbung: verlangsamt = blau, vergiftet = grün
+    e.mesh.userData.bodyMat.color.set(
+      e.slowT > 0 ? SLOW_TINT : e.poisonT > 0 ? POISON_TINT : e.mesh.userData.baseColor
+    );
     // Treffer-Aufblitzen
     if (e.hitFlash > 0) {
       e.hitFlash = Math.max(0, e.hitFlash - rawDt * 6);
@@ -1292,6 +1412,10 @@ function syncScene(rawDt) {
     if (ud.orb) {
       ud.orb.position.y = ud.orb.userData.baseY + Math.sin(performance.now() / 400) * 0.06;
       ud.orb.scale.setScalar(1 + t.recoil * 0.5);
+    }
+    if (ud.badge) {
+      ud.badge.rotation.y += rawDt * 2;
+      ud.badge.position.y = 0.55 + Math.sin(performance.now() / 500) * 0.04;
     }
   }
 
@@ -1323,9 +1447,14 @@ function syncScene(rawDt) {
   } else if (state.selectedTower) {
     cellHighlight.visible = false;
     const t = state.selectedTower;
-    showRangeAt(pxToWX(t.x), pxToWZ(t.y), towerStats(t).range);
-    if (t.type === 'guard') showGuardArc(t);
-    else guardArc.visible = false;
+    if (t.type === 'mine') {
+      rangeGroup.visible = false;
+      guardArc.visible = false;
+    } else {
+      showRangeAt(pxToWX(t.x), pxToWZ(t.y), towerStats(t).range);
+      if (t.type === 'guard') showGuardArc(t);
+      else guardArc.visible = false;
+    }
   } else {
     cellHighlight.visible = false;
     rangeGroup.visible = false;
@@ -1356,6 +1485,7 @@ const el = {
   tpName: document.getElementById('tp-name'),
   tpStats: document.getElementById('tp-stats'),
   tpEnter: document.getElementById('tp-enter'),
+  tpEquip: document.getElementById('tp-equip'),
   tpUpgrade: document.getElementById('tp-upgrade'),
   tpSell: document.getElementById('tp-sell'),
   fpHud: document.getElementById('fp-hud'),
@@ -1429,15 +1559,42 @@ function updateUI() {
 
 function showTowerPanel(t) {
   const base = TOWER_TYPES[t.type];
-  const s = towerStats(t);
   el.tpName.textContent = base.name + ' (Stufe ' + t.level + ')';
-  el.tpStats.innerHTML =
-    'Schaden: ' + Math.round(s.dmg) + '<br>' +
-    'Reichweite: ' + Math.round(s.range) + '<br>' +
-    'Feuerrate: ' + s.rate.toFixed(2) + '/s' +
-    (t.type === 'guard'
-      ? '<br>Automatik nur im blauen Sektor<br>Manuell: ' + Math.round(TOWER_TYPES.guard.manual.dmg * LEVEL_MULT[t.level - 1]) + ' Schaden'
-      : '');
+  if (t.type === 'mine') {
+    const inc = Math.round(TOWER_TYPES.mine.income * LEVEL_MULT[t.level - 1]);
+    el.tpStats.innerHTML = 'Einkommen: ' + inc + ' 💰 pro Welle';
+  } else {
+    const s = towerStats(t);
+    el.tpStats.innerHTML =
+      'Schaden: ' + Math.round(s.dmg) + '<br>' +
+      'Reichweite: ' + Math.round(s.range) + '<br>' +
+      'Feuerrate: ' + s.rate.toFixed(2) + '/s' +
+      (t.type === 'poison' ? '<br>Gift: ' + Math.round(TOWER_TYPES.poison.poison.dps * LEVEL_MULT[t.level - 1]) + ' Schaden/s (3s)' : '') +
+      (t.type === 'guard'
+        ? '<br>Automatik nur im blauen Sektor<br>Manuell: ' + Math.round(TOWER_TYPES.guard.manual.dmg * LEVEL_MULT[t.level - 1] * (t.equip === 'ammo' ? EQUIP.ammo.dmg : 1)) + ' Schaden'
+        : '');
+  }
+  // Ausrüstung: ein Gegenstand pro Turm (nicht für Goldminen)
+  el.tpEquip.innerHTML = '';
+  if (t.type !== 'mine') {
+    if (t.equip) {
+      el.tpEquip.textContent = 'Ausrüstung: ' + EQUIP[t.equip].icon + ' ' + EQUIP[t.equip].name;
+    } else {
+      const label = document.createElement('div');
+      label.textContent = 'Ausrüsten:';
+      const row = document.createElement('div');
+      row.className = 'eq-row';
+      for (const [key, eq] of Object.entries(EQUIP)) {
+        const btn = document.createElement('button');
+        btn.textContent = eq.icon + ' ' + eq.cost;
+        btn.title = eq.name;
+        btn.disabled = state.gold < eq.cost;
+        btn.addEventListener('click', () => equipTower(t, key));
+        row.appendChild(btn);
+      }
+      el.tpEquip.append(label, row);
+    }
+  }
   el.tpEnter.style.display = t.type === 'guard' ? '' : 'none';
   if (t.level < MAX_LEVEL) {
     const cost = upgradeCost(t.type, t.level);
@@ -1718,6 +1875,8 @@ document.addEventListener('keydown', (evt) => {
   else if (evt.code === 'Digit3') selectBuildType('frost');
   else if (evt.code === 'Digit4') selectBuildType('bolt');
   else if (evt.code === 'Digit5') selectBuildType('guard');
+  else if (evt.code === 'Digit6') selectBuildType('poison');
+  else if (evt.code === 'Digit7') selectBuildType('mine');
   else if (evt.code === 'Enter') { ensureAudio(); startWave(); updateUI(); }
 });
 

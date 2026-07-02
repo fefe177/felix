@@ -26,6 +26,8 @@ Gegner laufen in Wellen über den Pfad von links nach rechts. Baue Türme auf di
 | ❄️ Frostturm | 💰 70 | Verlangsamt Gegner — rotierender Eiskristall |
 | ⚡ Blitzturm | 💰 150 | Hohe Reichweite und hoher Schaden — Obelisk mit schwebender Energiekugel |
 | 🎯 Wachturm | 💰 120 | **Betretbar!** Selbst zielen und schießen in der Ego-Ansicht |
+| ☠️ Giftturm | 💰 90 | Vergiftet Gegner — Schaden über Zeit (brodelnder Kessel) |
+| ⛏️ Goldmine | 💰 100 | Kämpft nicht, erzeugt nach jeder Welle Gold |
 
 Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate) oder für 70 % des investierten Golds **verkauft** werden. **Jede Ausbaustufe hat ihr eigenes 3D-Modell** — die Türme werden sichtbar größer und prächtiger:
 
@@ -35,6 +37,22 @@ Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate) od
 - **Blitzturm:** Obelisk mit Energiekugel → Ecksäulen und mehr Goldringe → kreisende Funken-Orbs
 
 Beim Feuern gibt es Rückstoß-Animationen (Armbrust und Kanonenrohr zucken zurück, Kristall und Energiekugel pulsieren).
+
+## 🛠️ Ausrüstung
+
+Jeder Kampfturm kann zusätzlich **einen** Gegenstand tragen (Turm anklicken → „Ausrüsten"):
+
+| Gegenstand | Kosten | Wirkung |
+|---|---|---|
+| 🔭 Zielfernrohr | 💰 60 | +25 % Reichweite |
+| ⚙️ Schnelllader | 💰 80 | +30 % Feuerrate |
+| 💥 Schwere Munition | 💰 100 | +35 % Schaden (wirkt auch auf den manuellen Wachturm-Schuss) |
+
+Ausgerüstete Türme tragen ein schwebendes, farbiges Abzeichen. Die Ausrüstung bleibt beim Aufwerten erhalten und zählt beim Verkauf zum Erstattungswert.
+
+## ⚖️ Balance
+
+Die Wellen sind per automatischer Simulation ausbalanciert: Ein schwacher Ausbau (8 Türme) scheitert um Welle 15, ein solider Ausbau (11 gut platzierte, aufgewertete Türme) gewinnt knapp mit halben Leben, ein voller Ausbau (18 Türme) schafft es souverän. Das Gold bleibt dabei bis in die Endphase knapp — wer aufhört zu investieren, wird überrannt. Goldminen lohnen sich, wenn sie früh gebaut werden (amortisiert nach ~7 Wellen).
 
 ## 🎯 Der Wachturm — selbst schießen!
 
@@ -57,7 +75,7 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen k
 
 ## Steuerung
 
-- **Turm bauen:** Turm im Shop anklicken (oder Tasten `1`–`5`), dann auf ein freies Feld klicken
+- **Turm bauen:** Turm im Shop anklicken (oder Tasten `1`–`7`), dann auf ein beliebiges freies Grasfeld klicken (alle 226 Felder außer dem Pfad sind bebaubar)
 - **Aufwerten/Verkaufen:** platzierten Turm anklicken
 - **Kamera drehen:** rechte Maustaste gedrückt halten und ziehen
 - **Zoom:** Mausrad · **Kamera zurücksetzen:** `R`

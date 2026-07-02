@@ -171,6 +171,8 @@
   }
   #tower-panel h3 { font-size: 15px; }
   #tower-panel .row { font-size: 13px; color: var(--text-dim); }
+  #tp-equip .eq-row { display: flex; gap: 4px; margin-top: 3px; }
+  #tp-equip button { padding: 4px 8px; font-size: 13px; flex: 1; }
   #overlay {
     position: absolute;
     inset: 0;
@@ -219,6 +221,7 @@
     <div id="tower-panel">
       <h3 id="tp-name">Turm</h3>
       <div class="row" id="tp-stats"></div>
+      <div class="row" id="tp-equip"></div>
       <button id="tp-enter" style="display:none">🎯 Betreten &amp; steuern</button>
       <button id="tp-upgrade" class="primary">Aufwerten</button>
       <button id="tp-sell">Verkaufen</button>
@@ -241,7 +244,7 @@
   </div>
 
   <div id="shop"></div>
-  <div id="hint">Turm wählen &amp; auf freies Feld klicken · Turm anklicken zum Aufwerten/Verkaufen · Wachturm: „Betreten“ im Panel = selbst zielen &amp; schießen! · Kamera: rechte Maustaste ziehen (Touch: 2 Finger) · Zoom: Mausrad/Pinch · Tasten 1–5 = Türme, Esc = Abbrechen, Leertaste = Pause, R = Kamera zurücksetzen</div>
+  <div id="hint">Turm wählen &amp; auf freies Feld klicken · Turm anklicken zum Aufwerten/Verkaufen · Wachturm: „Betreten“ im Panel = selbst zielen &amp; schießen! · Kamera: rechte Maustaste ziehen (Touch: 2 Finger) · Zoom: Mausrad/Pinch · Tasten 1–7 = Türme, Esc = Abbrechen, Leertaste = Pause, R = Kamera zurücksetzen</div>
 </div>
 <script src="vendor/three.min.js"></script>
 <script src="game.js"></script>
