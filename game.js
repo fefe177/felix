@@ -28,6 +28,7 @@ const MAPS = [
   },
   {
     name: 'Serpentinen', difficulty: 'Leicht',
+    waves: { tankEvery: 3, fastEvery: 4 }, // Panzerkolonnen auf dem langen Weg
     waypoints: [[-1, 11], [4, 11], [4, 3], [8, 3], [8, 11], [12, 11], [12, 3], [16, 3], [16, 11], [20, 11]],
     hills: [
       [2, 5], [2, 9], [6, 5], [6, 9], [10, 5], [10, 9], [14, 5], [14, 9], [18, 5], [18, 9],
@@ -36,6 +37,7 @@ const MAPS = [
   },
   {
     name: 'Schlucht', difficulty: 'Schwer',
+    waves: { fastEvery: 2, tankEvery: 5 }, // Sturmläufe auf dem kurzen Pfad
     waypoints: [[-1, 4], [6, 4], [6, 9], [13, 9], [13, 4], [20, 4]],
     hills: [
       [4, 2], [4, 6], [8, 6], [8, 11], [11, 2], [11, 6], [15, 2], [15, 6],
@@ -136,10 +138,11 @@ function upgradeCost(type, level) {
 
 // ---------- Gegnertypen ----------
 const ENEMY_TYPES = {
-  normal: { hp: 34, speed: 55, reward: 6, radius: 12, lives: 1, color: 0xc94f4f },
-  fast:   { hp: 22, speed: 95, reward: 7, radius: 10, lives: 1, color: 0xe8b64f },
-  tank:   { hp: 110, speed: 36, reward: 12, radius: 15, lives: 2, color: 0x5a7d5a },
-  boss:   { hp: 650, speed: 30, reward: 60, radius: 20, lives: 5, color: 0x7a4fa0 },
+  normal:   { hp: 34, speed: 55, reward: 6, radius: 12, lives: 1, color: 0xc94f4f },
+  fast:     { hp: 22, speed: 95, reward: 7, radius: 10, lives: 1, color: 0xe8b64f },
+  tank:     { hp: 110, speed: 36, reward: 12, radius: 15, lives: 2, color: 0x5a7d5a },
+  boss:     { hp: 650, speed: 30, reward: 60, radius: 20, lives: 5, color: 0x7a4fa0 },
+  summoner: { hp: 420, speed: 26, reward: 70, radius: 17, lives: 4, color: 0x5a4a7d },
 };
 const SLOW_TINT = 0x7ab8d9;
 const POISON_TINT = 0x8cc45f;
@@ -618,6 +621,7 @@ function makeEnemyMesh(typeKey) {
   // Körperteile drehen sich in Laufrichtung, der Lebensbalken (direkt in g) nicht
   const bodyG = new THREE.Group();
   g.add(bodyG);
+  let orbiter = null; // Geister-Orbs des Beschwörers
 
   const bodyMat = new THREE.MeshStandardMaterial({ color: t.color, roughness: 0.6 });
   const body = new THREE.Mesh(enemyGeo(rw), bodyMat);
@@ -655,6 +659,23 @@ function makeEnemyMesh(typeKey) {
       fin.castShadow = true;
       bodyG.add(fin);
     }
+  } else if (typeKey === 'summoner') {
+    // Zauberhut und kreisende Geister-Orbs
+    const hat = new THREE.Mesh(new THREE.ConeGeometry(rw * 0.75, rw * 1.3, 8),
+      new THREE.MeshStandardMaterial({ color: 0x2e2140, roughness: 0.8 }));
+    hat.position.y = rw * 1.2;
+    hat.castShadow = true;
+    bodyG.add(hat);
+    orbiter = new THREE.Group();
+    orbiter.position.y = rw * 0.7;
+    const orbMat = new THREE.MeshStandardMaterial({ color: 0x7be05a, emissive: 0x4faf35, emissiveIntensity: 0.9, roughness: 0.3 });
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(rw * 0.18, 8, 6), orbMat);
+      orb.position.set(Math.cos(a) * rw * 1.5, 0, Math.sin(a) * rw * 1.5);
+      orbiter.add(orb);
+    }
+    g.add(orbiter);
   }
 
   // Lebensbalken (Billboard-Sprites)
@@ -673,7 +694,7 @@ function makeEnemyMesh(typeKey) {
   bg.position.y = barY; fg.position.y = barY;
   g.add(bg, fg);
 
-  g.userData = { body, bodyG, bodyMat, bgMat, fgMat, fg, bw, rw, baseColor: t.color };
+  g.userData = { body, bodyG, orbiter, bodyMat, bgMat, fgMat, fg, bw, rw, baseColor: t.color };
   return g;
 }
 
@@ -811,6 +832,7 @@ function resetGame() {
   clearActors();
   state.controlled = null;
   state.kills = 0;
+  state.manualKills = 0;
   state.gold = 140;
   state.lives = 20;
   state.wave = 0;
@@ -872,6 +894,7 @@ const sfx = {
   cannon:  () => beep(140, 0.22, 'triangle', 0.09, -70),
   frost:   () => beep(880, 0.09, 'sine', 0.035, -300),
   poison:  () => beep(240, 0.14, 'sine', 0.05, 160),
+  summon:  () => { beep(320, 0.18, 'sawtooth', 0.05, 260); setTimeout(() => beep(480, 0.14, 'sawtooth', 0.04, 200), 120); },
   bolt:    () => beep(1200, 0.12, 'sawtooth', 0.04, -900),
   guard:   () => beep(700, 0.06, 'square', 0.05, -260),
   hit:     () => beep(300, 0.05, 'triangle', 0.03, -100),
@@ -894,18 +917,23 @@ function waveHpScale(w) {
 function buildWave(w) {
   const queue = [];
   const isBossWave = w % 5 === 0;
+  const mod = MAPS[currentMap].waves || {};
+  const fastEvery = mod.fastEvery || 3; // Kartencharakter: Schlucht schickt mehr Flinke,
+  const tankEvery = mod.tankEvery || 4; // Serpentinen mehr Panzer
   let count = Math.min(6 + w * 2, 46);
   if (isBossWave) count = Math.max(4, Math.floor(count * 0.6));
   for (let i = 0; i < count; i++) {
     let type = 'normal';
-    if (w >= 3 && i % 3 === 2) type = 'fast';
-    if (w >= 5 && i % 4 === 3) type = 'tank';
+    if (w >= 3 && i % fastEvery === fastEvery - 1) type = 'fast';
+    if (w >= 5 && i % tankEvery === tankEvery - 1) type = 'tank';
     queue.push({ type, delay: type === 'fast' ? 0.55 : 0.85 });
   }
   if (isBossWave) {
     const bosses = 1 + Math.floor(w / 10);
     for (let i = 0; i < bosses; i++) queue.push({ type: 'boss', delay: 1.6 });
   }
+  // Jede 10. Welle bringt einen Beschwörer mit, der unterwegs Diener ruft
+  if (w % 10 === 0) queue.push({ type: 'summoner', delay: 2 });
   return queue;
 }
 
@@ -923,6 +951,40 @@ function startWave() {
   state.autoTimer = -1;
   sfx.wave();
   updateUI();
+}
+
+// ---------- Erfolge ----------
+const ACHIEVEMENTS = {
+  sieg:       { icon: '🏆', name: 'Sieger', desc: 'Alle 20 Wellen überstanden' },
+  perfekt:    { icon: '💎', name: 'Makellos', desc: 'Sieg ohne ein einziges verlorenes Leben' },
+  schuetze:   { icon: '🎯', name: 'Scharfschütze', desc: '15 Gegner selbst im Wachturm abgeschossen' },
+  magnat:     { icon: '⛏️', name: 'Goldmagnat', desc: '3 Goldminen gleichzeitig besitzen' },
+  vollausbau: { icon: '🛠️', name: 'Vollausbau', desc: 'Ein Turm auf Stufe 3 mit Ausrüstung' },
+  marathon:   { icon: '🌊', name: 'Marathon', desc: 'Welle 25 im Endlosmodus erreicht' },
+};
+let unlockedAch = new Set();
+try { unlockedAch = new Set(JSON.parse(localStorage.getItem('td3d-erfolge') || '[]')); } catch (e) { /* egal */ }
+
+function unlock(key) {
+  if (unlockedAch.has(key) || !ACHIEVEMENTS[key]) return;
+  unlockedAch.add(key);
+  try { localStorage.setItem('td3d-erfolge', JSON.stringify([...unlockedAch])); } catch (e) { /* egal */ }
+  const a = ACHIEVEMENTS[key];
+  const toast = document.createElement('div');
+  toast.className = 'ach-toast';
+  toast.textContent = a.icon + ' Erfolg freigeschaltet: ' + a.name;
+  wrap.appendChild(toast);
+  setTimeout(() => toast.remove(), 3500);
+  sfx.upgrade();
+  renderAchPanel();
+}
+
+function renderAchPanel() {
+  el.achPanel.innerHTML = '<h3>🏆 Erfolge (' + unlockedAch.size + '/' + Object.keys(ACHIEVEMENTS).length + ')</h3>' +
+    Object.entries(ACHIEVEMENTS).map(([key, a]) =>
+      '<div class="ach' + (unlockedAch.has(key) ? ' done' : '') + '">' +
+      a.icon + ' <b>' + a.name + '</b><br><small>' + a.desc + '</small></div>'
+    ).join('');
 }
 
 // Beste Welle dauerhaft im Browser speichern
@@ -950,11 +1012,14 @@ function endWave() {
     addFloater(t.x, t.y, '+' + inc + ' 💰', '#f5b942');
   }
   saveBest(state.wave);
+  if (state.wave >= 25) unlock('marathon');
   addFloater(W / 2, H / 2 - 40, 'Welle geschafft! +' + bonus + ' 💰', '#5fd068');
   if (state.wave >= TOTAL_WAVES && !state.endless) {
     state.victory = true;
     state.gameOver = true;
     sfx.win();
+    unlock('sieg');
+    if (state.lives === 20) unlock('perfekt');
     showOverlay('🏆 Sieg!', statsText('Du hast alle ' + TOTAL_WAVES + ' Wellen überstanden!'), true);
   } else {
     state.autoTimer = 12;
@@ -963,29 +1028,30 @@ function endWave() {
 }
 
 // ---------- Gegner ----------
-function spawnEnemy(typeKey) {
+function spawnEnemy(typeKey, opts = {}) {
   const t = ENEMY_TYPES[typeKey];
-  const scale = waveHpScale(state.wave);
+  const scale = waveHpScale(state.wave) * (opts.hpMult || 1);
   const mesh = makeEnemyMesh(typeKey);
   scene.add(mesh);
   state.enemies.push({
     type: typeKey,
-    x: waypoints[0].x,
-    y: waypoints[0].y,
-    wp: 1,
+    x: opts.x !== undefined ? opts.x : waypoints[0].x,
+    y: opts.y !== undefined ? opts.y : waypoints[0].y,
+    wp: opts.wp !== undefined ? opts.wp : 1,
     hp: t.hp * scale,
     maxHp: t.hp * scale,
     speed: t.speed,
     radius: t.radius,
-    reward: Math.round(t.reward * (1 + state.wave * 0.04)),
+    reward: Math.round(t.reward * (1 + state.wave * 0.04) * (opts.rewardMult || 1)),
     lives: t.lives,
     slowT: 0,
     slowFactor: 1,
     poisonT: 0,
     poisonDps: 0,
-    dist: 0,
+    dist: opts.dist || 0,
     dead: false,
     hitFlash: 0,
+    summonT: typeKey === 'summoner' ? 3 : 0,
     dirX: 1, dirY: 0,
     wobble: Math.random() * Math.PI * 2,
     mesh,
@@ -1001,6 +1067,18 @@ function updateEnemies(dt) {
       e.poisonT -= dt;
       e.hp -= e.poisonDps * dt;
       if (e.hp <= 0) { killEnemy(e); continue; }
+    }
+    // Beschwörer rufen unterwegs Diener herbei
+    if (e.type === 'summoner' && e.wp < waypoints.length) {
+      e.summonT -= dt;
+      if (e.summonT <= 0) {
+        e.summonT = 4.5;
+        for (let k = 0; k < 2; k++) {
+          spawnEnemy('normal', { x: e.x, y: e.y, wp: e.wp, dist: e.dist, hpMult: 0.4, rewardMult: 0.5 });
+        }
+        spawnParticles(e.x, e.y, 0x7be05a, 12);
+        sfx.summon();
+      }
     }
     const spd = e.speed * (e.slowT > 0 ? e.slowFactor : 1);
     let move = spd * dt;
@@ -1099,6 +1177,7 @@ function equipTower(t, key) {
   addEquipBadge(t);
   sfx.upgrade();
   spawnParticles(t.x, t.y, EQUIP[key].color, 10);
+  if (t.level >= MAX_LEVEL) unlock('vollausbau');
   updateUI();
 }
 
@@ -1140,6 +1219,7 @@ function placeTower(cx, cy, type) {
   });
   sfx.place();
   spawnParticles((cx + 0.5) * CELL, (cy + 0.5) * CELL, 0xf5b942, 10);
+  if (type === 'mine' && state.towers.filter(t => t.type === 'mine').length >= 3) unlock('magnat');
   updateUI();
   return true;
 }
@@ -1456,6 +1536,10 @@ function manualShoot() {
   if (hitEnemy) {
     spawnParticles(hitEnemy.x, hitEnemy.y, 0xffd27a, 6);
     damageEnemy(hitEnemy, dmg);
+    if (hitEnemy.dead) {
+      state.manualKills++;
+      if (state.manualKills >= 15) unlock('schuetze');
+    }
   }
 }
 
@@ -1505,6 +1589,8 @@ function syncScene(rawDt) {
       e.hitFlash = Math.max(0, e.hitFlash - rawDt * 6);
       e.mesh.userData.bodyMat.emissive.setScalar(e.hitFlash * 0.5);
     }
+    // Beschwörer-Orbs kreisen
+    if (e.mesh.userData.orbiter) e.mesh.userData.orbiter.rotation.y += rawDt * 3;
     // Lebensbalken
     const frac = Math.max(0, e.hp / e.maxHp);
     const fg = e.mesh.userData.fg;
@@ -1619,7 +1705,14 @@ const el = {
   pauseOv: document.getElementById('pause-ov'),
   mapBar: document.getElementById('map-bar'),
   btnMusic: document.getElementById('btn-music'),
+  btnAch: document.getElementById('btn-ach'),
+  achPanel: document.getElementById('ach-panel'),
 };
+
+el.btnAch.addEventListener('click', () => {
+  ensureAudio();
+  el.achPanel.style.display = el.achPanel.style.display === 'block' ? 'none' : 'block';
+});
 
 function buildMapBar() {
   el.mapBar.innerHTML = '<span>Karte:</span>';
@@ -2099,6 +2192,7 @@ el.tpUpgrade.addEventListener('click', () => {
   t.invested += cost;
   t.level++;
   rebuildTowerMesh(t);
+  if (t.level >= MAX_LEVEL && t.equip) unlock('vollausbau');
   sfx.upgrade();
   spawnParticles(t.x, t.y, 0xf5b942, 14);
   updateUI();
@@ -2155,5 +2249,6 @@ loadMapData(savedMap);
 buildMapScene();
 buildMapBar();
 buildShop();
+renderAchPanel();
 resetGame();
 requestAnimationFrame(loop);

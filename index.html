@@ -80,6 +80,44 @@
   }
   #map-bar button { padding: 5px 10px; font-size: 13px; }
   #map-bar button.selected { outline: 2px solid var(--accent); background: #3a4a68; }
+  #ach-panel {
+    display: none;
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 8;
+    background: var(--panel);
+    border: 1px solid #3d4d6e;
+    border-radius: 10px;
+    padding: 10px 12px;
+    max-width: 250px;
+    max-height: 85%;
+    overflow-y: auto;
+    box-shadow: 0 6px 18px rgba(0,0,0,.45);
+  }
+  #ach-panel h3 { font-size: 14px; margin-bottom: 6px; }
+  #ach-panel .ach { font-size: 13px; padding: 5px 0; opacity: .4; border-top: 1px solid #32405c; }
+  #ach-panel .ach.done { opacity: 1; }
+  #ach-panel .ach small { color: var(--text-dim); }
+  .ach-toast {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9;
+    background: var(--accent);
+    color: #1a2332;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    animation: achpop .3s ease-out, achfade .5s ease-in 3s forwards;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  @keyframes achpop { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+  @keyframes achfade { to { opacity: 0; } }
   #game-wrap { position: relative; width: 100%; max-width: 800px; }
   #game3d { border-radius: 10px; overflow: hidden; line-height: 0; }
   #game3d canvas {
@@ -226,6 +264,7 @@
       <button id="btn-speed" title="Spielgeschwindigkeit">1×</button>
       <button id="btn-sound" title="Ton an/aus">🔊</button>
       <button id="btn-music" class="off" title="Musik an/aus">🎵</button>
+      <button id="btn-ach" title="Erfolge">🏆</button>
     </div>
   </div>
 
@@ -242,6 +281,7 @@
       <button id="tp-upgrade" class="primary">Aufwerten</button>
       <button id="tp-sell">Verkaufen</button>
     </div>
+    <div id="ach-panel"></div>
     <div id="fp-hud">
       <div id="crosshair">+</div>
       <div id="fp-bar">

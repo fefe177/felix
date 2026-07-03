@@ -68,6 +68,17 @@ Jeder Kampfturm kann zusätzlich **einen** Gegenstand tragen (Turm anklicken →
 
 Ausgerüstete Türme tragen ein schwebendes, farbiges Abzeichen. Die Ausrüstung bleibt beim Aufwerten erhalten und zählt beim Verkauf zum Erstattungswert.
 
+## 🏅 Erfolge
+
+Über den 🏆-Button oben rechts öffnet sich die Erfolge-Liste (dauerhaft im Browser gespeichert):
+
+- 🏆 **Sieger** — alle 20 Wellen überstanden
+- 💎 **Makellos** — Sieg ohne ein einziges verlorenes Leben
+- 🎯 **Scharfschütze** — 15 Gegner selbst im Wachturm abgeschossen
+- ⛏️ **Goldmagnat** — 3 Goldminen gleichzeitig besitzen
+- 🛠️ **Vollausbau** — ein Turm auf Stufe 3 mit Ausrüstung
+- 🌊 **Marathon** — Welle 25 im Endlosmodus erreicht
+
 ## ⚖️ Balance
 
 Die Wellen sind per automatischer Simulation ausbalanciert: Ein schwacher Ausbau (8 Türme) scheitert um Welle 15, ein solider Ausbau (11 gut platzierte, aufgewertete Türme) gewinnt knapp mit halben Leben, ein voller Ausbau (18 Türme) schafft es souverän. Das Gold bleibt dabei bis in die Endphase knapp — wer aufhört zu investieren, wird überrannt. Goldminen lohnen sich, wenn sie früh gebaut werden (amortisiert nach ~7 Wellen).
@@ -88,6 +99,9 @@ Der Wachturm ist etwas Besonderes: Man kann ihn **betreten und selbst steuern**.
 - **Flink** (gelb, mit Heckflossen) — schnell, aber schwach
 - **Panzer** (grün, mit Stahlhelm) — langsam, viele Lebenspunkte, kostet 2 Leben
 - **Boss** (lila, mit Krone) — alle 5 Wellen, sehr zäh, kostet 5 Leben
+- **Beschwörer** (violett, mit Zauberhut und Geister-Orbs) — jede 10. Welle; ruft alle paar Sekunden zwei Diener direkt auf den Pfad! Schnell ausschalten, sonst wächst die Welle immer weiter
+
+Jede Karte hat ihren eigenen Wellen-Charakter: In der **Schlucht** stürmen deutlich mehr Flinke, auf den **Serpentinen** rollen Panzerkolonnen an.
 
 Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen kurz auf, und der Wellen-Button warnt vor Bosswellen (⚠️). Deine **beste Welle** wird im Browser gespeichert und am Spielende zusammen mit den Abschüssen angezeigt.
 
