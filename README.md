@@ -42,6 +42,7 @@ Das Spiel **speichert automatisch nach jeder geschafften Welle** (und bei jedem 
 | ❄️ Frostturm | 💰 70 | überall | Verlangsamt Gegner — rotierender Eiskristall |
 | ⚡ Blitzturm | 💰 150 | ⛰️ nur Anhöhe | Hohe Reichweite und hoher Schaden — Obelisk mit schwebender Energiekugel |
 | 🎯 Wachturm | 💰 120 | ⛰️ nur Anhöhe | **Betretbar!** Selbst zielen und schießen in der Ego-Ansicht |
+| 💥 Mörser | 💰 160 | nur Boden | **Betretbar!** Artillerie — Granaten fliegen im hohen Bogen und explodieren mit Flächenschaden |
 | ☠️ Giftturm | 💰 90 | nur Boden | Vergiftet Gegner — Schaden über Zeit (brodelnder Kessel) |
 | ⛏️ Goldmine | 💰 100 | nur Boden | Kämpft nicht, erzeugt nach jeder Welle Gold |
 
@@ -87,14 +88,14 @@ Ausgerüstete Türme tragen ein schwebendes, farbiges Abzeichen. Die Ausrüstung
 
 Die Wellen sind per automatischer Simulation ausbalanciert: Ein schwacher Ausbau (8 Türme) scheitert um Welle 15, ein solider Ausbau (11 gut platzierte, aufgewertete Türme) gewinnt knapp mit halben Leben, ein voller Ausbau (18 Türme) schafft es souverän. Das Gold bleibt dabei bis in die Endphase knapp — wer aufhört zu investieren, wird überrannt. Goldminen lohnen sich, wenn sie früh gebaut werden (amortisiert nach ~7 Wellen).
 
-## 🎯 Der Wachturm — selbst schießen!
+## 🎯 Betretbare Türme — selbst schießen!
 
-Der Wachturm ist etwas Besonderes: Man kann ihn **betreten und selbst steuern**.
+Zwei Türme kann man **betreten und selbst steuern** (Turm anklicken → „🎯 Betreten &amp; steuern"):
 
-- **Betreten:** Wachturm anklicken → im Panel auf „🎯 Betreten &amp; steuern" klicken
-- **Drinnen:** Ego-Ansicht aus der Turmkabine — Maus zielt, **Klick schießt** (starker Einzelschuss), **Mausrad zoomt** wie ein Zielfernrohr
-- **Verlassen:** `Esc`, Rechtsklick oder der „Verlassen"-Button
-- **Automatik-Modus:** Ohne Spieler schießt der Wachturm von allein, aber **nur in einem schmalen Sektor** (±29°, als blauer Kreisausschnitt sichtbar). Die Richtung des Sektors ist die Blickrichtung, in der du den Turm verlassen hast — du entscheidest also, welchen Pfadabschnitt er bewacht!
+- **Wachturm** (Anhöhe): Ego-Ansicht aus der Kabine — Maus zielt, **Klick feuert einen präzisen Einzelschuss** aufs Fadenkreuz, Mausrad zoomt wie ein Zielfernrohr.
+- **Mörser** (Boden): Sitzposition hinter dem Rohr — du zielst auf einen **Bodenpunkt**, die Granate fliegt im hohen Bogen dorthin und **explodiert mit Flächenschaden**. Ideal gegen Gegnergruppen!
+- **Verlassen:** `Esc`, Rechtsklick oder der „Verlassen"-Button.
+- **Automatik-Modus:** Ohne Spieler schießen beide von allein, aber **nur in einem schmalen Sektor** (blauer Kreisausschnitt). Die Richtung ist die Blickrichtung, in der du den Turm verlassen hast — du entscheidest, welchen Pfadabschnitt er bewacht!
 - Der manuelle Schuss macht deutlich mehr Schaden als die Automatik und wird pro Ausbaustufe stärker.
 
 ## Gegner
@@ -112,7 +113,8 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen k
 
 ## Steuerung
 
-- **Turm bauen:** Turm in der Leiste unten anklicken (oder Tasten `1`–`7`) — der Geister-Turm hängt am Zeiger — dann aufs Feld klicken (Gelände-Regel beachten!)
+- **Turm bauen:** Turm in der Leiste unten anklicken (oder Tasten `1`–`8`) — der Geister-Turm hängt am Zeiger — dann aufs Feld klicken (Gelände-Regel beachten!)
+- **Wellen-Vorschau:** Über dem Spielfeld steht immer, was die nächste Welle bringt (z. B. „24 Gegner — 6 Flinke · 5 Panzer · 2 Heiler")
 - **Aufwerten/Verkaufen:** platzierten Turm anklicken
 - **Kamera drehen:** rechte Maustaste gedrückt halten und ziehen
 - **Zoom:** Mausrad · **Kamera zurücksetzen:** `R`

@@ -103,10 +103,17 @@ const TOWER_TYPES = {
   },
   guard: {
     name: 'Wachturm', cost: 120, dmg: 22, range: 135, rate: 1.8,
-    projSpeed: 460, color: '#7a6a4f', terrain: 'hill',
+    projSpeed: 460, color: '#7a6a4f', terrain: 'hill', enterable: true,
     arc: 0.5, // halber Öffnungswinkel des Automatik-Sektors (rad, ≈ ±29°)
     manual: { dmg: 50, rate: 3, range: 300 },
     desc: 'Betretbar — selbst zielen &amp; schießen!',
+  },
+  mortar: {
+    name: 'Mörser', cost: 160, dmg: 40, range: 150, rate: 0.5,
+    projSpeed: 210, splash: 65, lob: true, color: '#6a5c48', terrain: 'ground', enterable: true,
+    arc: 0.6,
+    manual: { dmg: 95, rate: 0.8, range: 340, splash: 85 },
+    desc: 'Betretbare Artillerie — Bogenschuss auf Bodenziele',
   },
   poison: {
     name: 'Giftturm', cost: 90, dmg: 5, range: 100, rate: 1.1,
@@ -118,7 +125,7 @@ const TOWER_TYPES = {
     desc: 'Erzeugt Gold nach jeder Welle',
   },
 };
-const TOWER_KEYS = ['archer', 'cannon', 'frost', 'bolt', 'guard', 'poison', 'mine'];
+const TOWER_KEYS = ['archer', 'cannon', 'frost', 'bolt', 'guard', 'mortar', 'poison', 'mine'];
 
 // ---------- Ausrüstung (ein Gegenstand pro Turm) ----------
 const EQUIP = {
@@ -540,6 +547,32 @@ function makeTowerMesh(type, level) {
     tip.rotation.z = -Math.PI / 2;
     g.userData.muzzleY = h + 0.3;
     g.userData.eyeY = h + 0.42; // Augenhöhe in der Ego-Ansicht
+  } else if (type === 'mortar') {
+    // Betretbarer Mörser: schweres Rohr im 45°-Winkel auf Drehlafette
+    const bs = [0, 1, 1.12, 1.22][level];
+    addPart(g, new THREE.BoxGeometry(0.72 * bs, 0.14, 0.72 * bs), MAT.metal, 0, 0.07, 0);
+    if (level >= 2) {
+      const band = addPart(g, new THREE.TorusGeometry(0.4 * bs, 0.04, 8, 20), MAT.gold, 0, 0.15, 0);
+      band.rotation.x = Math.PI / 2;
+    }
+    if (level >= 3) {
+      // Munitionsstapel
+      for (let i = 0; i < 3; i++) {
+        addPart(g, new THREE.SphereGeometry(0.09, 10, 8), MAT.darkBall, -0.28, 0.2 + i * 0.02, 0.28 - i * 0.14);
+      }
+    }
+    turret = new THREE.Group();
+    turret.position.y = 0.2;
+    for (const side of [-1, 1]) {
+      addPart(gun, new THREE.BoxGeometry(0.34, 0.26, 0.06), MAT.metalLight, 0.02, 0.1, side * 0.17);
+    }
+    const barrel = addPart(gun, new THREE.CylinderGeometry(0.13 * bs, 0.17 * bs, 0.6, 12), MAT.metal, 0.18, 0.28, 0);
+    barrel.rotation.z = -Math.PI / 4; // 45° nach oben
+    const muzzle = addPart(gun, new THREE.TorusGeometry(0.14 * bs, 0.03, 8, 14), level >= 2 ? MAT.gold : MAT.metalLight, 0.38, 0.48, 0);
+    muzzle.rotation.set(0, 0, Math.PI / 4);
+    muzzle.rotateOnAxis(new THREE.Vector3(0, 1, 0), Math.PI / 2);
+    g.userData.muzzleY = 0.6;
+    g.userData.eyeY = 0.75; // Sitzposition hinter dem Rohr
   } else if (type === 'poison') {
     // Giftkessel: brodelnder Trank — Stufe 2 mit Goldrand, Stufe 3 mit Dornenkranz
     const bh = [0, 0.18, 0.24, 0.3][level];
@@ -779,15 +812,16 @@ guardArc.visible = false;
 scene.add(guardArc);
 
 function showGuardArc(t) {
-  const arc = TOWER_TYPES.guard.arc;
-  const key = t.guardAngle.toFixed(3);
+  const conf = TOWER_TYPES[t.type];
+  const arc = conf.arc;
+  const key = t.guardAngle.toFixed(3) + ':' + arc;
   if (guardArc.userData.key !== key) {
     guardArc.geometry.dispose();
     // Winkelabbildung: Logik-Winkel a -> Kreiswinkel -a (Z-Achse gespiegelt)
     guardArc.geometry = new THREE.CircleGeometry(1, 24, -t.guardAngle - arc, arc * 2);
     guardArc.userData.key = key;
   }
-  const rw = (TOWER_TYPES.guard.range * RANGE_MULT[t.level - 1]) / CELL;
+  const rw = (conf.range * RANGE_MULT[t.level - 1]) / CELL;
   guardArc.position.x = pxToWX(t.x);
   guardArc.position.z = pxToWZ(t.y);
   guardArc.scale.set(rw, rw, 1);
@@ -1311,7 +1345,7 @@ function placeTower(cx, cy, type) {
   const mesh = makeTowerMesh(type, 1);
   mesh.position.set(cx - COLS / 2 + 0.5, onHill ? HILL_H : 0, cy - ROWS / 2 + 0.5);
   scene.add(mesh);
-  const guardAngle = type === 'guard' ? angleToNearestPath(cx, cy) : 0;
+  const guardAngle = TOWER_TYPES[type].arc ? angleToNearestPath(cx, cy) : 0;
   state.towers.push({
     type, cx, cy, onHill,
     x: (cx + 0.5) * CELL,
@@ -1360,10 +1394,10 @@ function updateTowers(dt) {
       if (e.dead) continue;
       const d = Math.hypot(e.x - t.x, e.y - t.y);
       if (d > s.range) continue;
-      if (t.type === 'guard') {
+      if (TOWER_TYPES[t.type].arc) {
         // Automatik nur im schmalen Sektor um die Wachrichtung
         const da = Math.atan2(e.y - t.y, e.x - t.x) - t.guardAngle;
-        if (Math.abs(Math.atan2(Math.sin(da), Math.cos(da))) > TOWER_TYPES.guard.arc) continue;
+        if (Math.abs(Math.atan2(Math.sin(da), Math.cos(da))) > TOWER_TYPES[t.type].arc) continue;
       }
       if (!best || e.dist > best.dist) best = e;
     }
@@ -1391,10 +1425,12 @@ function updateTowers(dt) {
         poison: base.poison
           ? { dps: base.poison.dps * LEVEL_MULT[t.level - 1], dur: base.poison.dur }
           : null,
+        lob: !!base.lob,
+        traveled: 0,
         type: t.type,
         mesh,
       });
-      if (t.type === 'cannon') sfx.cannon();
+      if (t.type === 'cannon' || t.type === 'mortar') sfx.cannon();
       else if (t.type === 'frost') sfx.frost();
       else if (t.type === 'poison') sfx.poison();
       else sfx.shoot();
@@ -1436,6 +1472,7 @@ function updateProjectiles(dt) {
       p.hit = true;
       if (p.splash > 0) {
         spawnParticles(p.tx, p.ty, 0xffb347, 16);
+        spawnPulse(p.tx, p.ty, 0xffb347, p.splash);
         for (const e of state.enemies) {
           if (!e.dead && Math.hypot(e.x - p.tx, e.y - p.ty) <= p.splash + e.radius) {
             damageEnemy(e, p.dmg, p.slow, p.poison);
@@ -1447,6 +1484,7 @@ function updateProjectiles(dt) {
     } else {
       p.x += (dx / d) * step;
       p.y += (dy / d) * step;
+      if (p.lob) p.traveled += step;
     }
   }
   for (const p of state.projectiles) if (p.hit && p.mesh) { scene.remove(p.mesh); p.mesh = null; }
@@ -1508,11 +1546,11 @@ function updateParticles(dt) {
   }
   state.particles = state.particles.filter(p => p.ttl > 0);
 
-  // Heil-Ringe wachsen und verblassen
+  // Ring-Pulse (Heilung, Explosionen) wachsen und verblassen
   for (const pu of state.pulses) {
     pu.ttl -= dt;
     const f = 1 - pu.ttl / pu.maxTtl;
-    const r = 0.3 + f * (HEAL_RANGE / CELL);
+    const r = 0.3 + f * (pu.range / CELL);
     pu.mesh.scale.set(r, r, 1);
     pu.mesh.material.opacity = 0.7 * (pu.ttl / pu.maxTtl);
     if (pu.ttl <= 0) {
@@ -1524,15 +1562,19 @@ function updateParticles(dt) {
   state.pulses = state.pulses.filter(pu => pu.ttl > 0);
 }
 
-function spawnHealPulse(xPx, yPx) {
+function spawnPulse(xPx, yPx, color, rangePx) {
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(0.82, 1, 24),
-    new THREE.MeshBasicMaterial({ color: 0x7be05a, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })
+    new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })
   );
   ring.rotation.x = -Math.PI / 2;
   ring.position.set(pxToWX(xPx), 0.18, pxToWZ(yPx));
   scene.add(ring);
-  state.pulses.push({ mesh: ring, ttl: 0.6, maxTtl: 0.6 });
+  state.pulses.push({ mesh: ring, ttl: 0.6, maxTtl: 0.6, range: rangePx });
+}
+
+function spawnHealPulse(xPx, yPx) {
+  spawnPulse(xPx, yPx, 0x7be05a, HEAL_RANGE);
 }
 
 // ---------- Schwebende Texte (HTML-Overlay) ----------
@@ -1579,7 +1621,7 @@ function updateFloaters(dt) {
 const fp = { yaw: 0, pitch: 0.06, locked: false, drag: { active: false, moved: 0, lastX: 0, lastY: 0 } };
 
 function enterTower(t) {
-  if (state.controlled || t.type !== 'guard') return;
+  if (state.controlled || !TOWER_TYPES[t.type].enterable) return;
   state.controlled = t;
   state.buildType = null;
   state.selectedTower = null;
@@ -1613,6 +1655,11 @@ function exitTower() {
 
 document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === renderer.domElement;
+  if (locked && !state.controlled) {
+    // Lock kam an, obwohl der Turm schon wieder verlassen wurde -> sofort freigeben
+    document.exitPointerLock();
+    return;
+  }
   if (!locked && fp.locked && state.controlled) exitTower(); // Esc bei Pointer-Lock
   fp.locked = locked;
 });
@@ -1640,12 +1687,35 @@ const tracerTo = new THREE.Vector3();
 function manualShoot() {
   const t = state.controlled;
   if (!t || t.manualCd > 0 || state.paused || state.gameOver) return;
-  const m = TOWER_TYPES.guard.manual;
+  const m = TOWER_TYPES[t.type].manual;
   t.manualCd = 1 / m.rate;
+  t.recoil = 1;
   const dmg = m.dmg * LEVEL_MULT[t.level - 1] * (t.equip === 'ammo' ? EQUIP.ammo.dmg : 1);
   const rangeW = m.range / CELL;
   camera.updateMatrixWorld(true); // Blickrichtung kann sich seit dem letzten Frame geändert haben
   raycaster.setFromCamera({ x: 0, y: 0 }, camera);
+
+  if (t.type === 'mortar') {
+    // Artillerie: Granate fliegt im Bogen zum anvisierten Bodenpunkt
+    if (!raycaster.ray.intersectPlane(groundPlane, hitPoint)) return;
+    let tx = (hitPoint.x + COLS / 2) * CELL;
+    let ty = (hitPoint.z + ROWS / 2) * CELL;
+    const dx = tx - t.x, dy = ty - t.y;
+    const d = Math.hypot(dx, dy);
+    if (d > m.range) { tx = t.x + (dx / d) * m.range; ty = t.y + (dy / d) * m.range; }
+    t.angle = Math.atan2(ty - t.y, tx - t.x);
+    const mesh = makeProjectileMesh('cannon');
+    mesh.scale.setScalar(1.3);
+    mesh.position.set(pxToWX(t.x), (t.mesh.userData.muzzleY || 0.5) + (t.onHill ? HILL_H : 0), pxToWZ(t.y));
+    scene.add(mesh);
+    state.projectiles.push({
+      x: t.x, y: t.y, target: null, tx, ty,
+      speed: 300, dmg, splash: m.splash, slow: null, poison: null,
+      lob: true, traveled: 0, type: 'cannon', mesh,
+    });
+    sfx.cannon();
+    return;
+  }
   const meshes = [];
   for (const e of state.enemies) if (e.mesh) meshes.push(e.mesh);
   const hits = raycaster.intersectObjects(meshes, true);
@@ -1758,7 +1828,13 @@ function syncScene(rawDt) {
   // Projektile
   for (const p of state.projectiles) {
     if (!p.mesh) continue;
-    const y = p.type === 'archer' ? 0.85 : 0.5;
+    let y = p.type === 'archer' ? 0.85 : 0.5;
+    if (p.lob) {
+      // Ballistische Flugbahn: Höhe folgt einem Sinusbogen über die Flugstrecke
+      const remain = Math.hypot(p.tx - p.x, p.ty - p.y);
+      const frac = p.traveled / Math.max(1, p.traveled + remain);
+      y = 0.5 + Math.sin(Math.min(1, frac) * Math.PI) * 1.7;
+    }
     p.mesh.position.set(pxToWX(p.x), y, pxToWZ(p.y));
     if (p.type === 'archer') {
       tmpDir.set(p.tx - p.x, 0, p.ty - p.y).normalize();
@@ -1794,7 +1870,7 @@ function syncScene(rawDt) {
       guardArc.visible = false;
     } else {
       showRangeAt(pxToWX(t.x), pxToWZ(t.y), towerStats(t).range);
-      if (t.type === 'guard') showGuardArc(t);
+      if (TOWER_TYPES[t.type].arc) showGuardArc(t);
       else guardArc.visible = false;
     }
   } else {
@@ -1840,6 +1916,7 @@ const el = {
   ovEndless: document.getElementById('ov-endless'),
   pauseOv: document.getElementById('pause-ov'),
   mapBar: document.getElementById('map-bar'),
+  wavePreview: document.getElementById('wave-preview'),
   btnMusic: document.getElementById('btn-music'),
   btnRestart: document.getElementById('btn-restart'),
   btnAch: document.getElementById('btn-ach'),
@@ -1920,6 +1997,24 @@ function updateWaveButton() {
     el.btnWave.textContent = (state.wave === 0 ? 'Welle starten' : 'Nächste Welle') + bossTag;
     el.btnWave.disabled = false;
   }
+  updateWavePreview();
+}
+
+// Vorschau: Was bringt die nächste Welle?
+const ENEMY_NAMES = { normal: 'Normale', fast: 'Flinke', tank: 'Panzer', healer: 'Heiler', boss: 'Bosse', summoner: 'Beschwörer' };
+
+function updateWavePreview() {
+  if (state.gameOver) { el.wavePreview.textContent = ''; return; }
+  if (state.phase === 'wave') {
+    const left = state.enemies.length + state.spawnQueue.length;
+    el.wavePreview.textContent = '⚔️ Welle ' + state.wave + ': noch ' + left + ' Gegner';
+    return;
+  }
+  const q = buildWave(state.wave + 1);
+  const counts = {};
+  for (const s of q) counts[s.type] = (counts[s.type] || 0) + 1;
+  const parts = Object.entries(counts).map(([k, n]) => n + ' ' + (ENEMY_NAMES[k] || k));
+  el.wavePreview.textContent = '🔭 Nächste Welle: ' + q.length + ' Gegner — ' + parts.join(' · ');
 }
 
 function updateUI() {
@@ -1947,8 +2042,10 @@ function showTowerPanel(t) {
       'Feuerrate: ' + s.rate.toFixed(2) + '/s' +
       (t.onHill ? '<br>⛰️ Anhöhe: +10 % Reichweite' : '') +
       (t.type === 'poison' ? '<br>Gift: ' + Math.round(TOWER_TYPES.poison.poison.dps * LEVEL_MULT[t.level - 1]) + ' Schaden/s (3s)' : '') +
-      (t.type === 'guard'
-        ? '<br>Automatik nur im blauen Sektor<br>Manuell: ' + Math.round(TOWER_TYPES.guard.manual.dmg * LEVEL_MULT[t.level - 1] * (t.equip === 'ammo' ? EQUIP.ammo.dmg : 1)) + ' Schaden'
+      (TOWER_TYPES[t.type].manual
+        ? '<br>Automatik nur im blauen Sektor<br>Manuell: ' +
+          Math.round(TOWER_TYPES[t.type].manual.dmg * LEVEL_MULT[t.level - 1] * (t.equip === 'ammo' ? EQUIP.ammo.dmg : 1)) +
+          ' Schaden' + (TOWER_TYPES[t.type].manual.splash ? ' (Fläche)' : '')
         : '');
   }
   // Ausrüstung: ein Gegenstand pro Turm (nicht für Goldminen)
@@ -1972,7 +2069,7 @@ function showTowerPanel(t) {
       el.tpEquip.append(label, row);
     }
   }
-  el.tpEnter.style.display = t.type === 'guard' ? '' : 'none';
+  el.tpEnter.style.display = TOWER_TYPES[t.type].enterable ? '' : 'none';
   if (t.level < MAX_LEVEL) {
     const cost = upgradeCost(t.type, t.level);
     el.tpUpgrade.textContent = 'Aufwerten (💰' + cost + ')';
@@ -2006,7 +2103,20 @@ function showOverlay(title, text, isVictory) {
   if (state.controlled) exitTower();
   el.ovTitle.textContent = title;
   el.ovText.textContent = text;
+  el.ovRestart.textContent = 'Neustart';
   el.ovEndless.style.display = isVictory ? '' : 'none';
+  el.overlay.style.display = 'flex';
+}
+
+// Startbildschirm beim ersten Öffnen (wenn kein Spielstand wartet)
+function showStartScreen() {
+  el.ovTitle.textContent = '🏰 Turm-Verteidigung 3D';
+  el.ovText.textContent =
+    'Halte 20 Wellen stand! Baue Türme auf Gras und Anhöhen, rüste sie aus, ' +
+    'betritt Wachturm und Mörser für die Ego-Ansicht — und pass auf Heiler und Beschwörer auf. ' +
+    'Karte oben wählen, dann Welle starten. Viel Erfolg!';
+  el.ovRestart.textContent = '▶ Spielen';
+  el.ovEndless.style.display = 'none';
   el.overlay.style.display = 'flex';
 }
 
@@ -2261,8 +2371,9 @@ document.addEventListener('keydown', (evt) => {
   else if (evt.code === 'Digit3') selectBuildType('frost');
   else if (evt.code === 'Digit4') selectBuildType('bolt');
   else if (evt.code === 'Digit5') selectBuildType('guard');
-  else if (evt.code === 'Digit6') selectBuildType('poison');
-  else if (evt.code === 'Digit7') selectBuildType('mine');
+  else if (evt.code === 'Digit6') selectBuildType('mortar');
+  else if (evt.code === 'Digit7') selectBuildType('poison');
+  else if (evt.code === 'Digit8') selectBuildType('mine');
   else if (evt.code === 'Enter') { ensureAudio(); startWave(); updateUI(); }
 });
 
@@ -2401,5 +2512,5 @@ buildMapBar();
 buildShop();
 renderAchPanel();
 resetGame();
-tryLoadGame(); // gespeicherten Spielstand fortsetzen, falls vorhanden
+if (!tryLoadGame()) showStartScreen(); // fortsetzen oder Startbildschirm zeigen
 requestAnimationFrame(loop);
