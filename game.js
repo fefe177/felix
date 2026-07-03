@@ -168,8 +168,26 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a2332);
-scene.fog = new THREE.Fog(0x1a2332, 28, 55);
+scene.fog = new THREE.Fog(0xc9dccb, 28, 58);
+
+// Himmelskuppel mit Farbverlauf (Tageslicht)
+const sky = new THREE.Mesh(
+  new THREE.SphereGeometry(90, 24, 12),
+  new THREE.ShaderMaterial({
+    side: THREE.BackSide,
+    depthWrite: false,
+    uniforms: {
+      top: { value: new THREE.Color(0x4f96d8) },
+      bottom: { value: new THREE.Color(0xc9dccb) }, // = Nebelfarbe für nahtlosen Horizont
+    },
+    vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader:
+      'uniform vec3 top; uniform vec3 bottom; varying vec3 vP;' +
+      'void main(){ float h = normalize(vP).y * 0.5 + 0.5;' +
+      'gl_FragColor = vec4(mix(bottom, top, pow(max(h, 0.0), 0.55)), 1.0); }',
+  })
+);
+scene.add(sky);
 
 const camera = new THREE.PerspectiveCamera(42, 800 / 560, 0.1, 200);
 
@@ -200,8 +218,8 @@ window.addEventListener('resize', resize);
 resize();
 
 // Licht
-scene.add(new THREE.HemisphereLight(0xbfd4e8, 0x33452e, 0.75));
-const sun = new THREE.DirectionalLight(0xfff2d9, 0.95);
+scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x3e5c35, 0.7));
+const sun = new THREE.DirectionalLight(0xffefc8, 1.0);
 sun.position.set(12, 20, 6);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
@@ -231,6 +249,8 @@ const MAT = {
   rock:      new THREE.MeshStandardMaterial({ color: 0x767a85, roughness: 0.95 }),
 };
 
+const clouds = []; // treibende Wolken (Drift in syncScene)
+
 // Boden mit Schachbrett-Textur
 (function buildGround() {
   const tex = (() => {
@@ -239,7 +259,7 @@ const MAT = {
     const g = c.getContext('2d');
     for (let r = 0; r < ROWS; r++) {
       for (let cc = 0; cc < COLS; cc++) {
-        g.fillStyle = (cc + r) % 2 === 0 ? '#2f5136' : '#2a4a31';
+        g.fillStyle = (cc + r) % 2 === 0 ? '#3e8a46' : '#37823f';
         g.fillRect(cc * 8, r * 8, 8, 8);
       }
     }
@@ -258,7 +278,7 @@ const MAT = {
   // Umland
   const skirt = new THREE.Mesh(
     new THREE.PlaneGeometry(COLS + 14, ROWS + 14),
-    new THREE.MeshStandardMaterial({ color: 0x223d28, roughness: 1 })
+    new THREE.MeshStandardMaterial({ color: 0x33703c, roughness: 1 })
   );
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = -0.03;
@@ -284,18 +304,46 @@ const MAT = {
     [-7.5, -8.4], [-2.0, -8.6], [3.5, -8.3], [8.5, -8.5],
     [-8.5, 8.4], [-3.0, 8.6], [2.5, 8.3], [7.5, 8.5], [-11.4, 8.2], [11.6, -8.2],
   ];
+  const foliageB = new THREE.MeshStandardMaterial({ color: 0x2d7a42, roughness: 0.9 });
+  let treeIdx = 0;
   for (const [x, z] of treeSpots) {
     const tree = new THREE.Group();
     const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.13, 0.5, 6), MAT.wood);
     trunk.position.y = 0.25;
     const s = 0.8 + ((x * 13 + z * 7) % 10) / 20; // deterministische Größenvariation
-    const leaf = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.2, 8), MAT.foliage);
-    leaf.position.y = 1.0;
-    trunk.castShadow = leaf.castShadow = true;
-    tree.add(trunk, leaf);
+    const mat = treeIdx++ % 2 === 0 ? MAT.foliage : foliageB;
+    // Zwei Nadel-Etagen wirken deutlich plastischer als ein Kegel
+    const leaf1 = new THREE.Mesh(new THREE.ConeGeometry(0.52, 1.0, 8), mat);
+    leaf1.position.y = 0.85;
+    const leaf2 = new THREE.Mesh(new THREE.ConeGeometry(0.38, 0.8, 8), mat);
+    leaf2.position.y = 1.4;
+    trunk.castShadow = leaf1.castShadow = leaf2.castShadow = true;
+    tree.add(trunk, leaf1, leaf2);
     tree.scale.setScalar(s);
     tree.position.set(x, 0, z);
     scene.add(tree);
+  }
+
+  // Treibende Tiefflieger-Wolken
+  const cloudMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, emissive: 0xaab4c4, emissiveIntensity: 0.12 });
+  const cloudSpots = [
+    // tief über der Baumreihe, damit sie auch in der Standardansicht schweben
+    [-9, 3.0, -9.5, 0.85], [1, 3.4, -10.5, 1.1], [10, 2.9, -9.2, 0.75],
+    [-16, 3.2, -10, 0.95], [17, 3.5, -11, 1.0],
+    [5, 6.5, -14, 1.6], // eine hohe für gedrehte Kamera
+  ];
+  for (const [x, y, z, s] of cloudSpots) {
+    const g = new THREE.Group();
+    for (const [bx, by, bz, br] of [[0, 0, 0, 1], [0.9, 0.1, 0.2, 0.7], [-0.85, 0.05, -0.1, 0.75], [0.3, 0.35, -0.3, 0.55], [-0.3, 0.32, 0.3, 0.5]]) {
+      const blob = new THREE.Mesh(new THREE.SphereGeometry(br, 10, 8), cloudMat);
+      blob.position.set(bx, by, bz);
+      blob.scale.y = 0.55;
+      g.add(blob);
+    }
+    g.scale.setScalar(s);
+    g.position.set(x, y, z);
+    scene.add(g);
+    clouds.push({ g, speed: 0.25 + s * 0.18 });
   }
   const rockSpots = [[-11.0, 2.5], [11.2, -2.8], [5.8, -8.6], [-5.5, 8.6]];
   for (const [x, z] of rockSpots) {
@@ -313,24 +361,40 @@ scene.add(mapGroup);
 
 const MAPGFX = {
   tileGeo: new THREE.BoxGeometry(0.98, 0.14, 0.98),
-  tileMatA: new THREE.MeshStandardMaterial({ color: 0x8a6d46, roughness: 0.9 }),
-  tileMatB: new THREE.MeshStandardMaterial({ color: 0x7f6440, roughness: 0.9 }),
+  tileMats: [
+    new THREE.MeshStandardMaterial({ color: 0xb08948, roughness: 0.9 }),
+    new THREE.MeshStandardMaterial({ color: 0xa37e42, roughness: 0.9 }),
+    new THREE.MeshStandardMaterial({ color: 0x97743c, roughness: 0.9 }),
+  ],
   hillGeo: new THREE.BoxGeometry(0.98, HILL_H, 0.98),
-  hillSide: new THREE.MeshStandardMaterial({ color: 0x6e6a5c, roughness: 0.95 }),
-  hillTop: new THREE.MeshStandardMaterial({ color: 0x3f6b47, roughness: 0.9 }),
+  hillSide: new THREE.MeshStandardMaterial({ color: 0x7a7466, roughness: 0.95 }),
+  hillTop: new THREE.MeshStandardMaterial({ color: 0x459150, roughness: 0.9 }),
   portalGeo: new THREE.TorusGeometry(0.55, 0.09, 10, 24),
   portalGreen: new THREE.MeshStandardMaterial({ color: 0x2fae53, emissive: 0x2fae53, emissiveIntensity: 0.6, roughness: 0.4 }),
   portalRed: new THREE.MeshStandardMaterial({ color: 0xc93f3f, emissive: 0xc93f3f, emissiveIntensity: 0.6, roughness: 0.4 }),
+  swirlGeo: new THREE.CircleGeometry(0.44, 20),
+  swirlGreen: new THREE.MeshBasicMaterial({ color: 0x7be08a, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }),
+  swirlRed: new THREE.MeshBasicMaterial({ color: 0xe88a7b, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false }),
+  tuftGeo: new THREE.ConeGeometry(0.055, 0.17, 5),
+  tuftMat: new THREE.MeshStandardMaterial({ color: 0x38804a, roughness: 0.95 }),
+  stemGeo: new THREE.CylinderGeometry(0.012, 0.012, 0.12, 4),
+  flowerGeo: new THREE.SphereGeometry(0.045, 8, 6),
+  flowerMats: [
+    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6 }),
+    new THREE.MeshStandardMaterial({ color: 0xf0c34e, roughness: 0.6 }),
+    new THREE.MeshStandardMaterial({ color: 0xe8788a, roughness: 0.6 }),
+  ],
 };
 
 function buildMapScene() {
   for (const o of [...mapGroup.children]) mapGroup.remove(o);
 
-  // Pfad-Kacheln
+  // Pfad-Kacheln (drei Farbtöne + minimale Höhenvariation = lebendigeres Pflaster)
   for (const key of pathCells) {
     const [c, r] = key.split(',').map(Number);
-    const tile = new THREE.Mesh(MAPGFX.tileGeo, (c + r) % 2 === 0 ? MAPGFX.tileMatA : MAPGFX.tileMatB);
-    tile.position.set(c - COLS / 2 + 0.5, 0.07, r - ROWS / 2 + 0.5);
+    const v = (c * 7 + r * 13) % 3;
+    const tile = new THREE.Mesh(MAPGFX.tileGeo, MAPGFX.tileMats[v]);
+    tile.position.set(c - COLS / 2 + 0.5, 0.07 + v * 0.006, r - ROWS / 2 + 0.5);
     tile.receiveShadow = true;
     mapGroup.add(tile);
   }
@@ -344,16 +408,43 @@ function buildMapScene() {
     mapGroup.add(hill);
   }
 
-  // Start- und Zielportal
-  const mkPortal = (x, z, mat) => {
+  // Start- und Zielportal (mit pulsierendem Energie-Wirbel)
+  const mkPortal = (x, z, mat, swirlMat) => {
     const ring = new THREE.Mesh(MAPGFX.portalGeo, mat);
     ring.position.set(x, 0.62, z);
     ring.rotation.y = Math.PI / 2;
     ring.castShadow = true;
+    ring.userData.pulse = true;
     mapGroup.add(ring);
+    const swirl = new THREE.Mesh(MAPGFX.swirlGeo, swirlMat);
+    swirl.position.set(x, 0.62, z);
+    swirl.rotation.y = Math.PI / 2;
+    swirl.userData.pulse = true;
+    mapGroup.add(swirl);
   };
-  mkPortal(-(COLS / 2 + 0.35), pxToWZ(waypoints[0].y), MAPGFX.portalGreen);
-  mkPortal(COLS / 2 + 0.35, pxToWZ(waypoints[waypoints.length - 1].y), MAPGFX.portalRed);
+  mkPortal(-(COLS / 2 + 0.35), pxToWZ(waypoints[0].y), MAPGFX.portalGreen, MAPGFX.swirlGreen);
+  mkPortal(COLS / 2 + 0.35, pxToWZ(waypoints[waypoints.length - 1].y), MAPGFX.portalRed, MAPGFX.swirlRed);
+
+  // Gras-Büschel und Blumen auf freien Feldern (deterministisch verteilt)
+  for (let cy = 0; cy < ROWS; cy++) {
+    for (let cx = 0; cx < COLS; cx++) {
+      if (pathCells.has(cx + ',' + cy) || hillCells.has(cx + ',' + cy)) continue;
+      let h = Math.abs((cx * 73856093) ^ (cy * 19349663)) % 997;
+      const fx = cx - COLS / 2 + 0.5 + ((h % 7) - 3) * 0.11;
+      const fz = cy - ROWS / 2 + 0.5 + ((Math.floor(h / 7) % 7) - 3) * 0.11;
+      if (h % 5 === 0) {
+        const tuft = new THREE.Mesh(MAPGFX.tuftGeo, MAPGFX.tuftMat);
+        tuft.position.set(fx, 0.085, fz);
+        mapGroup.add(tuft);
+      } else if (h % 11 === 3) {
+        const stem = new THREE.Mesh(MAPGFX.stemGeo, MAPGFX.tuftMat);
+        stem.position.set(fx, 0.06, fz);
+        const bloom = new THREE.Mesh(MAPGFX.flowerGeo, MAPGFX.flowerMats[h % 3]);
+        bloom.position.set(fx, 0.14, fz);
+        mapGroup.add(stem, bloom);
+      }
+    }
+  }
 }
 
 // Kartenwechsel (setzt das Spiel zurück)
@@ -1778,6 +1869,17 @@ const upVec = new THREE.Vector3(0, 1, 0);
 const tmpDir = new THREE.Vector3();
 
 function syncScene(rawDt) {
+  // Wolken treiben langsam über die Karte
+  for (const c of clouds) {
+    c.g.position.x += c.speed * rawDt;
+    if (c.g.position.x > 26) c.g.position.x = -26;
+  }
+  // Portale pulsieren
+  const pulseS = 1 + Math.sin(performance.now() / 350) * 0.07;
+  for (const o of mapGroup.children) {
+    if (o.userData.pulse) o.scale.setScalar(pulseS);
+  }
+
   // Gegner
   for (const e of state.enemies) {
     if (!e.mesh) continue;

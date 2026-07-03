@@ -130,5 +130,6 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen k
 ## Technik
 
 - **Three.js r128** (lokal in `vendor/`, kein CDN) mit Echtzeitschatten, Hemisphären- und Sonnenlicht sowie Nebel
+- **Tageslicht-Szenerie:** Himmelskuppel mit Shader-Farbverlauf, treibende Low-Poly-Wolken, Gras mit verstreuten Büscheln und Blumen, dreifarbiges Pfadpflaster, zweistufige Tannen und pulsierende Start-/Zielportale
 - Spiellogik läuft in 2D-Pfadkoordinaten, die 3D-Szene ist die Darstellung darüber — Turm-Platzierung per Raycasting auf das Spielfeld
 - Alle Modelle (Türme, Gegner, Bäume, Portale) sind prozedural aus Three.js-Grundkörpern gebaut, es werden keine externen Assets geladen
