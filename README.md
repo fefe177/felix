@@ -27,7 +27,11 @@ Gegner laufen in Wellen über den Pfad von links nach rechts. Baue Türme auf di
 | 🐍 Serpentinen | Leicht | Enges Auf und Ab — Türme zwischen den Korridoren treffen mehrfach |
 | ⛰️ Schlucht | Schwer | Kurzer, direkter Pfad — wenig Zeit zum Schießen! |
 
-Dazu gibt es einen **Musik-Button** (🎵) mit einem kleinen Chiptune-Loop als Hintergrundmusik.
+Dazu gibt es einen **Musik-Button** (🎵) mit einem kleinen Chiptune-Loop als Hintergrundmusik. Die **beste Welle wird pro Karte gespeichert** und direkt am Kartenknopf angezeigt (★).
+
+## 💾 Speichern & Fortsetzen
+
+Das Spiel **speichert automatisch nach jeder geschafften Welle** (und bei jedem Bau/Upgrade in der Baupause). Wer den Browser schließt, macht beim nächsten Öffnen genau dort weiter — mit allen Türmen, Stufen, Ausrüstungen, Gold und Leben. Der ↺-Button oben startet bewusst neu (mit Rückfrage), Niederlage oder Sieg leeren den Spielstand.
 
 ## Türme
 
@@ -100,6 +104,7 @@ Der Wachturm ist etwas Besonderes: Man kann ihn **betreten und selbst steuern**.
 - **Panzer** (grün, mit Stahlhelm) — langsam, viele Lebenspunkte, kostet 2 Leben
 - **Boss** (lila, mit Krone) — alle 5 Wellen, sehr zäh, kostet 5 Leben
 - **Beschwörer** (violett, mit Zauberhut und Geister-Orbs) — jede 10. Welle; ruft alle paar Sekunden zwei Diener direkt auf den Pfad! Schnell ausschalten, sonst wächst die Welle immer weiter
+- **Heiler** (weiß, mit rotem Kreuz) — ab Welle 7; heilt alle 3 Sekunden verletzte Gegner im Umkreis (grüner Heil-Ring). Zuerst ausschalten, sonst kämpfst du gegen regenerierende Panzer!
 
 Jede Karte hat ihren eigenen Wellen-Charakter: In der **Schlucht** stürmen deutlich mehr Flinke, auf den **Serpentinen** rollen Panzerkolonnen an.
 

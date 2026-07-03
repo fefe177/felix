@@ -143,7 +143,10 @@ const ENEMY_TYPES = {
   tank:     { hp: 110, speed: 36, reward: 12, radius: 15, lives: 2, color: 0x5a7d5a },
   boss:     { hp: 650, speed: 30, reward: 60, radius: 20, lives: 5, color: 0x7a4fa0 },
   summoner: { hp: 420, speed: 26, reward: 70, radius: 17, lives: 4, color: 0x5a4a7d },
+  healer:   { hp: 55, speed: 45, reward: 11, radius: 12, lives: 1, color: 0xf0ece4 },
 };
+const HEAL_RANGE = 90;   // px
+const HEAL_INTERVAL = 3; // s
 const SLOW_TINT = 0x7ab8d9;
 const POISON_TINT = 0x8cc45f;
 
@@ -354,6 +357,7 @@ function loadMap(i) {
     return;
   }
   try { localStorage.setItem('td3d-karte', String(i)); } catch (e) { /* egal */ }
+  clearSave();
   loadMapData(i);
   buildMapScene();
   resetGame();
@@ -659,6 +663,15 @@ function makeEnemyMesh(typeKey) {
       fin.castShadow = true;
       bodyG.add(fin);
     }
+  } else if (typeKey === 'healer') {
+    // Sanitäter: weißer Körper mit rotem Kreuz
+    const crossMat = new THREE.MeshStandardMaterial({ color: 0xd94f4f, roughness: 0.6 });
+    const c1 = new THREE.Mesh(new THREE.BoxGeometry(rw * 0.95, rw * 0.3, rw * 0.3), crossMat);
+    c1.position.y = rw * 1.2;
+    const c2 = new THREE.Mesh(new THREE.BoxGeometry(rw * 0.3, rw * 0.3, rw * 0.95), crossMat);
+    c2.position.y = rw * 1.2;
+    c1.castShadow = c2.castShadow = true;
+    bodyG.add(c1, c2);
   } else if (typeKey === 'summoner') {
     // Zauberhut und kreisende Geister-Orbs
     const hat = new THREE.Mesh(new THREE.ConeGeometry(rw * 0.75, rw * 1.3, 8),
@@ -824,6 +837,7 @@ function clearActors() {
   if (state.projectiles) for (const p of state.projectiles) scene.remove(p.mesh);
   if (state.beams) for (const b of state.beams) { scene.remove(b.line); b.line.geometry.dispose(); b.line.material.dispose(); }
   if (state.particles) for (const p of state.particles) scene.remove(p.mesh);
+  if (state.pulses) for (const pu of state.pulses) { scene.remove(pu.mesh); pu.mesh.geometry.dispose(); pu.mesh.material.dispose(); }
   if (state.floaters) for (const f of state.floaters) f.el.remove();
 }
 
@@ -842,6 +856,7 @@ function resetGame() {
   state.projectiles = [];
   state.beams = [];
   state.particles = [];
+  state.pulses = [];
   state.floaters = [];
   state.spawnQueue = [];
   state.spawnTimer = 0;
@@ -895,6 +910,7 @@ const sfx = {
   frost:   () => beep(880, 0.09, 'sine', 0.035, -300),
   poison:  () => beep(240, 0.14, 'sine', 0.05, 160),
   summon:  () => { beep(320, 0.18, 'sawtooth', 0.05, 260); setTimeout(() => beep(480, 0.14, 'sawtooth', 0.04, 200), 120); },
+  heal:    () => { beep(660, 0.1, 'sine', 0.035, 220); setTimeout(() => beep(880, 0.12, 'sine', 0.03, 180), 90); },
   bolt:    () => beep(1200, 0.12, 'sawtooth', 0.04, -900),
   guard:   () => beep(700, 0.06, 'square', 0.05, -260),
   hit:     () => beep(300, 0.05, 'triangle', 0.03, -100),
@@ -926,6 +942,7 @@ function buildWave(w) {
     let type = 'normal';
     if (w >= 3 && i % fastEvery === fastEvery - 1) type = 'fast';
     if (w >= 5 && i % tankEvery === tankEvery - 1) type = 'tank';
+    if (w >= 7 && i % 9 === 5) type = 'healer'; // Sanitäter mischen sich unter die Welle
     queue.push({ type, delay: type === 'fast' ? 0.55 : 0.85 });
   }
   if (isBossWave) {
@@ -987,14 +1004,81 @@ function renderAchPanel() {
     ).join('');
 }
 
-// Beste Welle dauerhaft im Browser speichern
-function loadBest() {
-  try { return parseInt(localStorage.getItem('td3d-beste-welle') || '0', 10) || 0; }
+// Beste Welle dauerhaft im Browser speichern — getrennt pro Karte
+function loadBestFor(mapIdx) {
+  try { return parseInt(localStorage.getItem('td3d-beste-welle-' + mapIdx) || '0', 10) || 0; }
   catch (e) { return 0; }
 }
+function loadBest() { return loadBestFor(currentMap); }
 function saveBest(w) {
-  try { if (w > loadBest()) localStorage.setItem('td3d-beste-welle', String(w)); }
-  catch (e) { /* z. B. Speicher blockiert — dann eben ohne Highscore */ }
+  try {
+    if (w > loadBest()) {
+      localStorage.setItem('td3d-beste-welle-' + currentMap, String(w));
+      updateMapButtons();
+    }
+  } catch (e) { /* z. B. Speicher blockiert — dann eben ohne Highscore */ }
+}
+
+// ---------- Spielstand (automatisch nach jeder Welle gesichert) ----------
+const SAVE_KEY = 'td3d-spielstand';
+let restoringGame = false;
+
+function saveGame() {
+  if (restoringGame || state.gameOver || state.wave === 0) return;
+  const data = {
+    map: currentMap,
+    wave: state.wave,
+    gold: state.gold,
+    lives: state.lives,
+    kills: state.kills,
+    manualKills: state.manualKills,
+    endless: state.endless,
+    towers: state.towers.map(t => ({
+      type: t.type, cx: t.cx, cy: t.cy, level: t.level,
+      equip: t.equip, guardAngle: t.guardAngle, invested: t.invested,
+    })),
+  };
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) { /* egal */ }
+}
+
+function clearSave() {
+  try { localStorage.removeItem(SAVE_KEY); } catch (e) { /* egal */ }
+}
+
+function tryLoadGame() {
+  let data = null;
+  try { data = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); } catch (e) { return false; }
+  if (!data || !Array.isArray(data.towers) || !(data.wave >= 1)) return false;
+  restoringGame = true;
+  if (data.map !== currentMap && MAPS[data.map]) {
+    loadMapData(data.map);
+    buildMapScene();
+    updateMapButtons();
+  }
+  resetGame();
+  state.wave = data.wave;
+  state.lives = data.lives;
+  state.kills = data.kills || 0;
+  state.manualKills = data.manualKills || 0;
+  state.endless = !!data.endless;
+  for (const td of data.towers) {
+    if (!TOWER_TYPES[td.type] || !isBuildable(td.cx, td.cy, td.type)) continue;
+    state.gold = 1e9;
+    if (!placeTower(td.cx, td.cy, td.type)) continue;
+    const t = state.towers[state.towers.length - 1];
+    t.level = Math.min(MAX_LEVEL, td.level || 1);
+    t.equip = td.equip && EQUIP[td.equip] ? td.equip : null;
+    t.invested = td.invested || TOWER_TYPES[td.type].cost;
+    if (typeof td.guardAngle === 'number') { t.guardAngle = td.guardAngle; t.angle = td.guardAngle; }
+    rebuildTowerMesh(t);
+  }
+  state.gold = data.gold;
+  state.phase = 'build';
+  state.autoTimer = -1;
+  restoringGame = false;
+  updateUI();
+  addFloater(W / 2, H / 2 - 40, '💾 Spielstand geladen — weiter mit Welle ' + (state.wave + 1), '#5da9e8');
+  return true;
 }
 function statsText(prefix) {
   return prefix + ' · Abschüsse: ' + state.kills + ' · Beste Welle: ' + loadBest();
@@ -1020,9 +1104,11 @@ function endWave() {
     sfx.win();
     unlock('sieg');
     if (state.lives === 20) unlock('perfekt');
+    clearSave();
     showOverlay('🏆 Sieg!', statsText('Du hast alle ' + TOTAL_WAVES + ' Wellen überstanden!'), true);
   } else {
     state.autoTimer = 12;
+    saveGame(); // Spielstand nach jeder geschafften Welle sichern
   }
   updateUI();
 }
@@ -1052,6 +1138,7 @@ function spawnEnemy(typeKey, opts = {}) {
     dead: false,
     hitFlash: 0,
     summonT: typeKey === 'summoner' ? 3 : 0,
+    healT: typeKey === 'healer' ? 2 : 0,
     dirX: 1, dirY: 0,
     wobble: Math.random() * Math.PI * 2,
     mesh,
@@ -1078,6 +1165,26 @@ function updateEnemies(dt) {
         }
         spawnParticles(e.x, e.y, 0x7be05a, 12);
         sfx.summon();
+      }
+    }
+    // Heiler regenerieren verletzte Gegner in der Nähe (aber keine anderen Heiler)
+    if (e.type === 'healer' && e.wp < waypoints.length) {
+      e.healT -= dt;
+      if (e.healT <= 0) {
+        e.healT = HEAL_INTERVAL;
+        const amount = 12 * waveHpScale(state.wave);
+        let healed = false;
+        for (const o of state.enemies) {
+          if (o.dead || o === e || o.type === 'healer') continue;
+          if (o.hp < o.maxHp && Math.hypot(o.x - e.x, o.y - e.y) <= HEAL_RANGE) {
+            o.hp = Math.min(o.maxHp, o.hp + amount);
+            healed = true;
+          }
+        }
+        if (healed) {
+          spawnHealPulse(e.x, e.y);
+          sfx.heal();
+        }
       }
     }
     const spd = e.speed * (e.slowT > 0 ? e.slowFactor : 1);
@@ -1108,6 +1215,7 @@ function updateEnemies(dt) {
         state.gameOver = true;
         sfx.lose();
         saveBest(state.wave - 1);
+        clearSave();
         showOverlay('💀 Game Over', statsText('Du hast Welle ' + state.wave + ' erreicht'), false);
       }
       updateUI();
@@ -1179,6 +1287,7 @@ function equipTower(t, key) {
   spawnParticles(t.x, t.y, EQUIP[key].color, 10);
   if (t.level >= MAX_LEVEL) unlock('vollausbau');
   updateUI();
+  if (state.phase === 'build') saveGame();
 }
 
 // Blickrichtung zum nächstgelegenen Pfadfeld (Standard-Sektor des Wachturms)
@@ -1221,6 +1330,7 @@ function placeTower(cx, cy, type) {
   spawnParticles((cx + 0.5) * CELL, (cy + 0.5) * CELL, 0xf5b942, 10);
   if (type === 'mine' && state.towers.filter(t => t.type === 'mine').length >= 3) unlock('magnat');
   updateUI();
+  if (state.phase === 'build') saveGame();
   return true;
 }
 
@@ -1397,6 +1507,32 @@ function updateParticles(dt) {
     if (p.ttl <= 0) scene.remove(p.mesh);
   }
   state.particles = state.particles.filter(p => p.ttl > 0);
+
+  // Heil-Ringe wachsen und verblassen
+  for (const pu of state.pulses) {
+    pu.ttl -= dt;
+    const f = 1 - pu.ttl / pu.maxTtl;
+    const r = 0.3 + f * (HEAL_RANGE / CELL);
+    pu.mesh.scale.set(r, r, 1);
+    pu.mesh.material.opacity = 0.7 * (pu.ttl / pu.maxTtl);
+    if (pu.ttl <= 0) {
+      scene.remove(pu.mesh);
+      pu.mesh.geometry.dispose();
+      pu.mesh.material.dispose();
+    }
+  }
+  state.pulses = state.pulses.filter(pu => pu.ttl > 0);
+}
+
+function spawnHealPulse(xPx, yPx) {
+  const ring = new THREE.Mesh(
+    new THREE.RingGeometry(0.82, 1, 24),
+    new THREE.MeshBasicMaterial({ color: 0x7be05a, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false })
+  );
+  ring.rotation.x = -Math.PI / 2;
+  ring.position.set(pxToWX(xPx), 0.18, pxToWZ(yPx));
+  scene.add(ring);
+  state.pulses.push({ mesh: ring, ttl: 0.6, maxTtl: 0.6 });
 }
 
 // ---------- Schwebende Texte (HTML-Overlay) ----------
@@ -1705,6 +1841,7 @@ const el = {
   pauseOv: document.getElementById('pause-ov'),
   mapBar: document.getElementById('map-bar'),
   btnMusic: document.getElementById('btn-music'),
+  btnRestart: document.getElementById('btn-restart'),
   btnAch: document.getElementById('btn-ach'),
   achPanel: document.getElementById('ach-panel'),
 };
@@ -1728,7 +1865,10 @@ function buildMapBar() {
 
 function updateMapButtons() {
   for (const btn of el.mapBar.querySelectorAll('button')) {
-    btn.classList.toggle('selected', Number(btn.dataset.map) === currentMap);
+    const i = Number(btn.dataset.map);
+    btn.classList.toggle('selected', i === currentMap);
+    const best = loadBestFor(i);
+    btn.textContent = MAPS[i].name + ' (' + MAPS[i].difficulty + ')' + (best > 0 ? ' · ★' + best : '');
   }
 }
 
@@ -2196,6 +2336,7 @@ el.tpUpgrade.addEventListener('click', () => {
   sfx.upgrade();
   spawnParticles(t.x, t.y, 0xf5b942, 14);
   updateUI();
+  if (state.phase === 'build') saveGame();
 });
 
 el.tpSell.addEventListener('click', () => {
@@ -2209,9 +2350,18 @@ el.tpSell.addEventListener('click', () => {
   sfx.sell();
   addFloater(t.x, t.y, '+' + sellValue(t) + ' 💰', '#f5b942');
   updateUI();
+  if (state.phase === 'build') saveGame();
 });
 
-el.ovRestart.addEventListener('click', () => { ensureAudio(); resetGame(); });
+el.ovRestart.addEventListener('click', () => { ensureAudio(); clearSave(); resetGame(); });
+
+el.btnRestart.addEventListener('click', () => {
+  ensureAudio();
+  if (state.wave > 0 && !state.gameOver &&
+      !window.confirm('Neu starten? Der gespeicherte Spielstand geht verloren.')) return;
+  clearSave();
+  resetGame();
+});
 
 el.ovEndless.addEventListener('click', () => {
   ensureAudio();
@@ -2251,4 +2401,5 @@ buildMapBar();
 buildShop();
 renderAchPanel();
 resetGame();
+tryLoadGame(); // gespeicherten Spielstand fortsetzen, falls vorhanden
 requestAnimationFrame(loop);
