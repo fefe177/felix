@@ -130,9 +130,9 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen k
 ## Technik
 
 - **Three.js r128** (lokal in `vendor/`, kein CDN) mit Echtzeitschatten, Hemisphären- und Sonnenlicht sowie Nebel
-- **Tageslicht-Szenerie:** Himmelskuppel mit Shader-Farbverlauf, treibende Low-Poly-Wolken, Gras mit verstreuten Büscheln und Blumen, dreifarbiges Pfadpflaster, zweistufige Tannen und pulsierende Start-/Zielportale
+- **Minecraft-Look:** Alle Oberflächen nutzen prozedurale 16×16-Pixel-Texturen mit Nearest-Filter (Gras, Erde, Trampelpfad, Stein, Bruchstein, Holz, Laub, Golderz, Obsidian …) — und die ganze Welt ist aus Würfeln gebaut: Grasblock-Anhöhen mit Erdkante, Klötzchen-Bäume, gestufte Blockberge mit Schneeplatten, flache Wolken, Obsidian-Portale mit leuchtender Füllung, Würfel-Türme und Block-Mobs mit Pixel-Augen
 - **Tagesverlauf:** Mit jeder Welle wandert die Sonne tiefer — das Finale ab Welle 15 wird im goldvioletten Abendlicht mit langen Schatten geschlagen
 - **Wetter:** Über der Schlucht-Karte fällt Dauerregen unter grauem Himmel
-- **Wucht-Effekte:** Screenshake bei Kanonen-/Mörser-Explosionen und beim Fall großer Gegner, Explosionsringe, dezente Vignette
+- **Wucht-Effekte:** Screenshake bei Kanonen-/Mörser-Explosionen und beim Fall großer Gegner, Explosionsringe
 - Spiellogik läuft in 2D-Pfadkoordinaten, die 3D-Szene ist die Darstellung darüber — Turm-Platzierung per Raycasting auf das Spielfeld
 - Alle Modelle (Türme, Gegner, Bäume, Portale) sind prozedural aus Three.js-Grundkörpern gebaut, es werden keine externen Assets geladen

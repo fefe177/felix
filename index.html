@@ -127,13 +127,6 @@
   @keyframes achfade { to { opacity: 0; } }
   #game-wrap { position: relative; width: 100%; max-width: 800px; }
   #game3d { position: relative; border-radius: 10px; overflow: hidden; line-height: 0; }
-  #game3d::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: radial-gradient(ellipse at center, transparent 58%, rgba(8, 12, 20, .22) 100%);
-  }
   #game3d canvas {
     display: block;
     width: 100% !important;
