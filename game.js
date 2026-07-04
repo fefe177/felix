@@ -38,6 +38,7 @@ const MAPS = [
   {
     name: 'Schlucht', difficulty: 'Schwer',
     waves: { fastEvery: 2, tankEvery: 5 }, // Sturmläufe auf dem kurzen Pfad
+    weather: 'rain',
     waypoints: [[-1, 4], [6, 4], [6, 9], [13, 9], [13, 4], [20, 4]],
     hills: [
       [4, 2], [4, 6], [8, 6], [8, 11], [11, 2], [11, 6], [15, 2], [15, 6],
@@ -218,7 +219,8 @@ window.addEventListener('resize', resize);
 resize();
 
 // Licht
-scene.add(new THREE.HemisphereLight(0xcfe6ff, 0x3e5c35, 0.7));
+const hemi = new THREE.HemisphereLight(0xcfe6ff, 0x3e5c35, 0.7);
+scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xffefc8, 1.0);
 sun.position.set(12, 20, 6);
 sun.castShadow = true;
@@ -250,6 +252,83 @@ const MAT = {
 };
 
 const clouds = []; // treibende Wolken (Drift in syncScene)
+
+// ---------- Tagesverlauf & Wetter ----------
+// Mit jeder Welle sinkt die Sonne: Welle 20 wird im Abendlicht geschlagen.
+// Die Schlucht liegt in Dauerregen.
+const LIGHT_DAY  = { top: 0x4f96d8, horizon: 0xc9dccb, sun: 0xffefc8, sunI: 1.0, hemiI: 0.7, sunPos: [12, 20, 6] };
+const LIGHT_DUSK = { top: 0x5c6fb5, horizon: 0xe3b183, sun: 0xffc98a, sunI: 0.85, hemiI: 0.55, sunPos: [17, 9, 7] };
+const LIGHT_RAIN = { top: 0x64788f, horizon: 0xb7c0c6, sun: 0xdfe6ee, sunI: 0.55, hemiI: 0.85, sunPos: [12, 20, 6] };
+const colA = new THREE.Color(), colB = new THREE.Color();
+let daylightKey = '';
+
+function updateDaylight() {
+  const rainy = MAPS[currentMap].weather === 'rain';
+  const f = rainy ? 0 : Math.min(1, state.wave / TOTAL_WAVES);
+  const key = (rainy ? 'r' : 'd') + f.toFixed(3);
+  if (key === daylightKey) return;
+  daylightKey = key;
+  rain.visible = rainy;
+  const A = rainy ? LIGHT_RAIN : LIGHT_DAY;
+  const B = rainy ? LIGHT_RAIN : LIGHT_DUSK;
+  sky.material.uniforms.top.value.copy(colA.set(A.top).lerp(colB.set(B.top), f));
+  sky.material.uniforms.bottom.value.copy(colA.set(A.horizon).lerp(colB.set(B.horizon), f));
+  scene.fog.color.copy(colA.set(A.horizon).lerp(colB.set(B.horizon), f));
+  sun.color.copy(colA.set(A.sun).lerp(colB.set(B.sun), f));
+  sun.intensity = A.sunI + (B.sunI - A.sunI) * f;
+  hemi.intensity = A.hemiI + (B.hemiI - A.hemiI) * f;
+  sun.position.set(
+    A.sunPos[0] + (B.sunPos[0] - A.sunPos[0]) * f,
+    A.sunPos[1] + (B.sunPos[1] - A.sunPos[1]) * f,
+    A.sunPos[2] + (B.sunPos[2] - A.sunPos[2]) * f
+  );
+}
+
+// Regen: fallende Liniensegmente über dem Spielfeld
+const RAIN_COUNT = 260;
+const rainDrops = [];
+const rain = (() => {
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(RAIN_COUNT * 6), 3));
+  for (let i = 0; i < RAIN_COUNT; i++) {
+    rainDrops.push({
+      x: (Math.random() - 0.5) * 26,
+      y: Math.random() * 11,
+      z: (Math.random() - 0.5) * 18,
+      v: 9 + Math.random() * 5,
+    });
+  }
+  const lines = new THREE.LineSegments(geo,
+    new THREE.LineBasicMaterial({ color: 0xa9c2dd, transparent: true, opacity: 0.45 }));
+  lines.visible = false;
+  lines.frustumCulled = false;
+  scene.add(lines);
+  return lines;
+})();
+
+function updateRain(dt) {
+  const pos = rain.geometry.attributes.position.array;
+  for (let i = 0; i < RAIN_COUNT; i++) {
+    const d = rainDrops[i];
+    d.y -= d.v * dt;
+    if (d.y < 0) {
+      d.y = 10 + Math.random() * 2;
+      d.x = (Math.random() - 0.5) * 26;
+      d.z = (Math.random() - 0.5) * 18;
+    }
+    const o = i * 6;
+    pos[o] = d.x; pos[o + 1] = d.y; pos[o + 2] = d.z;
+    pos[o + 3] = d.x; pos[o + 4] = d.y - 0.35; pos[o + 5] = d.z;
+  }
+  rain.geometry.attributes.position.needsUpdate = true;
+}
+
+// Screenshake bei Explosionen
+let shake = 0;
+const shakeVec = new THREE.Vector3();
+function addShake(s) {
+  shake = Math.min(0.45, shake + s);
+}
 
 // Boden mit Schachbrett-Textur
 (function buildGround() {
@@ -1358,6 +1437,7 @@ function killEnemy(e) {
   sfx.death();
   addFloater(e.x, e.y - 14, '+' + e.reward, '#f5b942');
   spawnParticles(e.x, e.y, ENEMY_TYPES[e.type].color, e.type === 'boss' ? 26 : 12);
+  if (e.type === 'boss' || e.type === 'summoner') addShake(0.3); // großer Gegner fällt
   updateUI();
 }
 
@@ -1564,6 +1644,7 @@ function updateProjectiles(dt) {
       if (p.splash > 0) {
         spawnParticles(p.tx, p.ty, 0xffb347, 16);
         spawnPulse(p.tx, p.ty, 0xffb347, p.splash);
+        addShake(p.splash / 500); // Wumms!
         for (const e of state.enemies) {
           if (!e.dead && Math.hypot(e.x - p.tx, e.y - p.ty) <= p.splash + e.radius) {
             damageEnemy(e, p.dmg, p.slow, p.poison);
@@ -1869,6 +1950,9 @@ const upVec = new THREE.Vector3(0, 1, 0);
 const tmpDir = new THREE.Vector3();
 
 function syncScene(rawDt) {
+  // Tageszeit/Wetter und Regen
+  updateDaylight();
+  if (rain.visible) updateRain(rawDt);
   // Wolken treiben langsam über die Karte
   for (const c of clouds) {
     c.g.position.x += c.speed * rawDt;
@@ -2598,7 +2682,18 @@ function loop(now) {
   syncScene(rawDt);
   updateFloaters(rawDt);
   if (state.controlled) updateFPCamera();
-  renderer.render(scene, camera);
+  if (shake > 0.001) {
+    // Kamera kurz durchrütteln, Basisposition danach wiederherstellen
+    shakeVec.set(Math.random() - 0.5, (Math.random() - 0.5) * 0.6, Math.random() - 0.5)
+      .multiplyScalar(shake * 0.3);
+    camera.position.add(shakeVec);
+    renderer.render(scene, camera);
+    camera.position.sub(shakeVec);
+    shake *= Math.pow(0.002, rawDt); // schnelles Abklingen
+    if (shake < 0.001) shake = 0;
+  } else {
+    renderer.render(scene, camera);
+  }
   requestAnimationFrame(loop);
 }
 
