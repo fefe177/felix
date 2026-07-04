@@ -248,7 +248,7 @@ const MAT = {
   white:     new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.5 }),
   black:     new THREE.MeshStandardMaterial({ color: 0x181818, roughness: 0.5 }),
   foliage:   new THREE.MeshStandardMaterial({ color: 0x1f4d2a, roughness: 0.9 }),
-  rock:      new THREE.MeshStandardMaterial({ color: 0x767a85, roughness: 0.95 }),
+  rock:      new THREE.MeshStandardMaterial({ color: 0x767a85, roughness: 0.95, flatShading: true }),
 };
 
 const clouds = []; // treibende Wolken (Drift in syncScene)
@@ -330,25 +330,98 @@ function addShake(s) {
   shake = Math.min(0.45, shake + s);
 }
 
-// Boden mit Schachbrett-Textur
-(function buildGround() {
-  const tex = (() => {
-    const c = document.createElement('canvas');
-    c.width = COLS * 8; c.height = ROWS * 8;
-    const g = c.getContext('2d');
-    for (let r = 0; r < ROWS; r++) {
-      for (let cc = 0; cc < COLS; cc++) {
-        g.fillStyle = (cc + r) % 2 === 0 ? '#3e8a46' : '#37823f';
-        g.fillRect(cc * 8, r * 8, 8, 8);
-      }
+// ---------- Prozedurale Texturen (Korn & Struktur gegen die Glätte) ----------
+function grainCanvas(w, h, paint) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  paint(c.getContext('2d'), w, h);
+  return new THREE.CanvasTexture(c);
+}
+
+// körniges Rauschen + kurze Grashalme über eine Fläche streuen
+function sprinkle(g, w, h, n, dark, light) {
+  for (let i = 0; i < n; i++) {
+    const x = Math.random() * w, y = Math.random() * h;
+    g.fillStyle = Math.random() < 0.5 ? dark : light;
+    g.fillRect(x, y, 1 + Math.random() * 1.5, 1 + Math.random() * 1.5);
+  }
+}
+function blades(g, w, h, n, color) {
+  g.strokeStyle = color;
+  g.lineWidth = 1;
+  for (let i = 0; i < n; i++) {
+    const x = Math.random() * w, y = Math.random() * h;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + (Math.random() - 0.5) * 2, y - 2 - Math.random() * 3);
+    g.stroke();
+  }
+}
+
+// Spielfeld: Schachbrett + Rauschen + Halme
+const groundTex = grainCanvas(COLS * 32, ROWS * 32, (g, w, h) => {
+  for (let r = 0; r < ROWS; r++) {
+    for (let cc = 0; cc < COLS; cc++) {
+      g.fillStyle = (cc + r) % 2 === 0 ? '#3e8a46' : '#37823f';
+      g.fillRect(cc * 32, r * 32, 32, 32);
     }
-    const t = new THREE.CanvasTexture(c);
-    t.magFilter = THREE.NearestFilter;
-    return t;
-  })();
+  }
+  sprinkle(g, w, h, 9000, 'rgba(20,50,25,0.35)', 'rgba(190,230,170,0.22)');
+  blades(g, w, h, 2200, 'rgba(215,240,190,0.16)');
+  blades(g, w, h, 1600, 'rgba(15,45,20,0.2)');
+});
+
+// Umland: gleiches Gras ohne Schachbrett
+const skirtTex = grainCanvas(256, 256, (g, w, h) => {
+  g.fillStyle = '#33703c';
+  g.fillRect(0, 0, w, h);
+  sprinkle(g, w, h, 5200, 'rgba(15,45,20,0.35)', 'rgba(170,215,150,0.18)');
+  blades(g, w, h, 900, 'rgba(200,235,180,0.13)');
+});
+skirtTex.wrapS = skirtTex.wrapT = THREE.RepeatWrapping;
+skirtTex.repeat.set(4, 4);
+
+// Kopfsteinpflaster für den Pfad: dicht gesetzte Steine, schmale Fugen
+const cobbleTex = grainCanvas(128, 128, (g, w, h) => {
+  g.fillStyle = '#83704a'; // Fugen
+  g.fillRect(0, 0, w, h);
+  for (let ry = 0; ry < 4; ry++) {
+    for (let rx = 0; rx < 4; rx++) {
+      const cx = rx * 32 + 16 + (ry % 2 ? 9 : 0), cy = ry * 32 + 16;
+      const light = 160 + ((rx * 7 + ry * 13) % 5) * 8;
+      g.fillStyle = 'rgb(' + light + ',' + Math.round(light * 0.85) + ',' + Math.round(light * 0.62) + ')';
+      g.beginPath();
+      g.ellipse(cx % w, cy, 16 + (rx % 2) * 2, 14 + (ry % 2) * 2, (rx + ry) * 0.35, 0, Math.PI * 2);
+      g.fill();
+    }
+  }
+  sprinkle(g, w, h, 1100, 'rgba(70,55,30,0.22)', 'rgba(255,242,210,0.14)');
+});
+
+// helles Wiesengras für Anhöhen-Deckel und Grasflecken
+const hillTopTex = grainCanvas(128, 128, (g, w, h) => {
+  g.fillStyle = '#4a9b52';
+  g.fillRect(0, 0, w, h);
+  sprinkle(g, w, h, 2400, 'rgba(20,60,25,0.3)', 'rgba(200,240,180,0.2)');
+  blades(g, w, h, 450, 'rgba(225,245,200,0.15)');
+});
+
+// Fels mit Schichtung für Anhöhen-Flanken
+const rockTex = grainCanvas(96, 96, (g, w, h) => {
+  g.fillStyle = '#7a7466';
+  g.fillRect(0, 0, w, h);
+  for (let y = 0; y < h; y += 8 + Math.floor(Math.random() * 6)) {
+    g.fillStyle = Math.random() < 0.5 ? 'rgba(40,36,28,0.25)' : 'rgba(220,214,196,0.14)';
+    g.fillRect(0, y, w, 2 + Math.random() * 3);
+  }
+  sprinkle(g, w, h, 900, 'rgba(30,28,20,0.3)', 'rgba(235,228,205,0.16)');
+});
+
+// Boden mit Grastextur
+(function buildGround() {
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(COLS, ROWS),
-    new THREE.MeshStandardMaterial({ map: tex, roughness: 0.95 })
+    new THREE.MeshStandardMaterial({ map: groundTex, bumpMap: groundTex, bumpScale: 0.05, roughness: 0.95 })
   );
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
@@ -357,12 +430,47 @@ function addShake(s) {
   // Umland
   const skirt = new THREE.Mesh(
     new THREE.PlaneGeometry(COLS + 14, ROWS + 14),
-    new THREE.MeshStandardMaterial({ color: 0x33703c, roughness: 1 })
+    new THREE.MeshStandardMaterial({ map: skirtTex, bumpMap: skirtTex, bumpScale: 0.04, roughness: 1 })
   );
   skirt.rotation.x = -Math.PI / 2;
   skirt.position.y = -0.03;
   skirt.receiveShadow = true;
   scene.add(skirt);
+
+  // Bergkette am Horizont (kantiges Low-Poly mit Schneekappen)
+  const mountMatA = new THREE.MeshStandardMaterial({ color: 0x8a8f9a, roughness: 0.95, flatShading: true });
+  const mountMatB = new THREE.MeshStandardMaterial({ color: 0x7c8290, roughness: 0.95, flatShading: true });
+  const snowMat = new THREE.MeshStandardMaterial({ color: 0xf2f5f8, roughness: 0.7, flatShading: true });
+  const mountains = [
+    // niedrige Hügelkette hinter der Baumreihe, fest auf der Wiese
+    [-15, -12.5, 2.6, 2.4], [-7, -13.2, 3.2, 3.0], [1, -13.5, 2.8, 2.6], [8, -13, 3.4, 3.1],
+    [15, -12.5, 2.5, 2.2], [-16.5, -6, 2.2, 2.0], [16.5, -5, 2.4, 2.2],
+    [-15, 13, 2.6, 2.3], [10, 13.3, 3.0, 2.7],
+  ];
+  let mi = 0;
+  for (const [x, z, r, hgt] of mountains) {
+    const m = new THREE.Mesh(new THREE.ConeGeometry(r, hgt, 6, 1), mi % 2 === 0 ? mountMatA : mountMatB);
+    m.position.set(x, hgt / 2 - 0.05, z);
+    m.rotation.y = (mi * 1.7) % Math.PI;
+    m.castShadow = true;
+    const cap = new THREE.Mesh(new THREE.ConeGeometry(r * 0.32, hgt * 0.3, 6, 1), snowMat);
+    cap.position.set(x, hgt - hgt * 0.15 - 0.05, z);
+    cap.rotation.y = m.rotation.y;
+    scene.add(m, cap);
+    mi++;
+  }
+
+  // Ecktürmchen an der Spielfeldmauer
+  const postRoof = new THREE.MeshStandardMaterial({ color: 0xa33d3d, roughness: 0.7 });
+  for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    const px = sx * (COLS / 2 + 0.15), pz = sz * (ROWS / 2 + 0.15);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.85, 8), MAT.stone);
+    post.position.set(px, 0.42, pz);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.4, 8), postRoof);
+    roof.position.set(px, 1.05, pz);
+    post.castShadow = roof.castShadow = true;
+    scene.add(post, roof);
+  }
 
   // Steinrahmen
   const frameMat = MAT.stoneDark;
@@ -441,13 +549,21 @@ scene.add(mapGroup);
 const MAPGFX = {
   tileGeo: new THREE.BoxGeometry(0.98, 0.14, 0.98),
   tileMats: [
-    new THREE.MeshStandardMaterial({ color: 0xb08948, roughness: 0.9 }),
-    new THREE.MeshStandardMaterial({ color: 0xa37e42, roughness: 0.9 }),
-    new THREE.MeshStandardMaterial({ color: 0x97743c, roughness: 0.9 }),
+    new THREE.MeshStandardMaterial({ color: 0xffffff, map: cobbleTex, bumpMap: cobbleTex, bumpScale: 0.05, roughness: 0.9 }),
+    new THREE.MeshStandardMaterial({ color: 0xe3d6bd, map: cobbleTex, bumpMap: cobbleTex, bumpScale: 0.05, roughness: 0.9 }),
+    new THREE.MeshStandardMaterial({ color: 0xcdbfa5, map: cobbleTex, bumpMap: cobbleTex, bumpScale: 0.05, roughness: 0.9 }),
   ],
+  curbGeoX: new THREE.BoxGeometry(1.0, 0.08, 0.09),
+  curbGeoZ: new THREE.BoxGeometry(0.09, 0.08, 1.0),
+  curbMat: new THREE.MeshStandardMaterial({ color: 0x6b5b40, roughness: 0.95 }),
   hillGeo: new THREE.BoxGeometry(0.98, HILL_H, 0.98),
-  hillSide: new THREE.MeshStandardMaterial({ color: 0x7a7466, roughness: 0.95 }),
-  hillTop: new THREE.MeshStandardMaterial({ color: 0x459150, roughness: 0.9 }),
+  hillSide: new THREE.MeshStandardMaterial({ map: rockTex, bumpMap: rockTex, bumpScale: 0.06, roughness: 0.95 }),
+  hillTop: new THREE.MeshStandardMaterial({ color: 0xd8e8d8, map: hillTopTex, bumpMap: hillTopTex, bumpScale: 0.04, roughness: 0.9 }),
+  bushMat: new THREE.MeshStandardMaterial({ color: 0x2b6b3a, roughness: 0.95, flatShading: true }),
+  bushGeo: new THREE.SphereGeometry(0.16, 7, 5),
+  stoneGeo: new THREE.DodecahedronGeometry(0.11),
+  patchGeo: new THREE.BoxGeometry(0.96, 0.02, 0.96),
+  patchMat: new THREE.MeshStandardMaterial({ map: hillTopTex, roughness: 0.95 }),
   portalGeo: new THREE.TorusGeometry(0.55, 0.09, 10, 24),
   portalGreen: new THREE.MeshStandardMaterial({ color: 0x2fae53, emissive: 0x2fae53, emissiveIntensity: 0.6, roughness: 0.4 }),
   portalRed: new THREE.MeshStandardMaterial({ color: 0xc93f3f, emissive: 0xc93f3f, emissiveIntensity: 0.6, roughness: 0.4 }),
@@ -465,10 +581,20 @@ const MAPGFX = {
   ],
 };
 
+function addCurb(wx, wz, alongX) {
+  const curb = new THREE.Mesh(alongX ? MAPGFX.curbGeoX : MAPGFX.curbGeoZ, MAPGFX.curbMat);
+  curb.position.set(wx, 0.15, wz);
+  curb.castShadow = curb.receiveShadow = true;
+  mapGroup.add(curb);
+}
+
+const cellHash = (cx, cy, salt) =>
+  Math.abs((cx * 73856093) ^ (cy * 19349663) ^ (salt * 83492791)) % 997;
+
 function buildMapScene() {
   for (const o of [...mapGroup.children]) mapGroup.remove(o);
 
-  // Pfad-Kacheln (drei Farbtöne + minimale Höhenvariation = lebendigeres Pflaster)
+  // Pfad-Kacheln (Kopfsteinpflaster in drei Tönen + minimale Höhenvariation)
   for (const key of pathCells) {
     const [c, r] = key.split(',').map(Number);
     const v = (c * 7 + r * 13) % 3;
@@ -476,6 +602,12 @@ function buildMapScene() {
     tile.position.set(c - COLS / 2 + 0.5, 0.07 + v * 0.006, r - ROWS / 2 + 0.5);
     tile.receiveShadow = true;
     mapGroup.add(tile);
+    // Randsteine an jeder Kante, die ans Gras grenzt
+    const wx = c - COLS / 2 + 0.5, wz = r - ROWS / 2 + 0.5;
+    if (!pathCells.has(c + ',' + (r - 1))) addCurb(wx, wz - 0.45, true);
+    if (!pathCells.has(c + ',' + (r + 1))) addCurb(wx, wz + 0.45, true);
+    if (!pathCells.has((c - 1) + ',' + r)) addCurb(wx - 0.45, wz, false);
+    if (!pathCells.has((c + 1) + ',' + r)) addCurb(wx + 0.45, wz, false);
   }
 
   // Anhöhen: erhöhte Plateaus mit Grasdecke und Felskante
@@ -504,13 +636,21 @@ function buildMapScene() {
   mkPortal(-(COLS / 2 + 0.35), pxToWZ(waypoints[0].y), MAPGFX.portalGreen, MAPGFX.swirlGreen);
   mkPortal(COLS / 2 + 0.35, pxToWZ(waypoints[waypoints.length - 1].y), MAPGFX.portalRed, MAPGFX.swirlRed);
 
-  // Gras-Büschel und Blumen auf freien Feldern (deterministisch verteilt)
+  // Dekoration auf freien Feldern (deterministisch verteilt):
+  // Grasflecken, Büschel, Blumen, Büsche und Steine
   for (let cy = 0; cy < ROWS; cy++) {
     for (let cx = 0; cx < COLS; cx++) {
       if (pathCells.has(cx + ',' + cy) || hillCells.has(cx + ',' + cy)) continue;
-      let h = Math.abs((cx * 73856093) ^ (cy * 19349663)) % 997;
+      const h = cellHash(cx, cy, 1);
       const fx = cx - COLS / 2 + 0.5 + ((h % 7) - 3) * 0.11;
       const fz = cy - ROWS / 2 + 0.5 + ((Math.floor(h / 7) % 7) - 3) * 0.11;
+      // hellere Grasflecken lockern das Schachbrett auf
+      if (cellHash(cx, cy, 5) % 6 === 1) {
+        const patch = new THREE.Mesh(MAPGFX.patchGeo, MAPGFX.patchMat);
+        patch.position.set(cx - COLS / 2 + 0.5, 0.012, cy - ROWS / 2 + 0.5);
+        patch.receiveShadow = true;
+        mapGroup.add(patch);
+      }
       if (h % 5 === 0) {
         const tuft = new THREE.Mesh(MAPGFX.tuftGeo, MAPGFX.tuftMat);
         tuft.position.set(fx, 0.085, fz);
@@ -521,6 +661,21 @@ function buildMapScene() {
         const bloom = new THREE.Mesh(MAPGFX.flowerGeo, MAPGFX.flowerMats[h % 3]);
         bloom.position.set(fx, 0.14, fz);
         mapGroup.add(stem, bloom);
+      } else if (cellHash(cx, cy, 3) % 13 === 5) {
+        // Busch aus drei kantigen Kugeln
+        for (let b = 0; b < 3; b++) {
+          const bush = new THREE.Mesh(MAPGFX.bushGeo, MAPGFX.bushMat);
+          bush.position.set(fx + (b - 1) * 0.14, 0.12 + (b === 1 ? 0.07 : 0), fz + ((b * 7 + h) % 3 - 1) * 0.1);
+          bush.scale.setScalar(0.8 + ((h + b) % 4) * 0.12);
+          bush.castShadow = true;
+          mapGroup.add(bush);
+        }
+      } else if (cellHash(cx, cy, 4) % 17 === 2) {
+        const stone = new THREE.Mesh(MAPGFX.stoneGeo, MAT.rock);
+        stone.position.set(fx, 0.07, fz);
+        stone.rotation.set(h, h * 2, h * 0.5);
+        stone.castShadow = true;
+        mapGroup.add(stone);
       }
     }
   }
