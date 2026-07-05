@@ -67,12 +67,17 @@ Beim Bauen nimmst du den Turm „in die Hand": Ein **durchsichtiger Geister-Turm
 
 Jeder Turm kann **zweimal aufgewertet** (mehr Schaden, Reichweite, Feuerrate) oder für 70 % des investierten Golds **verkauft** werden. **Jede Ausbaustufe hat ihr eigenes 3D-Modell** — die Türme werden sichtbar größer und prächtiger:
 
-- **Bogenturm:** Holzwarte → Turm mit Fahne und Goldband → Steinturm mit Zinnen, Goldwimpel und Ballista
-- **Kanone:** Kuppelgeschütz → gepanzert mit Goldring und längerem Rohr → Doppelrohr mit Goldkappe
-- **Frostturm:** Eiskristall → kreisende Eissplitter → Eiszacken-Kranz und Lichtring
-- **Blitzturm:** Obelisk mit Energiekugel → Ecksäulen und mehr Goldringe → kreisende Funken-Orbs
+- **Bogenturm:** Holzwarte mit Eckpfosten, Geländer, Pfeilköcher und Ballista mit Bogenarmen → Fahne, Laterne und Goldband → Steinturm mit Zinnen und Goldwimpel
+- **Kanone:** Blockgeschütz mit Kugelstapel und Nieten → Panzerschilde und Goldring → Doppelrohr mit Goldkappen
+- **Frostturm:** Frostschrein mit Eissäulen, Schneekappen und blauer Leuchte → kreisende Eissplitter → Eiszacken-Kranz
+- **Blitzturm:** gestufter Obsidian-Sockel, Purpursäule, Goldantenne mit Zauberwürfel → Ecksäulen mit Funken → kreisende Orbs
+- **Wachturm:** Kanzel mit Sichtschlitzen ringsum, Stufendach und Laterne → Wappenschild → Steinfestung mit Zinnen
+- **Mörser:** Sandsackring, Granaten-Regal und schweres 45°-Rohr mit Rohrbändern → Goldmündung → mehr Munition
+- **Giftturm:** Hexenküche — Kessel am Galgen mit Kette, Pilz → Flaschenbord mit Tränken → Schädel-Trophäe
+- **Garage:** Halle mit Torrahmen, Rampe, Werkzeugkiste → Stein, Zahnrad-Schild und Schornstein → Panzersperren, Antenne, Banner und Scheinwerfer
+- **Goldmine:** Stolleneingang mit Stützbalken, Lore voller Gold und Spitzhacke → Laterne → leuchtender Riesen-Nugget
 
-Beim Feuern gibt es Rückstoß-Animationen (Armbrust und Kanonenrohr zucken zurück, Kristall und Energiekugel pulsieren).
+Beim Feuern gibt es Rückstoß-Animationen (Armbrust und Kanonenrohr zucken zurück, Kristall und Energiekugel pulsieren), und abends leuchten die Laternen der Türme.
 
 ## 🛠️ Ausrüstung
 

@@ -483,6 +483,7 @@ const TEX = {
   }),
   obsidian: pixelTex((g, s) => fillNoise(g, s, 30, 22, 48, 0.25)),
   bluewool: pixelTex((g, s) => fillNoise(g, s, 62, 98, 190, 0.08)),
+  iron: pixelTex((g, s) => fillNoise(g, s, 196, 200, 208, 0.06)),
   skin: pixelTex((g, s) => fillNoise(g, s, 224, 172, 138, 0.05)),
   camo: pixelTex((g, s) => fillNoise(g, s, 78, 102, 62, 0.12)),
 };
@@ -505,6 +506,7 @@ const BLOCK = {
   grassSide: blockMat(TEX.grassSide),
   obsidian: blockMat(TEX.obsidian, { roughness: 0.5 }),
   bluewool: blockMat(TEX.bluewool),
+  iron: blockMat(TEX.iron, { roughness: 0.35, metalness: 0.45 }),
   skin: blockMat(TEX.skin),
   camo: blockMat(TEX.camo),
 };
@@ -796,66 +798,122 @@ function addCollar(parent, size, y, m) {
   return addPart(parent, new THREE.BoxGeometry(size, 0.09, size), m, 0, y, 0);
 }
 
+// Leuchtende Laterne (warm) und Alchemie-Grün für Deko-Details
+const lanternMat = new THREE.MeshStandardMaterial({ color: 0xffd980, emissive: 0xff9d3c, emissiveIntensity: 0.85, roughness: 0.4 });
+const blueGlowMat = new THREE.MeshStandardMaterial({ color: 0xbfe8ff, emissive: 0x4aa8d8, emissiveIntensity: 0.9, roughness: 0.3 });
+
+// Laterne: kurzer Pfahl mit leuchtendem Würfel obendrauf
+function addLantern(parent, x, y, z, mat = lanternMat) {
+  addPart(parent, new THREE.BoxGeometry(0.05, 0.3, 0.05), BLOCK.dark, x, y, z);
+  return addPart(parent, new THREE.BoxGeometry(0.13, 0.13, 0.13), mat, x, y + 0.21, z);
+}
+
+// Vier Zinnen-Würfel auf den Ecken
+function addZinnen(parent, half, y, m, size = 0.14) {
+  for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+    addPart(parent, new THREE.BoxGeometry(size, size, size), m, sx * half, y, sz * half);
+  }
+}
+
 function makeTowerMesh(type, level) {
   const g = new THREE.Group();
   let turret = null;
   const gun = new THREE.Group(); // innerer Träger für den Rückstoß
 
   if (type === 'archer') {
-    // Holzwarte -> Fahne & Goldkranz -> Steinturm mit Zinnen
+    // Bogenwarte: Eckpfosten, Plattform mit Geländer, Köcher, Ballista mit Bogenarmen
     const h = [0, 0.85, 1.1, 1.35][level];
-    addPart(g, new THREE.BoxGeometry(0.8, 0.3, 0.8), BLOCK.cobble, 0, 0.15, 0);
-    addPart(g, new THREE.BoxGeometry(0.5, h - 0.4, 0.5), level >= 3 ? BLOCK.cobble : BLOCK.planks, 0, 0.3 + (h - 0.4) / 2, 0);
-    addPart(g, new THREE.BoxGeometry(0.85, 0.12, 0.85), BLOCK.planks, 0, h - 0.04, 0);
+    const stein = level >= 3;
+    addPart(g, new THREE.BoxGeometry(0.84, 0.26, 0.84), BLOCK.cobble, 0, 0.13, 0);
+    addPart(g, new THREE.BoxGeometry(0.68, 0.1, 0.68), stein ? BLOCK.stone : BLOCK.planks, 0, 0.31, 0);
+    addPart(g, new THREE.BoxGeometry(0.42, h - 0.36, 0.42), stein ? BLOCK.cobble : BLOCK.planks, 0, 0.36 + (h - 0.36) / 2, 0);
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      addPart(g, new THREE.BoxGeometry(0.1, h - 0.26, 0.1), stein ? BLOCK.stone : BLOCK.log, sx * 0.27, 0.26 + (h - 0.26) / 2, sz * 0.27);
+    }
+    // Plattform mit umlaufendem Geländer
+    addPart(g, new THREE.BoxGeometry(0.9, 0.1, 0.9), BLOCK.planks, 0, h, 0);
+    for (const side of [-1, 1]) {
+      addPart(g, new THREE.BoxGeometry(0.9, 0.08, 0.06), stein ? BLOCK.stone : BLOCK.log, 0, h + 0.14, side * 0.42);
+      addPart(g, new THREE.BoxGeometry(0.06, 0.08, 0.9), stein ? BLOCK.stone : BLOCK.log, side * 0.42, h + 0.14, 0);
+    }
+    // Köcher mit zwei Pfeilen
+    addPart(g, new THREE.BoxGeometry(0.13, 0.2, 0.13), BLOCK.log, -0.3, h + 0.16, 0.3);
+    addPart(g, new THREE.BoxGeometry(0.03, 0.2, 0.03), BLOCK.planks, -0.32, h + 0.32, 0.28);
+    addPart(g, new THREE.BoxGeometry(0.03, 0.24, 0.03), BLOCK.planks, -0.27, h + 0.33, 0.32);
     if (level >= 2) {
-      addCollar(g, 0.56, 0.42, BLOCK.gold);
-      addPart(g, new THREE.BoxGeometry(0.06, 0.7, 0.06), BLOCK.log, -0.34, h + 0.3, -0.34);
-      addPart(g, new THREE.BoxGeometry(0.3, 0.2, 0.05), level >= 3 ? BLOCK.gold : BLOCK.redwool, -0.16, h + 0.52, -0.34);
+      addCollar(g, 0.5, 0.4, BLOCK.gold);
+      addLantern(g, 0.34, h + 0.24, -0.34);
+      addPart(g, new THREE.BoxGeometry(0.06, 0.8, 0.06), BLOCK.log, -0.36, h + 0.36, -0.36);
+      addPart(g, new THREE.BoxGeometry(0.3, 0.2, 0.04), level >= 3 ? BLOCK.gold : BLOCK.redwool, -0.18, h + 0.6, -0.36);
     }
-    if (level >= 3) {
-      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-        addPart(g, new THREE.BoxGeometry(0.16, 0.16, 0.16), BLOCK.cobble, sx * 0.34, h + 0.06, sz * 0.34);
-      }
-    }
+    if (level >= 3) addZinnen(g, 0.38, h + 0.24, BLOCK.cobble, 0.15);
+    // Ballista: Lafette, gespreizte Bogenarme, gespannter Bolzen, Goldspitze
     const s = [0, 1, 1.15, 1.3][level];
     turret = new THREE.Group();
-    turret.position.y = h + 0.14;
-    addPart(gun, new THREE.BoxGeometry(0.6 * s, 0.1, 0.1), BLOCK.planks, 0.1 * s, 0, 0);
-    addPart(gun, new THREE.BoxGeometry(0.08, 0.08, 0.55 * s), BLOCK.log, 0.28 * s, 0, 0);
+    turret.position.y = h + 0.16;
+    addPart(gun, new THREE.BoxGeometry(0.6 * s, 0.1, 0.1), BLOCK.log, 0.1 * s, 0, 0);
+    for (const side of [-1, 1]) {
+      const arm = addPart(gun, new THREE.BoxGeometry(0.08, 0.06, 0.42 * s), BLOCK.planks, 0.28 * s, 0, side * 0.15 * s);
+      arm.rotation.y = side * 0.55;
+    }
+    addPart(gun, new THREE.BoxGeometry(0.34 * s, 0.045, 0.045), BLOCK.planks, -0.04 * s, 0.07, 0);
     addPart(gun, new THREE.BoxGeometry(0.12, 0.12, 0.12), BLOCK.gold, 0.44 * s, 0, 0);
-    g.userData.muzzleY = h + 0.14;
+    g.userData.muzzleY = h + 0.16;
   } else if (type === 'cannon') {
-    // Blockgeschütz -> gepanzert + Goldkranz -> Doppelrohr mit Goldwürfel
+    // Kanonenstellung: Panzerplatten, Nieten, Kugelstapel — ab Stufe 3 Doppelrohr
     const bs = [0, 1, 1.1, 1.2][level];
-    addPart(g, new THREE.BoxGeometry(0.95 * bs, 0.3, 0.95 * bs), BLOCK.dark, 0, 0.15, 0);
-    addPart(g, new THREE.BoxGeometry(0.6 * bs, 0.24, 0.6 * bs), BLOCK.stone, 0, 0.42, 0);
+    addPart(g, new THREE.BoxGeometry(0.95 * bs, 0.22, 0.95 * bs), BLOCK.dark, 0, 0.11, 0);
+    addPart(g, new THREE.BoxGeometry(0.76 * bs, 0.2, 0.76 * bs), BLOCK.stone, 0, 0.32, 0);
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      addPart(g, new THREE.BoxGeometry(0.12, 0.12, 0.12), level >= 2 ? BLOCK.gold : BLOCK.iron, sx * 0.42 * bs, 0.24, sz * 0.42 * bs);
+    }
+    // Kugelstapel neben dem Geschütz
+    addPart(g, new THREE.BoxGeometry(0.15, 0.15, 0.15), BLOCK.dark, -0.28 * bs, 0.49, 0.26 * bs);
+    addPart(g, new THREE.BoxGeometry(0.15, 0.15, 0.15), BLOCK.dark, -0.28 * bs, 0.49, 0.08 * bs);
+    addPart(g, new THREE.BoxGeometry(0.15, 0.15, 0.15), BLOCK.dark, -0.28 * bs, 0.64, 0.17 * bs);
     if (level >= 2) {
       for (const a of [Math.PI / 2, Math.PI, -Math.PI / 2]) {
-        addPart(g, new THREE.BoxGeometry(0.1, 0.3, 0.4), BLOCK.cobble, Math.cos(a) * 0.5 * bs, 0.22, Math.sin(a) * 0.5 * bs);
+        addPart(g, new THREE.BoxGeometry(0.1, 0.34, 0.46), BLOCK.iron, Math.cos(a) * 0.5 * bs, 0.32, Math.sin(a) * 0.5 * bs);
       }
-      addCollar(g, 0.98 * bs, 0.33, BLOCK.gold);
+      addCollar(g, 0.98 * bs, 0.24, BLOCK.gold);
     }
-    if (level >= 3) addPart(g, new THREE.BoxGeometry(0.22, 0.22, 0.22), BLOCK.gold, 0, 0.65, 0);
+    if (level >= 3) {
+      addPart(g, new THREE.BoxGeometry(0.2, 0.2, 0.2), BLOCK.gold, 0, 0.52, 0);
+      addZinnen(g, 0.44 * bs, 0.46, BLOCK.iron, 0.12);
+    }
     turret = new THREE.Group();
-    turret.position.y = 0.5;
-    const len = [0, 0.55, 0.65, 0.65][level];
+    turret.position.y = 0.52;
+    const len = [0, 0.62, 0.72, 0.72][level];
     for (const z of (level >= 3 ? [-0.16, 0.16] : [0])) {
-      addPart(gun, new THREE.BoxGeometry(len, 0.2, 0.2), BLOCK.dark, 0.3, 0, z);
-      addPart(gun, new THREE.BoxGeometry(0.1, 0.28, 0.28), level >= 2 ? BLOCK.gold : BLOCK.stone, 0.3 + len / 2, 0, z);
+      addPart(gun, new THREE.BoxGeometry(len, 0.22, 0.22), BLOCK.dark, 0.32, 0, z);
+      addPart(gun, new THREE.BoxGeometry(0.08, 0.28, 0.28), BLOCK.iron, 0.2, 0, z); // Rohrband
+      addPart(gun, new THREE.BoxGeometry(0.1, 0.3, 0.3), level >= 2 ? BLOCK.gold : BLOCK.stone, 0.32 + len / 2, 0, z);
     }
+    addPart(gun, new THREE.BoxGeometry(0.3, 0.28, level >= 3 ? 0.6 : 0.34), BLOCK.iron, -0.12, 0, 0); // Verschluss
     g.userData.muzzleY = 0.5;
   } else if (type === 'frost') {
-    // Eisblock-Sockel mit Diamant-Kristall
+    // Frostschrein: Schneesockel, Eissäulen mit Schneekappen, schwebender Kristall
     const bh = [0, 0.4, 0.5, 0.58][level];
-    addPart(g, new THREE.BoxGeometry(0.75, bh, 0.75), BLOCK.ice, 0, bh / 2, 0);
-    addCollar(g, 0.8, bh + 0.02, BLOCK.snow);
+    addPart(g, new THREE.BoxGeometry(0.86, 0.18, 0.86), BLOCK.snow, 0, 0.09, 0);
+    addPart(g, new THREE.BoxGeometry(0.66, bh - 0.08, 0.66), BLOCK.ice, 0, 0.18 + (bh - 0.08) / 2, 0);
+    addCollar(g, 0.72, bh + 0.08, BLOCK.snow);
+    const nPil = level >= 2 ? 4 : 2;
+    const pil = [[1, 1], [-1, -1], [1, -1], [-1, 1]];
+    for (let i = 0; i < nPil; i++) {
+      const [sx, sz] = pil[i];
+      addPart(g, new THREE.BoxGeometry(0.12, 0.5, 0.12), BLOCK.ice, sx * 0.33, bh + 0.3, sz * 0.33);
+      addPart(g, new THREE.BoxGeometry(0.17, 0.08, 0.17), BLOCK.snow, sx * 0.33, bh + 0.58, sz * 0.33);
+    }
     const cs = [0, 0.26, 0.31, 0.37][level];
     const cy = bh + 0.42 + cs * 0.6;
     const crystal = addPart(g, new THREE.OctahedronGeometry(cs), MAT.ice, 0, cy, 0);
     g.userData.crystal = crystal;
-    addPart(g, new THREE.OctahedronGeometry(0.1), MAT.ice, 0.26, bh + 0.12, -0.12);
-    addPart(g, new THREE.OctahedronGeometry(0.08), MAT.ice, -0.22, bh + 0.1, 0.16);
+    // Eissplitter und blaue Leuchte am Fuß
+    addPart(g, new THREE.OctahedronGeometry(0.1), MAT.ice, 0.3, bh + 0.14, -0.14);
+    addPart(g, new THREE.OctahedronGeometry(0.08), MAT.ice, -0.24, bh + 0.12, 0.18);
+    addLantern(g, -0.34, bh + 0.12, -0.34, blueGlowMat);
     if (level >= 2) {
+      addCollar(g, 0.46, bh + 0.18, BLOCK.gold);
       const orbiter = new THREE.Group();
       orbiter.position.y = cy;
       const n = level >= 3 ? 3 : 2;
@@ -867,27 +925,31 @@ function makeTowerMesh(type, level) {
       g.userData.orbiter = orbiter;
     }
     if (level >= 3) {
-      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-        addPart(g, new THREE.BoxGeometry(0.14, 0.36, 0.14), BLOCK.ice, sx * 0.32, bh + 0.16, sz * 0.32);
+      // Eiszacken-Kranz an den Seiten
+      for (const [sx, sz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        addPart(g, new THREE.BoxGeometry(0.13, 0.42, 0.13), BLOCK.ice, sx * 0.44, bh + 0.18, sz * 0.44);
+        addPart(g, new THREE.BoxGeometry(0.09, 0.14, 0.09), BLOCK.ice, sx * 0.44, bh + 0.46, sz * 0.44);
       }
     }
     g.userData.muzzleY = cy;
   } else if (type === 'bolt') {
-    // Obsidian-Sockel, Purpur-Säule, schwebender Zauberwürfel
+    // Blitz-Obelisk: gestufter Obsidian-Sockel, Purpursäule, Goldantenne, Zauberwürfel
     const ph = [0, 0.6, 0.68, 0.76][level];
-    addPart(g, new THREE.BoxGeometry(ph, 0.16, ph), BLOCK.obsidian, 0, 0.08, 0);
+    addPart(g, new THREE.BoxGeometry(ph + 0.26, 0.14, ph + 0.26), BLOCK.obsidian, 0, 0.07, 0);
+    addPart(g, new THREE.BoxGeometry(ph, 0.14, ph), BLOCK.obsidian, 0, 0.2, 0);
     if (level >= 2) {
       for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-        addPart(g, new THREE.BoxGeometry(0.12, 0.36, 0.12), BLOCK.obsidian, sx * (ph / 2 - 0.07), 0.3, sz * (ph / 2 - 0.07));
-        addPart(g, new THREE.BoxGeometry(0.09, 0.09, 0.09), MAT.orb, sx * (ph / 2 - 0.07), 0.54, sz * (ph / 2 - 0.07));
+        addPart(g, new THREE.BoxGeometry(0.12, 0.4, 0.12), BLOCK.obsidian, sx * (ph / 2 - 0.04), 0.4, sz * (ph / 2 - 0.04));
+        addPart(g, new THREE.BoxGeometry(0.09, 0.09, 0.09), MAT.orb, sx * (ph / 2 - 0.04), 0.68, sz * (ph / 2 - 0.04));
       }
     }
     const oh = [0, 0.8, 0.95, 1.1][level];
-    addPart(g, new THREE.BoxGeometry(0.4, oh * 0.6, 0.4), BLOCK.purpur, 0, 0.16 + oh * 0.3, 0);
-    addPart(g, new THREE.BoxGeometry(0.26, oh * 0.45, 0.26), BLOCK.purpur, 0, 0.16 + oh * 0.72, 0);
-    for (let i = 0; i < level; i++) addCollar(g, 0.46 - i * 0.07, 0.35 + i * 0.25, BLOCK.gold);
+    addPart(g, new THREE.BoxGeometry(0.42, oh * 0.55, 0.42), BLOCK.purpur, 0, 0.27 + oh * 0.27, 0);
+    addPart(g, new THREE.BoxGeometry(0.28, oh * 0.45, 0.28), BLOCK.purpur, 0, 0.27 + oh * 0.68, 0);
+    for (let i = 0; i < level; i++) addCollar(g, 0.48 - i * 0.07, 0.42 + i * 0.26, BLOCK.gold);
     const os = [0, 0.2, 0.23, 0.27][level];
-    const oy = 0.16 + oh + 0.2;
+    const oy = 0.27 + oh + 0.22;
+    addPart(g, new THREE.BoxGeometry(0.06, 0.3, 0.06), BLOCK.gold, 0, oy - 0.26, 0); // Antenne
     const orb = addPart(g, new THREE.BoxGeometry(os, os, os), MAT.orb, 0, oy, 0);
     orb.userData.baseY = oy;
     orb.rotation.set(0.6, 0.8, 0);
@@ -904,68 +966,107 @@ function makeTowerMesh(type, level) {
     }
     g.userData.beamY = oy;
   } else if (type === 'guard') {
-    // Begehbarer Wachturm mit Stufendach
+    // Begehbarer Wachturm: Kanzel mit Sichtschlitzen, Stufendach, Laterne, Wappen
     const h = [0, 0.7, 0.9, 1.1][level];
-    addPart(g, new THREE.BoxGeometry(0.8, 0.3, 0.8), BLOCK.cobble, 0, 0.15, 0);
-    addPart(g, new THREE.BoxGeometry(0.5, h - 0.3, 0.5), level >= 3 ? BLOCK.cobble : BLOCK.log, 0, 0.3 + (h - 0.3) / 2, 0);
-    addPart(g, new THREE.BoxGeometry(0.66, 0.5, 0.66), level >= 3 ? BLOCK.stone : BLOCK.planks, 0, h + 0.25, 0);
-    addPart(g, new THREE.BoxGeometry(0.06, 0.14, 0.44), BLOCK.obsidian, 0.31, h + 0.33, 0);
-    addPart(g, new THREE.BoxGeometry(0.8, 0.1, 0.8), BLOCK.planks, 0, h + 0.55, 0);
-    addPart(g, new THREE.BoxGeometry(0.55, 0.1, 0.55), BLOCK.planks, 0, h + 0.65, 0);
-    addPart(g, new THREE.BoxGeometry(0.3, 0.1, 0.3), BLOCK.planks, 0, h + 0.75, 0);
+    const stein = level >= 3;
+    addPart(g, new THREE.BoxGeometry(0.84, 0.26, 0.84), BLOCK.cobble, 0, 0.13, 0);
+    addPart(g, new THREE.BoxGeometry(0.46, h - 0.26, 0.46), stein ? BLOCK.cobble : BLOCK.log, 0, 0.26 + (h - 0.26) / 2, 0);
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      addPart(g, new THREE.BoxGeometry(0.09, h - 0.1, 0.09), stein ? BLOCK.stone : BLOCK.planks, sx * 0.26, 0.2 + (h - 0.1) / 2, sz * 0.26);
+    }
+    // Kanzel mit Sichtschlitzen ringsum
+    addPart(g, new THREE.BoxGeometry(0.68, 0.5, 0.68), stein ? BLOCK.stone : BLOCK.planks, 0, h + 0.25, 0);
+    addPart(g, new THREE.BoxGeometry(0.06, 0.14, 0.46), BLOCK.obsidian, 0.32, h + 0.33, 0);
+    for (const side of [-1, 1]) {
+      addPart(g, new THREE.BoxGeometry(0.3, 0.12, 0.06), BLOCK.obsidian, 0, h + 0.33, side * 0.32);
+    }
+    // Stufendach mit Laterne
+    addPart(g, new THREE.BoxGeometry(0.84, 0.1, 0.84), BLOCK.planks, 0, h + 0.55, 0);
+    addPart(g, new THREE.BoxGeometry(0.56, 0.1, 0.56), stein ? BLOCK.stone : BLOCK.planks, 0, h + 0.65, 0);
+    addPart(g, new THREE.BoxGeometry(0.3, 0.12, 0.3), BLOCK.planks, 0, h + 0.76, 0);
+    addLantern(g, 0.36, h + 0.64, 0.36);
     if (level >= 2) {
-      addCollar(g, 0.56, 0.45, BLOCK.gold);
-      addPart(g, new THREE.BoxGeometry(0.12, 0.12, 0.12), BLOCK.gold, 0, h + 0.86, 0);
+      addCollar(g, 0.52, 0.4, BLOCK.gold);
+      addPart(g, new THREE.BoxGeometry(0.12, 0.12, 0.12), BLOCK.gold, 0, h + 0.88, 0);
+      // Wappenschild an der Front
+      addPart(g, new THREE.BoxGeometry(0.05, 0.24, 0.2), level >= 3 ? BLOCK.gold : BLOCK.redwool, 0.36, h + 0.02, 0);
     }
-    if (level >= 3) {
-      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-        addPart(g, new THREE.BoxGeometry(0.14, 0.14, 0.14), BLOCK.cobble, sx * 0.33, h + 0.58, sz * 0.33);
-      }
-    }
+    if (level >= 3) addZinnen(g, 0.36, h + 0.6, BLOCK.cobble, 0.14);
     turret = new THREE.Group();
     turret.position.y = h + 0.3;
     addPart(gun, new THREE.BoxGeometry(0.5, 0.1, 0.1), BLOCK.dark, 0.4, 0, 0);
+    addPart(gun, new THREE.BoxGeometry(0.07, 0.14, 0.14), BLOCK.iron, 0.5, 0, 0); // Rohrband
     addPart(gun, new THREE.BoxGeometry(0.12, 0.12, 0.12), BLOCK.gold, 0.66, 0, 0);
     g.userData.muzzleY = h + 0.3;
     g.userData.eyeY = h + 0.42; // Augenhöhe in der Ego-Ansicht
   } else if (type === 'mortar') {
-    // Betretbarer Mörser: schweres Blockrohr im 45°-Winkel
+    // Artilleriestellung: Sandsackring, Granaten-Regal, schweres Rohr im 45°-Winkel
     const bs = [0, 1, 1.1, 1.2][level];
-    addPart(g, new THREE.BoxGeometry(0.75 * bs, 0.16, 0.75 * bs), BLOCK.dark, 0, 0.08, 0);
-    if (level >= 2) addCollar(g, 0.78 * bs, 0.18, BLOCK.gold);
-    if (level >= 3) {
-      for (let i = 0; i < 3; i++) {
-        addPart(g, new THREE.BoxGeometry(0.16, 0.16, 0.16), BLOCK.dark, -0.3, 0.26, 0.28 - i * 0.24);
-      }
+    addPart(g, new THREE.BoxGeometry(0.8 * bs, 0.14, 0.8 * bs), BLOCK.dark, 0, 0.07, 0);
+    for (const a of [0.6, 2.0, 3.4, 4.9]) { // Sandsäcke ringsum
+      const sack = addPart(g, new THREE.BoxGeometry(0.24, 0.13, 0.15), BLOCK.path, Math.cos(a) * 0.43 * bs, 0.09, Math.sin(a) * 0.43 * bs);
+      sack.rotation.y = -a;
+    }
+    if (level >= 2) addCollar(g, 0.52 * bs, 0.17, BLOCK.gold);
+    // Granaten-Regal (mehr Granaten pro Stufe)
+    for (let i = 0; i <= level; i++) {
+      addPart(g, new THREE.BoxGeometry(0.1, 0.2, 0.1), BLOCK.iron, -0.32 * bs, 0.24, 0.28 - i * 0.15);
+      addPart(g, new THREE.BoxGeometry(0.08, 0.06, 0.08), level >= 2 ? BLOCK.gold : BLOCK.dark, -0.32 * bs, 0.37, 0.28 - i * 0.15);
     }
     turret = new THREE.Group();
     turret.position.y = 0.2;
+    // Lafette: massiver Bock + schräge Stützplatten, langes Rohr im 45°-Winkel
+    addPart(gun, new THREE.BoxGeometry(0.32, 0.22, 0.32), BLOCK.dark, 0.04, 0.11, 0);
     for (const side of [-1, 1]) {
-      addPart(gun, new THREE.BoxGeometry(0.36, 0.28, 0.08), BLOCK.stone, 0.02, 0.1, side * 0.18);
+      const plate = addPart(gun, new THREE.BoxGeometry(0.46, 0.28, 0.07), BLOCK.stone, 0.02, 0.14, side * 0.2);
+      plate.rotation.z = -0.55;
     }
-    const barrel = addPart(gun, new THREE.BoxGeometry(0.62, 0.26 * bs, 0.26 * bs), BLOCK.dark, 0.18, 0.28, 0);
+    const barrel = addPart(gun, new THREE.BoxGeometry(0.76, 0.26 * bs, 0.26 * bs), BLOCK.dark, 0.2, 0.3, 0);
     barrel.rotation.z = -Math.PI / 4;
-    const muzzle = addPart(gun, new THREE.BoxGeometry(0.12, 0.32 * bs, 0.32 * bs), level >= 2 ? BLOCK.gold : BLOCK.stone, 0.38, 0.48, 0);
+    for (const off of [0, 0.16]) { // zwei Rohrbänder
+      const band = addPart(gun, new THREE.BoxGeometry(0.08, 0.31 * bs, 0.31 * bs), BLOCK.iron, 0.18 + off, 0.28 + off, 0);
+      band.rotation.z = -Math.PI / 4;
+    }
+    const muzzle = addPart(gun, new THREE.BoxGeometry(0.13, 0.36 * bs, 0.36 * bs), level >= 2 ? BLOCK.gold : BLOCK.iron, 0.44, 0.54, 0);
     muzzle.rotation.z = -Math.PI / 4;
     g.userData.muzzleY = 0.6;
     g.userData.eyeY = 0.75; // Sitzposition hinter dem Rohr
   } else if (type === 'poison') {
-    // Giftkessel auf Füßen (wie der Minecraft-Kessel)
+    // Hexenküche: Kessel am Galgen, Pilze, Flaschenbord, ab Stufe 3 ein Schädel
     const bh = [0, 0.1, 0.16, 0.22][level];
     const legH = 0.2 + bh;
     for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
       addPart(g, new THREE.BoxGeometry(0.12, legH, 0.12), BLOCK.dark, sx * 0.22, legH / 2, sz * 0.22);
     }
-    addPart(g, new THREE.BoxGeometry(0.62, 0.45, 0.62), BLOCK.dark, 0, legH + 0.22, 0);
+    addPart(g, new THREE.BoxGeometry(0.62, 0.42, 0.62), BLOCK.dark, 0, legH + 0.21, 0);
+    addPart(g, new THREE.BoxGeometry(0.68, 0.08, 0.68), BLOCK.iron, 0, legH + 0.42, 0); // Kesselrand
     const brewMat = new THREE.MeshStandardMaterial({ color: 0x6fdc4f, emissive: 0x3f9e2a, emissiveIntensity: 0.8, roughness: 0.4 });
-    const potTop = legH + 0.45;
-    addPart(g, new THREE.BoxGeometry(0.5, 0.04, 0.5), brewMat, 0, potTop, 0);
-    if (level >= 2) addCollar(g, 0.66, potTop - 0.04, BLOCK.gold);
+    const potTop = legH + 0.48;
+    addPart(g, new THREE.BoxGeometry(0.5, 0.05, 0.5), brewMat, 0, potTop, 0);
+    // Galgen mit Kette über dem Kessel
+    for (const side of [-1, 1]) addPart(g, new THREE.BoxGeometry(0.08, 1.05, 0.08), BLOCK.log, side * 0.42, 0.52, -0.3);
+    addPart(g, new THREE.BoxGeometry(0.96, 0.08, 0.08), BLOCK.log, 0, 1.06, -0.3);
+    addPart(g, new THREE.BoxGeometry(0.04, 0.28, 0.04), BLOCK.dark, 0, 0.92, -0.2); // Kette
+    // Pilz am Fuß
+    addPart(g, new THREE.BoxGeometry(0.08, 0.1, 0.08), BLOCK.snow, 0.4, 0.05, 0.36);
+    addPart(g, new THREE.BoxGeometry(0.15, 0.06, 0.15), BLOCK.redwool, 0.4, 0.14, 0.36);
+    if (level >= 2) {
+      addCollar(g, 0.7, potTop - 0.04, BLOCK.gold);
+      // Flaschenbord mit zwei Tränken
+      addPart(g, new THREE.BoxGeometry(0.3, 0.05, 0.16), BLOCK.planks, -0.42, 0.34, 0.3);
+      addPart(g, new THREE.BoxGeometry(0.08, 0.14, 0.08), brewMat, -0.48, 0.44, 0.3);
+      addPart(g, new THREE.BoxGeometry(0.08, 0.11, 0.08), MAT.orb, -0.36, 0.42, 0.3);
+    }
     if (level >= 3) {
+      // Schädel-Trophäe am Galgen
+      addPart(g, new THREE.BoxGeometry(0.16, 0.16, 0.16), BLOCK.snow, 0.28, 0.9, -0.3);
+      addPart(g, new THREE.BoxGeometry(0.03, 0.05, 0.05), BLOCK.dark, 0.36, 0.92, -0.34);
+      addPart(g, new THREE.BoxGeometry(0.03, 0.05, 0.05), BLOCK.dark, 0.36, 0.92, -0.26);
       for (const [sx, sz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
         addPart(g, new THREE.BoxGeometry(0.1, 0.3, 0.1), brewMat, sx * 0.42, 0.15, sz * 0.42);
       }
     }
+    // Blubbernde Brau-Blasen
     const orbiter = new THREE.Group();
     orbiter.position.y = potTop + 0.14;
     for (let i = 0; i < 3; i++) {
@@ -976,42 +1077,62 @@ function makeTowerMesh(type, level) {
     g.userData.orbiter = orbiter;
     g.userData.muzzleY = potTop + 0.1;
   } else if (type === 'depot') {
-    // Garage: Halle mit offener Ausfahrt — wird pro Stufe massiver
+    // Garage: Halle mit Torrahmen, Ausfahrt-Rampe und Werkstatt-Deko — pro Stufe massiver
     const wallM = level >= 4 ? BLOCK.camo : level >= 2 ? BLOCK.stone : BLOCK.planks;
     addPart(g, new THREE.BoxGeometry(0.9, 0.12, 0.9), BLOCK.dark, 0, 0.06, 0);
+    addPart(g, new THREE.BoxGeometry(0.34, 0.06, 0.5), BLOCK.path, 0.6, 0.03, 0); // Ausfahrt-Rampe
     addPart(g, new THREE.BoxGeometry(0.1, 0.5, 0.8), wallM, -0.4, 0.37, 0);   // Rückwand
     addPart(g, new THREE.BoxGeometry(0.8, 0.5, 0.1), wallM, 0, 0.37, -0.35);  // Seitenwände
     addPart(g, new THREE.BoxGeometry(0.8, 0.5, 0.1), wallM, 0, 0.37, 0.35);
+    for (const side of [-1, 1]) addPart(g, new THREE.BoxGeometry(0.1, 0.5, 0.1), BLOCK.log, 0.38, 0.37, side * 0.32); // Torpfosten
     addPart(g, new THREE.BoxGeometry(0.95, 0.12, 0.95), level >= 3 ? BLOCK.dark : BLOCK.planks, 0, 0.68, 0); // Dach
-    if (level >= 2) addCollar(g, 0.6, 0.74, BLOCK.gold);
+    addPart(g, new THREE.BoxGeometry(0.2, 0.13, 0.14), BLOCK.log, -0.24, 0.19, -0.18); // Werkzeugkiste
+    addPart(g, new THREE.BoxGeometry(0.12, 0.12, 0.12), BLOCK.dark, -0.2, 0.18, 0.16); // Ersatzreifen
+    if (level >= 2) addCollar(g, 0.6, 0.76, BLOCK.gold);
     if (level >= 3) {
-      // Werkstatt-Schild: kleines Zahnrad aus Goldwürfeln
-      addPart(g, new THREE.BoxGeometry(0.14, 0.14, 0.06), BLOCK.gold, 0.44, 0.5, 0);
+      addPart(g, new THREE.BoxGeometry(0.14, 0.14, 0.06), BLOCK.gold, 0.44, 0.52, 0); // Werkstatt-Schild
+      addPart(g, new THREE.BoxGeometry(0.14, 0.3, 0.14), BLOCK.cobble, -0.32, 0.85, -0.32); // Schornstein
     }
     if (level >= 4) {
-      // Panzersperren an den Ecken
       for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
-        addPart(g, new THREE.BoxGeometry(0.12, 0.24, 0.12), BLOCK.dark, sx * 0.5, 0.12, sz * 0.5);
+        addPart(g, new THREE.BoxGeometry(0.12, 0.26, 0.12), BLOCK.dark, sx * 0.52, 0.13, sz * 0.52); // Panzersperren
       }
+      addPart(g, new THREE.BoxGeometry(0.04, 0.5, 0.04), BLOCK.iron, 0.3, 0.99, -0.3); // Antenne
+      addPart(g, new THREE.BoxGeometry(0.07, 0.07, 0.07), blueGlowMat, 0.3, 1.27, -0.3);
     }
     if (level >= 5) {
-      addPart(g, new THREE.BoxGeometry(0.06, 0.6, 0.06), BLOCK.log, -0.4, 1.0, -0.4);
-      addPart(g, new THREE.BoxGeometry(0.26, 0.18, 0.05), BLOCK.redwool, -0.26, 1.2, -0.4);
-      addCollar(g, 0.99, 0.74, BLOCK.gold);
+      addPart(g, new THREE.BoxGeometry(0.06, 0.6, 0.06), BLOCK.log, -0.4, 1.04, -0.4);
+      addPart(g, new THREE.BoxGeometry(0.26, 0.18, 0.05), BLOCK.redwool, -0.26, 1.24, -0.4);
+      addCollar(g, 0.99, 0.76, BLOCK.gold);
+      addLantern(g, 0.42, 0.82, 0.42); // Scheinwerfer über der Ausfahrt
     }
     g.userData.muzzleY = 0.4;
   } else if (type === 'mine') {
-    // Goldader: Steinwürfel mit Golderz — mehr Erz pro Stufe
-    addPart(g, new THREE.BoxGeometry(0.5, 0.5, 0.5), BLOCK.stone, -0.12, 0.25, 0.06);
-    addPart(g, new THREE.BoxGeometry(0.34, 0.34, 0.34), BLOCK.stone, 0.24, 0.17, -0.2);
-    const spots = [[0.05, 0.62, 0.02], [-0.32, 0.13, -0.24], [0.3, 0.4, 0.2], [-0.06, 0.13, 0.36]];
+    // Goldmine: Stolleneingang mit Stützbalken, Lore voller Gold, Spitzhacke
+    addPart(g, new THREE.BoxGeometry(0.52, 0.5, 0.5), BLOCK.stone, -0.14, 0.25, 0.02);
+    addPart(g, new THREE.BoxGeometry(0.36, 0.34, 0.36), BLOCK.stone, 0.22, 0.17, -0.24);
+    addPart(g, new THREE.BoxGeometry(0.26, 0.2, 0.08), BLOCK.dark, -0.14, 0.12, 0.28); // Stollenloch
+    // Stützbalken um den Eingang
+    for (const side of [-1, 1]) addPart(g, new THREE.BoxGeometry(0.08, 0.42, 0.08), BLOCK.log, -0.14 + side * 0.22, 0.21, 0.3);
+    addPart(g, new THREE.BoxGeometry(0.56, 0.08, 0.08), BLOCK.log, -0.14, 0.44, 0.3);
+    // Lore mit Goldladung auf Mini-Schiene
+    addPart(g, new THREE.BoxGeometry(0.34, 0.03, 0.16), BLOCK.dark, 0.28, 0.015, 0.32);
+    addPart(g, new THREE.BoxGeometry(0.26, 0.13, 0.16), BLOCK.iron, 0.28, 0.11, 0.32);
+    addPart(g, new THREE.BoxGeometry(0.18, 0.08, 0.1), BLOCK.gold, 0.28, 0.2, 0.32);
+    // Spitzhacke lehnt am Felsen
+    const stiel = addPart(g, new THREE.BoxGeometry(0.04, 0.36, 0.04), BLOCK.log, -0.42, 0.2, -0.14);
+    stiel.rotation.z = 0.35;
+    addPart(g, new THREE.BoxGeometry(0.2, 0.05, 0.05), BLOCK.iron, -0.48, 0.36, -0.14);
+    // Golderz-Adern (mehr pro Stufe)
+    const spots = [[0.02, 0.56, 0.0], [-0.34, 0.14, -0.26], [0.28, 0.4, 0.14], [-0.02, 0.14, 0.34]];
     for (let i = 0; i <= level && i < spots.length; i++) {
-      addPart(g, new THREE.BoxGeometry(0.26, 0.26, 0.26), BLOCK.goldore, spots[i][0], spots[i][1], spots[i][2]);
+      addPart(g, new THREE.BoxGeometry(0.24, 0.24, 0.24), BLOCK.goldore, spots[i][0], spots[i][1], spots[i][2]);
     }
+    if (level >= 2) addLantern(g, 0.44, 0.06, -0.4);
     if (level >= 3) {
       addPart(g, new THREE.BoxGeometry(0.2, 0.2, 0.2),
         new THREE.MeshStandardMaterial({ color: 0xffd875, emissive: 0xcf9a2c, emissiveIntensity: 0.5, roughness: 0.4 }),
-        0.05, 0.85, 0.02);
+        -0.02, 0.78, 0.0);
     }
   }
 
