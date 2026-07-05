@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Neon Casino – Simulator</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">🎰</span>
+      <span class="brand-name">Neon&nbsp;Casino</span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button class="tab active" data-game="lobby">Lobby</button>
+      <button class="tab" data-game="slots">Slots</button>
+      <button class="tab" data-game="roulette">Roulette</button>
+      <button class="tab" data-game="blackjack">Blackjack</button>
+      <button class="tab" data-game="dice">Dice</button>
+    </nav>
+    <div class="wallet">
+      <div class="wallet-inner">
+        <span class="chip">💰</span>
+        <span id="balance">0</span>
+        <span class="currency">Credits</span>
+      </div>
+      <button id="resetBtn" class="reset-btn" title="Guthaben zurücksetzen">↻</button>
+    </div>
+  </header>
+
+  <main id="stage">
+    <!-- LOBBY -->
+    <section class="screen active" id="lobby">
+      <div class="lobby-hero">
+        <h1>Willkommen im <span class="glow">Neon&nbsp;Casino</span></h1>
+        <p>Reines Spielgeld – kein echtes Geld, kein Risiko. Wähle ein Spiel und teste dein Glück!</p>
+      </div>
+      <div class="lobby-grid">
+        <button class="game-card" data-goto="slots">
+          <span class="gc-icon">🎰</span><span class="gc-title">Slots</span>
+          <span class="gc-desc">Dreh die Walzen, jage den Jackpot.</span>
+        </button>
+        <button class="game-card" data-goto="roulette">
+          <span class="gc-icon">🎡</span><span class="gc-title">Roulette</span>
+          <span class="gc-desc">Rot, Schwarz oder die volle Zahl.</span>
+        </button>
+        <button class="game-card" data-goto="blackjack">
+          <span class="gc-icon">🃏</span><span class="gc-title">Blackjack</span>
+          <span class="gc-desc">Schlag den Dealer, ohne zu überkaufen.</span>
+        </button>
+        <button class="game-card" data-goto="dice">
+          <span class="gc-icon">🎲</span><span class="gc-title">Dice</span>
+          <span class="gc-desc">Over/Under – wähle deine Chance.</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- SLOTS -->
+    <section class="screen" id="slots">
+      <h2 class="game-heading">🎰 Slots</h2>
+      <div class="slots-machine">
+        <div class="reels" id="reels">
+          <div class="reel" data-i="0">❓</div>
+          <div class="reel" data-i="1">❓</div>
+          <div class="reel" data-i="2">❓</div>
+        </div>
+        <div class="slots-msg" id="slotsMsg">Setze und dreh!</div>
+      </div>
+      <div class="controls">
+        <div class="bet-row">
+          <label>Einsatz</label>
+          <div class="bet-stepper">
+            <button data-bet-adjust="slots" data-delta="-10">−</button>
+            <input type="number" id="slotsBet" value="10" min="1" />
+            <button data-bet-adjust="slots" data-delta="10">+</button>
+          </div>
+        </div>
+        <button class="primary-btn" id="spinBtn">SPIN</button>
+      </div>
+      <details class="paytable">
+        <summary>Gewinntabelle</summary>
+        <ul>
+          <li>🎰 🎰 🎰 — 3 Gleiche (7️⃣): <b>×20</b></li>
+          <li>Drei gleiche Symbole: <b>×8</b></li>
+          <li>Zwei gleiche Symbole: <b>×2</b></li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- ROULETTE -->
+    <section class="screen" id="roulette">
+      <h2 class="game-heading">🎡 Roulette</h2>
+      <div class="roulette-display">
+        <div class="wheel" id="wheelNum">–</div>
+        <div class="roulette-msg" id="rouletteMsg">Wähle eine Wette.</div>
+      </div>
+      <div class="bet-row">
+        <label>Einsatz</label>
+        <div class="bet-stepper">
+          <button data-bet-adjust="roulette" data-delta="-10">−</button>
+          <input type="number" id="rouletteBet" value="10" min="1" />
+          <button data-bet-adjust="roulette" data-delta="10">+</button>
+        </div>
+      </div>
+      <div class="roulette-bets" id="rouletteBets">
+        <button class="rbet" data-type="red">Rot ×2</button>
+        <button class="rbet" data-type="black">Schwarz ×2</button>
+        <button class="rbet" data-type="even">Gerade ×2</button>
+        <button class="rbet" data-type="odd">Ungerade ×2</button>
+        <button class="rbet" data-type="low">1–18 ×2</button>
+        <button class="rbet" data-type="high">19–36 ×2</button>
+      </div>
+      <div class="straight-bet">
+        <label>Volle Zahl (0–36) ×36</label>
+        <div class="bet-stepper">
+          <input type="number" id="straightNum" min="0" max="36" placeholder="Zahl" />
+          <button class="rbet straight" data-type="straight">Setzen</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- BLACKJACK -->
+    <section class="screen" id="blackjack">
+      <h2 class="game-heading">🃏 Blackjack</h2>
+      <div class="bj-table">
+        <div class="bj-hand">
+          <div class="bj-label">Dealer <span id="dealerScore"></span></div>
+          <div class="bj-cards" id="dealerCards"></div>
+        </div>
+        <div class="bj-hand">
+          <div class="bj-label">Du <span id="playerScore"></span></div>
+          <div class="bj-cards" id="playerCards"></div>
+        </div>
+        <div class="bj-msg" id="bjMsg">Setze und drück Deal.</div>
+      </div>
+      <div class="controls">
+        <div class="bet-row" id="bjBetRow">
+          <label>Einsatz</label>
+          <div class="bet-stepper">
+            <button data-bet-adjust="bj" data-delta="-10">−</button>
+            <input type="number" id="bjBet" value="10" min="1" />
+            <button data-bet-adjust="bj" data-delta="10">+</button>
+          </div>
+        </div>
+        <div class="bj-actions">
+          <button class="primary-btn" id="dealBtn">DEAL</button>
+          <button class="action-btn" id="hitBtn" disabled>Hit</button>
+          <button class="action-btn" id="standBtn" disabled>Stand</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- DICE -->
+    <section class="screen" id="dice">
+      <h2 class="game-heading">🎲 Dice</h2>
+      <div class="dice-display">
+        <div class="dice-face" id="diceFace">🎲</div>
+        <div class="dice-roll-num" id="diceRollNum"></div>
+        <div class="dice-msg" id="diceMsg">Ziel wählen (1–100).</div>
+      </div>
+      <div class="dice-target">
+        <div class="dice-mode">
+          <button class="mode-btn active" id="modeUnder" data-mode="under">Under</button>
+          <button class="mode-btn" id="modeOver" data-mode="over">Over</button>
+        </div>
+        <input type="range" id="diceSlider" min="2" max="98" value="50" />
+        <div class="dice-stats">
+          <span>Ziel: <b id="diceTarget">50</b></span>
+          <span>Chance: <b id="diceChance">49%</b></span>
+          <span>Auszahlung: <b id="dicePayout">×1.98</b></span>
+        </div>
+      </div>
+      <div class="controls">
+        <div class="bet-row">
+          <label>Einsatz</label>
+          <div class="bet-stepper">
+            <button data-bet-adjust="dice" data-delta="-10">−</button>
+            <input type="number" id="diceBet" value="10" min="1" />
+            <button data-bet-adjust="dice" data-delta="10">+</button>
+          </div>
+        </div>
+        <button class="primary-btn" id="rollBtn">ROLL</button>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <footer class="footer">
+    Nur zu Unterhaltungszwecken · Kein Echtgeld · <span id="statLine"></span>
+  </footer>
+
+  <script src="js/main.js"></script>
+  <script src="js/slots.js"></script>
+  <script src="js/roulette.js"></script>
+  <script src="js/blackjack.js"></script>
+  <script src="js/dice.js"></script>
+</body>
+</html>
