@@ -49,11 +49,11 @@ Das Spiel **speichert automatisch nach jeder geschafften Welle** (und bei jedem 
 
 ### 🚗 Die Garage
 
-Die Garage baut alle 30 Sekunden ein Fahrzeug, das den Gegnern auf dem Pfad **entgegenfährt** und sie rammt (beide Seiten nehmen dabei Schaden). Wird das Fahrzeug zerstört, explodiert es mit Flächenschaden. Jede Ausbaustufe **verkürzt die Wartezeit und erhöht die Lebenspunkte**:
+Die Garage schickt alle 30 Sekunden ein Fahrzeug, das **am Ende der Strecke (deiner Basis) startet** und den Gegnern entgegenfährt. Beim Rammen wird **Leben direkt gegen Leben verrechnet**: Ein Fahrzeug mit 120 LP, das einen Gegner mit 60 LP trifft, tötet ihn und behält 60 LP — es pflügt so lange durch die Menge, bis seine Lebenspunkte aufgebraucht sind. Ist es am Ende, explodiert es mit Flächenschaden. Jede Ausbaustufe **verkürzt die Wartezeit und erhöht die Lebenspunkte**:
 
 | Stufe | Fahrzeug | Nachschub | Besonderes |
 |---|---|---|---|
-| 1 | Holzkarre | alle 30 s | rammt |
+| 1 | Holzkarre | alle 30 s | pflügt durch |
 | 2 | Gepanzerter Wagen | alle 26 s | mehr LP |
 | 3 | Wagen **mit Schütze** | alle 22 s | ein Mensch an Bord schießt auf Gegner |
 | 4 | **Panzer** | alle 18 s | Kanone statt Gewehr, deutlich zäher |

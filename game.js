@@ -2086,24 +2086,26 @@ function launchVehicle(t) {
   const scale = waveHpScale(Math.max(1, state.wave));
   const mesh = makeVehicleMesh(t.level);
   scene.add(mesh);
+  // Immer am Ende der Strecke (Basis) starten und den Gegnern entgegenfahren
+  const startS = pathCum[pathCum.length - 1];
+  const p0 = pathPosAt(startS);
   state.vehicles.push({
     level: t.level,
-    s: pathDistOfPoint(t.x, t.y), // Startpunkt: nächster Pfadpunkt zur Garage
+    s: startS,
     hp: st.hp * scale,
     maxHp: st.hp * scale,
-    ram: st.ram * scale,
     gun: st.gun ? { dmg: st.gun.dmg * scale, rate: st.gun.rate, range: st.gun.range } : null,
     boom: { dmg: st.boom.dmg * scale, r: st.boom.r },
     bomb: st.bomb ? { cd: st.bomb.cd, dmg: st.bomb.dmg * scale, r: st.bomb.r } : null,
     gunCd: 0.5,
     bombCd: st.bomb ? st.bomb.cd : 0,
     speed: 55,
-    x: t.x, y: t.y,
+    x: p0.x, y: p0.y,
     dead: false,
     mesh,
   });
   sfx.launch();
-  spawnParticles(t.x, t.y, 0x8a8a99, 8);
+  spawnParticles(p0.x, p0.y, 0x8a8a99, 8);
 }
 
 function splashDamage(xPx, yPx, dmg, radius, color) {
@@ -2126,12 +2128,25 @@ function updateVehicles(dt) {
     const p = pathPosAt(v.s);
     v.x = p.x; v.y = p.y;
     if (v.s <= 0) { v.dead = true; v.retired = true; continue; } // am Start angekommen
-    // Rammkontakt: beide Seiten nehmen Schaden (körperlose Geister rauschen durch)
+    // Frontalkollision: direktes Leben gegen Leben. Ein Fahrzeug mit 120 LP,
+    // das einen Gegner mit 60 LP rammt, tötet ihn und behält 60 LP. Es pflügt
+    // so lange durch die Menge, bis seine Lebenspunkte aufgebraucht sind.
     for (const e of state.enemies) {
-      if (e.dead || e.ethereal) continue;
-      if (Math.hypot(e.x - v.x, e.y - v.y) <= e.radius + 12) {
-        rawDamage(e, v.ram * dt);
-        v.hp -= (isBossType(e.type) || e.type === 'summoner' ? 70 : e.type === 'tank' ? 45 : 25) * waveHpScale(Math.max(1, state.wave)) * dt * 0.5;
+      if (e.dead || e.ethereal) continue; // körperlose Geister rauschen durch
+      if (Math.hypot(e.x - v.x, e.y - v.y) <= e.radius + 14) {
+        const eHp = e.shield + e.hp; // Schild zählt beim Rammen als Leben mit
+        // Der Gegner nimmt das gesamte Fahrzeug-Leben als Schaden (durch Schild + LP)
+        let remain = v.hp;
+        if (e.shield > 0) {
+          const s = Math.min(e.shield, remain);
+          e.shield -= s; remain -= s;
+          if (e.shield <= 0) breakShield(e);
+        }
+        if (remain > 0) { e.hp -= remain; e.hitFlash = 1; if (e.hp <= 0) killEnemy(e); }
+        // Das Fahrzeug verliert exakt die Lebenspunkte des gerammten Gegners
+        v.hp -= eHp;
+        spawnParticles(v.x, v.y, 0xffb347, 6);
+        if (v.hp <= 0) { v.hp = 0; v.dead = true; break; }
       }
     }
     // Schütze (ab Stufe 3)
@@ -3200,7 +3215,8 @@ function showTowerPanel(t) {
   } else if (t.type === 'depot') {
     const st = VEHICLE_STATS[t.level - 1];
     el.tpStats.innerHTML =
-      'Fahrzeug: ' + st.hp + ' LP · Rammschaden ' + st.ram + '/s<br>' +
+      'Fahrzeug: ' + st.hp + ' LP — rammt vom Streckenende her<br>' +
+      '<small>Frisst pro Gegner dessen Leben, bis es aufgebraucht ist</small><br>' +
       'Nachschub alle ' + st.cd + ' s — nächstes in <span id="tp-cd">?</span><br>' +
       (st.gun ? 'Schütze an Bord (' + st.gun.dmg + ' Schaden)<br>' : '') +
       (st.bomb ? '💣 Bombenabwurf alle ' + st.bomb.cd + ' s<br>' : '') +
