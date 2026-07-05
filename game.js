@@ -19,7 +19,8 @@ const pxToWZ = (y) => y / CELL - ROWS / 2;
 // Kürzerer Pfad = weniger Zeit zum Schießen = schwerer.
 const MAPS = [
   {
-    name: 'Wiese', difficulty: 'Normal',
+    name: 'Wiese', difficulty: 'Normal', emoji: '🌿', diffLevel: 2,
+    desc: 'Klassische Doppelschleife mit langem Pfad — ausgewogen für den Einstieg.',
     waypoints: [[-1, 2], [16, 2], [16, 6], [3, 6], [3, 10], [20, 10]],
     hills: [
       [15, 3], [15, 4], [9, 4], [9, 5], [5, 7], [9, 7], [15, 7], [4, 8], [12, 8],
@@ -27,7 +28,8 @@ const MAPS = [
     ],
   },
   {
-    name: 'Serpentinen', difficulty: 'Leicht',
+    name: 'Serpentinen', difficulty: 'Leicht', emoji: '🐍', diffLevel: 1,
+    desc: 'Enges Auf und Ab — Türme zwischen den Gängen treffen mehrfach. Am einfachsten.',
     waves: { tankEvery: 3, fastEvery: 4 }, // Panzerkolonnen auf dem langen Weg
     waypoints: [[-1, 11], [4, 11], [4, 3], [8, 3], [8, 11], [12, 11], [12, 3], [16, 3], [16, 11], [20, 11]],
     hills: [
@@ -36,7 +38,8 @@ const MAPS = [
     ],
   },
   {
-    name: 'Schlucht', difficulty: 'Schwer',
+    name: 'Schlucht', difficulty: 'Schwer', emoji: '⛰️', diffLevel: 3,
+    desc: 'Kurzer, direkter Pfad bei Dauerregen — wenig Zeit zum Schießen. Für Profis.',
     waves: { fastEvery: 2, tankEvery: 5 }, // Sturmläufe auf dem kurzen Pfad
     weather: 'rain',
     waypoints: [[-1, 4], [6, 4], [6, 9], [13, 9], [13, 4], [20, 4]],
@@ -1205,6 +1208,54 @@ function disposeVehicleMesh(g) {
   disposeHpLabel(g.userData.hpLabel);
 }
 
+// ---------- Spielfigur zum Erkunden (Minecraft-Steve aus Klötzchen) ----------
+function makePlayerMesh() {
+  const g = new THREE.Group();
+  // Beine (schwenken beim Laufen)
+  const legL = new THREE.Group();
+  const legR = new THREE.Group();
+  legL.position.set(0.1, 0.5, 0);
+  legR.position.set(-0.1, 0.5, 0);
+  addPart(legL, new THREE.BoxGeometry(0.18, 0.5, 0.18), BLOCK.bluewool, 0, -0.25, 0);
+  addPart(legR, new THREE.BoxGeometry(0.18, 0.5, 0.18), BLOCK.bluewool, 0, -0.25, 0);
+  // Schuhe
+  addPart(legL, new THREE.BoxGeometry(0.2, 0.1, 0.24), BLOCK.dark, 0, -0.5, 0.02);
+  addPart(legR, new THREE.BoxGeometry(0.2, 0.1, 0.24), BLOCK.dark, 0, -0.5, 0.02);
+  g.add(legL, legR);
+  // Rumpf (rotes Hemd)
+  addPart(g, new THREE.BoxGeometry(0.42, 0.56, 0.24), BLOCK.redwool, 0, 0.78, 0);
+  addPart(g, new THREE.BoxGeometry(0.44, 0.12, 0.26), BLOCK.dark, 0, 0.53, 0); // Gürtel
+  // Arme (schwenken gegenläufig)
+  const armL = new THREE.Group();
+  const armR = new THREE.Group();
+  armL.position.set(0.31, 1.02, 0);
+  armR.position.set(-0.31, 1.02, 0);
+  addPart(armL, new THREE.BoxGeometry(0.14, 0.52, 0.16), BLOCK.redwool, 0, -0.2, 0);
+  addPart(armR, new THREE.BoxGeometry(0.14, 0.52, 0.16), BLOCK.redwool, 0, -0.2, 0);
+  addPart(armL, new THREE.BoxGeometry(0.15, 0.14, 0.17), BLOCK.skin, 0, -0.5, 0); // Hände
+  addPart(armR, new THREE.BoxGeometry(0.15, 0.14, 0.17), BLOCK.skin, 0, -0.5, 0);
+  g.add(armL, armR);
+  // Kopf mit Gesicht (Blick nach +x, wie die Gegner)
+  const head = new THREE.Group();
+  head.position.set(0, 1.28, 0);
+  addPart(head, new THREE.BoxGeometry(0.34, 0.34, 0.34), BLOCK.skin, 0, 0.17, 0);
+  addPart(head, new THREE.BoxGeometry(0.36, 0.12, 0.36), BLOCK.log, 0, 0.37, 0); // Haar oben
+  addPart(head, new THREE.BoxGeometry(0.02, 0.24, 0.36), BLOCK.log, -0.17, 0.15, 0); // Haar hinten
+  for (const side of [-1, 1]) {
+    const eye = new THREE.Mesh(eyeGeo, MAT.white);
+    eye.scale.set(0.05, 0.07, 0.06);
+    eye.position.set(0.17, 0.18, side * 0.08);
+    const pupil = new THREE.Mesh(eyeGeo, MAT.black);
+    pupil.scale.set(0.05, 0.05, 0.04);
+    pupil.position.set(0.18, 0.18, side * 0.09);
+    head.add(eye, pupil);
+  }
+  g.add(head);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.userData = { legL, legR, armL, armR, head };
+  return g;
+}
+
 // Nach einem Upgrade das Modell durch die nächste Ausbaustufe ersetzen
 function rebuildTowerMesh(t) {
   scene.remove(t.mesh);
@@ -1522,8 +1573,10 @@ function clearActors() {
 
 function resetGame() {
   if (state.controlled) exitTower();
+  if (state.player) exitExplore();
   clearActors();
   state.controlled = null;
+  state.player = null;
   state.kills = 0;
   state.manualKills = 0;
   state.gold = 140;
@@ -2541,6 +2594,107 @@ function updateFPCamera() {
   );
 }
 
+// ---------- Erkunden: mit der Spielfigur durch die Welt laufen ----------
+const keysDown = new Set();
+const PLAYER_SPEED = 4.2;   // Welteinheiten/s
+const PLAYER_BOUNDS_X = COLS / 2 + 0.4;
+const PLAYER_BOUNDS_Z = ROWS / 2 + 0.4;
+
+// Bodenhöhe an einer Weltposition (Anhöhen sind erhöht)
+function groundHeightAt(wx, wz) {
+  const cx = Math.floor(wx + COLS / 2);
+  const cy = Math.floor(wz + ROWS / 2);
+  return isHillCell(cx, cy) ? HILL_H : 0;
+}
+
+function enterExplore() {
+  if (state.player || state.controlled || state.gameOver) return;
+  if (el.overlay.style.display === 'flex') return; // nicht aus dem Startbildschirm heraus
+  const mesh = makePlayerMesh();
+  const startX = pxToWX(waypoints[0].x + 40);
+  const startZ = pxToWZ(waypoints[0].y);
+  state.player = {
+    wx: startX, wz: startZ, y: groundHeightAt(startX, startZ),
+    vy: 0, onGround: true, yaw: 0, walkPhase: 0,
+    camYaw: 0, camPitch: 0.35, mesh,
+  };
+  scene.add(mesh);
+  state.buildType = null;
+  setGhost(null);
+  state.selectedTower = null;
+  hideTowerPanel();
+  updateShopButtons();
+  el.shop.classList.add('hidden');
+  el.exploreHud.style.display = 'block';
+  el.btnExplore.classList.add('active');
+}
+
+function exitExplore() {
+  if (!state.player) return;
+  scene.remove(state.player.mesh);
+  state.player = null;
+  keysDown.clear();
+  el.shop.classList.remove('hidden');
+  el.exploreHud.style.display = 'none';
+  el.btnExplore.classList.remove('active');
+  updateCamera();
+}
+
+function updatePlayer(dt) {
+  const p = state.player;
+  if (!p) return;
+  // Bewegungsrichtung relativ zur Blickrichtung der Kamera
+  let fx = 0, fz = 0;
+  if (keysDown.has('KeyW') || keysDown.has('ArrowUp')) { fx += Math.cos(p.camYaw); fz += Math.sin(p.camYaw); }
+  if (keysDown.has('KeyS') || keysDown.has('ArrowDown')) { fx -= Math.cos(p.camYaw); fz -= Math.sin(p.camYaw); }
+  if (keysDown.has('KeyD') || keysDown.has('ArrowRight')) { fx += Math.cos(p.camYaw + Math.PI / 2); fz += Math.sin(p.camYaw + Math.PI / 2); }
+  if (keysDown.has('KeyA') || keysDown.has('ArrowLeft')) { fx -= Math.cos(p.camYaw + Math.PI / 2); fz -= Math.sin(p.camYaw + Math.PI / 2); }
+  const len = Math.hypot(fx, fz);
+  if (len > 0.001) {
+    fx /= len; fz /= len;
+    p.wx = Math.max(-PLAYER_BOUNDS_X, Math.min(PLAYER_BOUNDS_X, p.wx + fx * PLAYER_SPEED * dt));
+    p.wz = Math.max(-PLAYER_BOUNDS_Z, Math.min(PLAYER_BOUNDS_Z, p.wz + fz * PLAYER_SPEED * dt));
+    p.yaw = Math.atan2(fz, fx);
+    p.walkPhase += dt * 9;
+  } else {
+    p.walkPhase *= Math.pow(0.0001, dt); // Beine sanft in Ruhestellung
+  }
+  // Springen & Schwerkraft
+  const gh = groundHeightAt(p.wx, p.wz);
+  if (p.onGround && keysDown.has('Space')) { p.vy = 5.2; p.onGround = false; }
+  p.vy -= 16 * dt;
+  p.y += p.vy * dt;
+  if (p.y <= gh) { p.y = gh; p.vy = 0; p.onGround = true; }
+  // Modell platzieren, drehen, Lauf-Animation
+  const m = p.mesh;
+  m.position.set(p.wx, p.y, p.wz);
+  m.rotation.y = -p.yaw + Math.PI / 2; // Kopf/Blick zeigen in Laufrichtung
+  const sw = Math.sin(p.walkPhase) * 0.6;
+  m.userData.legL.rotation.x = sw;
+  m.userData.legR.rotation.x = -sw;
+  m.userData.armL.rotation.x = -sw;
+  m.userData.armR.rotation.x = sw;
+}
+
+function updatePlayerCamera() {
+  const p = state.player;
+  const dist = 4.4;
+  const cp = Math.cos(p.camPitch);
+  const tx = p.wx, ty = p.y + 1.3, tz = p.wz;
+  camera.position.set(
+    tx - Math.cos(p.camYaw) * cp * dist,
+    ty + Math.sin(p.camPitch) * dist + 0.3,
+    tz - Math.sin(p.camYaw) * cp * dist
+  );
+  camera.lookAt(tx, ty, tz);
+}
+
+function aimExplore(dx, dy) {
+  const p = state.player;
+  p.camYaw += dx * 0.005;
+  p.camPitch = Math.min(1.0, Math.max(-0.15, p.camPitch - dy * 0.004));
+}
+
 function aimFP(dx, dy) {
   fp.yaw += dx * 0.0032;
   fp.pitch = Math.min(0.9, Math.max(-0.5, fp.pitch + dy * 0.0032));
@@ -2849,6 +3003,10 @@ const el = {
   btnAch: document.getElementById('btn-ach'),
   btnFs: document.getElementById('btn-fs'),
   achPanel: document.getElementById('ach-panel'),
+  btnExplore: document.getElementById('btn-explore'),
+  exploreHud: document.getElementById('explore-hud'),
+  exploreExit: document.getElementById('explore-exit'),
+  mapSelect: document.getElementById('map-select'),
 };
 
 el.btnAch.addEventListener('click', () => {
@@ -2860,6 +3018,13 @@ el.btnLex.addEventListener('click', () => {
   ensureAudio();
   el.lexPanel.style.display = el.lexPanel.style.display === 'block' ? 'none' : 'block';
 });
+
+el.btnExplore.addEventListener('click', () => {
+  ensureAudio();
+  if (state.player) exitExplore();
+  else enterExplore();
+});
+el.exploreExit.addEventListener('click', () => { ensureAudio(); exitExplore(); });
 
 el.btnFs.addEventListener('click', () => {
   ensureAudio();
@@ -3125,12 +3290,39 @@ function sellValue(t) {
   return Math.round(t.invested * 0.7);
 }
 
+// Karten-/Schwierigkeitsauswahl als Karten auf dem Overlay aufbauen
+function buildMapSelect() {
+  el.mapSelect.innerHTML = '';
+  MAPS.forEach((m, i) => {
+    const card = document.createElement('div');
+    card.className = 'map-card' + (i === currentMap ? ' selected' : '');
+    const best = loadBestFor(i);
+    const dots = '●'.repeat(m.diffLevel) + '○'.repeat(3 - m.diffLevel);
+    card.innerHTML =
+      '<div class="mc-emoji">' + m.emoji + '</div>' +
+      '<div class="mc-name">' + m.name + '</div>' +
+      '<div><span class="diff-badge diff-' + m.diffLevel + '">' + m.difficulty +
+        ' <span class="diff-dots">' + dots + '</span></span></div>' +
+      '<div class="mc-desc">' + m.desc + '</div>' +
+      (best > 0 ? '<div class="mc-best">★ Beste Welle: ' + best + '</div>' : '');
+    card.addEventListener('click', () => {
+      ensureAudio();
+      const wasStart = el.ovTitle.textContent.indexOf('Turm-Verteidigung') >= 0;
+      if (i !== currentMap) loadMap(i); // wechselt Karte + Reset (Overlay verschwindet)
+      if (wasStart) showStartScreen(); else showOverlay(el.ovTitle.textContent, el.ovText.textContent, false);
+    });
+    el.mapSelect.appendChild(card);
+  });
+}
+
 function showOverlay(title, text, isVictory) {
   if (state.controlled) exitTower();
+  if (state.player) exitExplore();
   el.ovTitle.textContent = title;
   el.ovText.textContent = text;
   el.ovRestart.textContent = 'Neustart';
   el.ovEndless.style.display = isVictory ? '' : 'none';
+  if (isVictory) el.mapSelect.innerHTML = ''; else buildMapSelect(); // bei Niederlage neue Schwierigkeit wählbar
   el.overlay.style.display = 'flex';
 }
 
@@ -3138,11 +3330,12 @@ function showOverlay(title, text, isVictory) {
 function showStartScreen() {
   el.ovTitle.textContent = '🏰 Turm-Verteidigung 3D';
   el.ovText.textContent =
-    'Halte 20 Wellen stand! Wähle unten einen Turm (Tasten 1–9) und setze ihn mit dem durchsichtigen Vorschau-Modell aufs Feld. ' +
-    'Rüste Türme aus, betritt Wachturm und Mörser für die Ego-Ansicht, schicke Kampffahrzeuge aus der Garage — ' +
-    'und pass auf Heiler und Beschwörer auf. Kamera: rechte Maustaste/2 Finger drehen, Mausrad/Pinch zoomen, R = zurücksetzen, Leertaste = Pause. Viel Erfolg!';
+    'Wähle eine Karte und Schwierigkeit, halte 20 Wellen stand! Baue Türme (Tasten 1–9), rüste sie aus, ' +
+    'betritt Wachturm und Mörser für die Ego-Ansicht und schicke Fahrzeuge aus der Garage. ' +
+    'Mit 🚶 Erkunden (Taste E) läufst du selbst als Figur durch die Welt.';
   el.ovRestart.textContent = '▶ Spielen';
   el.ovEndless.style.display = 'none';
+  buildMapSelect();
   el.overlay.style.display = 'flex';
 }
 
@@ -3246,6 +3439,15 @@ renderer.domElement.addEventListener('pointerdown', (evt) => {
     }
     return;
   }
+  // Erkunden: Maus ziehen dreht die Kamera um die Figur
+  if (state.player) {
+    orbit.active = true;
+    orbit.moved = 0;
+    orbit.lastX = evt.clientX;
+    orbit.lastY = evt.clientY;
+    renderer.domElement.setPointerCapture(evt.pointerId);
+    return;
+  }
   // Im Wachturm: linke Taste schießt (bzw. startet Ziel-Ziehen ohne Pointer-Lock)
   if (state.controlled) {
     if (evt.button === 2) { exitTower(); return; }
@@ -3294,7 +3496,9 @@ renderer.domElement.addEventListener('pointermove', (evt) => {
       }
       pinch.dist = i.dist; pinch.midX = i.midX; pinch.midY = i.midY;
     } else if (touchPts.size === 1) {
-      if (state.controlled) {
+      if (state.player) {
+        aimExplore(dx * 1.4, dy * 1.4);
+      } else if (state.controlled) {
         aimFP(dx * 1.8, dy * 1.8);
       } else if (state.buildType) {
         const cell = pickCell(evt);
@@ -3322,6 +3526,10 @@ renderer.domElement.addEventListener('pointermove', (evt) => {
     orbit.moved += Math.abs(dx) + Math.abs(dy);
     orbit.lastX = evt.clientX;
     orbit.lastY = evt.clientY;
+    if (state.player) {
+      aimExplore(dx, dy); // Kamera um die Figur drehen
+      return;
+    }
     camCtl.theta -= dx * 0.005;
     camCtl.phi = Math.min(1.25, Math.max(0.4, camCtl.phi - dy * 0.004));
     updateCamera();
@@ -3347,6 +3555,7 @@ renderer.domElement.addEventListener('pointercancel', onTouchEnd);
 
 renderer.domElement.addEventListener('pointerup', (evt) => {
   if (evt.pointerType === 'touch') { onTouchEnd(evt); return; }
+  if (state.player && orbit.active) { orbit.active = false; return; }
   if (state.controlled && fp.drag.active && evt.button === 0) {
     fp.drag.active = false;
     if (fp.drag.moved < 6) manualShoot(); // Tipp/Klick ohne Ziehen = Schuss
@@ -3367,6 +3576,7 @@ renderer.domElement.addEventListener('pointerleave', () => { state.hoverCell = n
 
 renderer.domElement.addEventListener('wheel', (evt) => {
   evt.preventDefault();
+  if (state.player) return; // Erkunden: Kamera bleibt fest hinter der Figur
   if (state.controlled) {
     // Zoom in der Ego-Ansicht (Zielfernrohr-Gefühl)
     camera.fov = Math.min(70, Math.max(25, camera.fov + evt.deltaY * 0.02));
@@ -3380,12 +3590,24 @@ renderer.domElement.addEventListener('wheel', (evt) => {
 
 renderer.domElement.addEventListener('contextmenu', (evt) => evt.preventDefault());
 
+const EXPLORE_KEYS = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'];
+
+document.addEventListener('keyup', (evt) => { keysDown.delete(evt.code); });
+
 document.addEventListener('keydown', (evt) => {
+  // Erkunden-Modus fängt Bewegungstasten ab
+  if (state.player) {
+    if (evt.code === 'Escape') { exitExplore(); return; }
+    if (EXPLORE_KEYS.includes(evt.code)) { evt.preventDefault(); keysDown.add(evt.code); return; }
+    return;
+  }
   if (evt.code === 'Escape') {
     if (state.controlled) { exitTower(); return; }
     selectBuildType(null);
     state.selectedTower = null;
     hideTowerPanel();
+  } else if (evt.code === 'KeyE') {
+    enterExplore();
   } else if (evt.code === 'Space') {
     evt.preventDefault();
     togglePause();
@@ -3522,7 +3744,9 @@ function loop(now) {
   }
   syncScene(rawDt);
   updateFloaters(rawDt);
+  if (state.player && !state.paused) updatePlayer(rawDt);
   if (state.controlled) updateFPCamera();
+  else if (state.player) updatePlayerCamera();
   if (shake > 0.001) {
     // Kamera kurz durchrütteln, Basisposition danach wiederherstellen
     shakeVec.set(Math.random() - 0.5, (Math.random() - 0.5) * 0.6, Math.random() - 0.5)

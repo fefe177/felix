@@ -143,6 +143,19 @@ Jede Karte hat ihren eigenen Wellen-Charakter: In der **Schlucht** stürmen deut
 
 Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen kurz auf, und der Wellen-Button warnt vor Bosswellen (⚠️). Deine **beste Welle** wird im Browser gespeichert und am Spielende zusammen mit den Abschüssen angezeigt.
 
+## 🚶 Welt erkunden (3D-Figur)
+
+Über den **🚶 Erkunden**-Button (oder Taste **E**) steigst du selbst als Minecraft-Figur in die Welt und läufst frei über die Karte:
+
+- **W A S D** (oder Pfeiltasten) laufen, **Maus ziehen** dreht die Kamera um die Figur (Third-Person), **Leertaste** springt.
+- Die Figur läuft über Wiese und Pfad, steigt auf Anhöhen und hat eine Lauf-Animation (Arme und Beine schwingen).
+- Das Spiel läuft im Hintergrund weiter — du kannst also mitten in einer Welle herumspazieren und alles aus der Nähe betrachten.
+- **Esc** oder der Button bringt dich zurück in die normale Ansicht.
+
+## 🗺️ Karten- & Schwierigkeitsauswahl
+
+Auf dem **Startbildschirm** (und nach einer Niederlage) wählst du die Karte über große Karten-Kacheln mit **Schwierigkeits-Abzeichen** (🟢 Leicht ● / 🟡 Normal ●● / 🔴 Schwer ●●●), Kurzbeschreibung und deiner besten Welle. Oben bleibt zusätzlich die kompakte Kartenleiste zum schnellen Wechseln.
+
 ## 🖥️ Vollbild-Oberfläche
 
 Das Spiel füllt **immer den ganzen Bildschirm** — alle Leisten schweben halbdurchsichtig über dem 3D-Bild:
@@ -159,6 +172,7 @@ Jeder Kampfturm lässt sich einstellen, **wen er zuerst angreift** (Turm anklick
 ## Steuerung
 
 - **Turm bauen:** Turm in der Leiste unten anklicken (oder Tasten `1`–`9`) — der Geister-Turm hängt am Zeiger — dann aufs Feld klicken (Gelände-Regel beachten!)
+- **Welt erkunden:** `E` oder 🚶-Button — als 3D-Figur mit `W A S D` laufen, Maus zum Umsehen, `Leertaste` springen, `Esc` zurück
 - **Wellen-Vorschau:** Über dem Spielfeld steht immer, was die nächste Welle bringt (z. B. „24 Gegner — 6 Flinke · 5 Panzer · 2 Heiler")
 - **Aufwerten/Verkaufen:** platzierten Turm anklicken
 - **Kamera drehen:** rechte Maustaste gedrückt halten und ziehen
