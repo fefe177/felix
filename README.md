@@ -113,12 +113,26 @@ Zwei Türme kann man **betreten und selbst steuern** (Turm anklicken → „🎯
 
 ## Gegner
 
+Jeder Gegner (und jedes Fahrzeug) trägt seine **Lebenspunkte als Zahl** über dem Kopf — grün bei voller Gesundheit, gelb, dann rot; **blau**, solange ein Schild den Schaden schluckt.
+
 - **Normal** (rot) — Standardgegner
 - **Flink** (gelb, mit Heckflossen) — schnell, aber schwach
 - **Panzer** (grün, mit Stahlhelm) — langsam, viele Lebenspunkte, kostet 2 Leben
-- **Boss** (lila, mit Krone) — alle 5 Wellen, sehr zäh, kostet 5 Leben
+- **Spalter** (orange, mit zwei Knubbeln) — ab Welle 6; **zerplatzt beim Tod in zwei flinke Splitterlinge** — Flächenschaden lohnt sich
+- **Schildträger** (grau, mit Steinplatte) — ab Welle 9; sein **Schild blockt Schaden UND Frost/Gift**, bis er krachend zerbricht
 - **Beschwörer** (violett, mit Zauberhut und Geister-Orbs) — jede 10. Welle; ruft alle paar Sekunden zwei Diener direkt auf den Pfad! Schnell ausschalten, sonst wächst die Welle immer weiter
 - **Heiler** (weiß, mit rotem Kreuz) — ab Welle 7; heilt alle 3 Sekunden verletzte Gegner im Umkreis (grüner Heil-Ring). Zuerst ausschalten, sonst kämpfst du gegen regenerierende Panzer!
+
+### 👑 Drei Bosse mit eigenen Fähigkeiten
+
+Alle 5 Wellen kommt ein Boss — aber nie derselbe:
+
+| Welle | Boss | Fähigkeit |
+|---|---|---|
+| 5 | 👑 **Panzerkönig** (lila, Goldkrone) | **Wut:** Unter halber Gesundheit rennt er plötzlich fast doppelt so schnell! |
+| 10 | ❄️ **Eiskönigin** (eisblau, Zackenkrone) | **Frost-Nova:** Friert alle 5 Sekunden die Türme in ihrer Nähe ein — eingefrorene Türme stecken im Eisblock und schießen nicht |
+| 15 | 👻 **Schattenfürst** (dunkel, Kapuze) | **Körperlos:** Verblasst immer wieder für 2 Sekunden — dann ist er unverwundbar, Türme ignorieren ihn und Schüsse gehen durch ihn hindurch |
+| 20 | **Alle drei auf einmal!** | Das große Finale |
 
 Jede Karte hat ihren eigenen Wellen-Charakter: In der **Schlucht** stürmen deutlich mehr Flinke, auf den **Serpentinen** rollen Panzerkolonnen an. Alle Gegner mit Werten und Taktik-Tipps stehen im **Gegner-Lexikon** (📖-Button oben).
 

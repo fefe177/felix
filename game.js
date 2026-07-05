@@ -209,12 +209,21 @@ const ENEMY_TYPES = {
   normal:   { hp: 34, speed: 55, reward: 6, radius: 12, lives: 1, color: 0xc94f4f },
   fast:     { hp: 22, speed: 95, reward: 7, radius: 10, lives: 1, color: 0xe8b64f },
   tank:     { hp: 110, speed: 36, reward: 12, radius: 15, lives: 2, color: 0x5a7d5a },
-  boss:     { hp: 650, speed: 30, reward: 60, radius: 20, lives: 5, color: 0x7a4fa0 },
-  summoner: { hp: 420, speed: 26, reward: 70, radius: 17, lives: 4, color: 0x5a4a7d },
+  spalter:  { hp: 55, speed: 50, reward: 8, radius: 13, lives: 1, color: 0xd97b2f },
+  mini:     { hp: 16, speed: 85, reward: 3, radius: 8, lives: 1, color: 0xe0954f },
+  schild:   { hp: 60, speed: 42, reward: 14, radius: 14, lives: 2, color: 0x8a99b0, shield: 70 },
   healer:   { hp: 55, speed: 45, reward: 11, radius: 12, lives: 1, color: 0xf0ece4 },
+  summoner: { hp: 420, speed: 26, reward: 70, radius: 17, lives: 4, color: 0x5a4a7d },
+  // Drei Bosse mit eigenen Fähigkeiten (alle 5 Wellen im Wechsel)
+  boss:         { hp: 650, speed: 30, reward: 60, radius: 20, lives: 5, color: 0x7a4fa0 }, // Panzerkönig: Wut
+  frostboss:    { hp: 780, speed: 26, reward: 75, radius: 20, lives: 5, color: 0x9fd7e8 }, // Eiskönigin: friert Türme ein
+  schattenboss: { hp: 560, speed: 34, reward: 80, radius: 19, lives: 5, color: 0x4a4258 }, // Schattenfürst: wird körperlos
 };
+const BOSS_KEYS = ['boss', 'frostboss', 'schattenboss'];
+const isBossType = (ty) => BOSS_KEYS.includes(ty);
 const HEAL_RANGE = 90;   // px
 const HEAL_INTERVAL = 3; // s
+const FROST_NOVA_RANGE = 130; // px — Radius der Frost-Nova der Eiskönigin
 const SLOW_TINT = 0x7ab8d9;
 const POISON_TINT = 0x8cc45f;
 
@@ -1061,34 +1070,24 @@ function makeVehicleMesh(level) {
       addPart(body, new THREE.BoxGeometry(0.12, 0.12, 0.12), BLOCK.gold, 0.42, 0.46, 0); // Goldmündung
     }
   }
-  // Lebensbalken
-  const bw = 0.7;
-  const bgMat = new THREE.SpriteMaterial({ color: 0x101418, depthTest: false });
-  const fgMat = new THREE.SpriteMaterial({ color: 0x5fd068, depthTest: false });
-  const bg = new THREE.Sprite(bgMat);
-  bg.scale.set(bw, 0.08, 1);
-  bg.position.y = 0.95;
-  bg.renderOrder = 10;
-  const fg = new THREE.Sprite(fgMat);
-  fg.center.set(0, 0.5);
-  fg.position.set(-bw / 2, 0.95, 0);
-  fg.scale.set(bw, 0.06, 1);
-  fg.renderOrder = 11;
-  g.add(bg, fg);
+  // Lebens-Zahl über dem Fahrzeug (statt Balken)
+  const hpLabel = makeHpLabel(1.05);
+  hpLabel.position.y = 0.98;
+  g.add(hpLabel);
   g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  g.userData = { body, bg, fg, bgMat, fgMat, bw };
+  g.userData = { body, hpLabel };
   return g;
 }
 
 function disposeVehicleMesh(g) {
   scene.remove(g);
-  g.userData.bgMat.dispose();
-  g.userData.fgMat.dispose();
+  disposeHpLabel(g.userData.hpLabel);
 }
 
 // Nach einem Upgrade das Modell durch die nächste Ausbaustufe ersetzen
 function rebuildTowerMesh(t) {
   scene.remove(t.mesh);
+  t.iceMesh = null; // hing am alten Modell — wird bei Bedarf neu erzeugt
   t.mesh = makeTowerMesh(t.type, t.level);
   t.mesh.position.set(t.cx - COLS / 2 + 0.5, t.onHill ? HILL_H : 0, t.cy - ROWS / 2 + 0.5);
   scene.add(t.mesh);
@@ -1098,6 +1097,50 @@ function rebuildTowerMesh(t) {
 
 // ---------- Gegner-Modelle (Klötzchen-Mobs) ----------
 const eyeGeo = new THREE.BoxGeometry(1, 1, 1);
+
+// ---------- Lebens-Zahl (Billboard mit Canvas-Text statt Balken) ----------
+function makeHpLabel(scale = 1) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 48;
+  const ctx = canvas.getContext('2d');
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.minFilter = THREE.LinearFilter;
+  const mat = new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true });
+  const sp = new THREE.Sprite(mat);
+  sp.scale.set(0.85 * scale, 0.32 * scale, 1);
+  sp.renderOrder = 11;
+  sp.userData = { ctx, tex, mat, last: null };
+  return sp;
+}
+
+// Zeichnet die Zahl nur neu, wenn sie sich sichtbar geändert hat.
+// Solange ein Schild aktiv ist, zählt es mit und die Zahl wird blau.
+function updateHpLabel(sp, hp, maxHp, shield = 0) {
+  const val = Math.max(0, Math.ceil(hp + shield));
+  const frac = maxHp > 0 ? hp / maxHp : 0;
+  const color = shield > 0 ? '#5da9e8' : frac > 0.5 ? '#5fd068' : frac > 0.25 ? '#e8b64f' : '#e85d5d';
+  const key = val + color;
+  const ud = sp.userData;
+  if (ud.last === key) return;
+  ud.last = key;
+  const ctx = ud.ctx;
+  ctx.clearRect(0, 0, 128, 48);
+  ctx.font = 'bold 34px "Segoe UI", system-ui, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = 'rgba(8,12,18,0.9)';
+  ctx.strokeText(val, 64, 26);
+  ctx.fillStyle = color;
+  ctx.fillText(val, 64, 26);
+  ud.tex.needsUpdate = true;
+}
+
+function disposeHpLabel(sp) {
+  sp.userData.tex.dispose();
+  sp.userData.mat.dispose();
+}
 
 function makeEnemyMesh(typeKey) {
   const t = ENEMY_TYPES[typeKey];
@@ -1124,11 +1167,47 @@ function makeEnemyMesh(typeKey) {
     bodyG.add(eye, pupil);
   }
 
+  let shieldPlate = null; // Schildträger: Platte fällt, wenn der Schild bricht
+
   if (typeKey === 'boss') {
     const crown = new THREE.Mesh(new THREE.BoxGeometry(rw * 1.4, rw * 0.4, rw * 1.4), BLOCK.gold);
     crown.position.y = rw * 1.15;
     crown.castShadow = true;
     bodyG.add(crown);
+  } else if (typeKey === 'frostboss') {
+    // Eiskönigin: Eiskrone mit Zacken
+    const crown = new THREE.Mesh(new THREE.BoxGeometry(rw * 1.5, rw * 0.3, rw * 1.5), BLOCK.ice);
+    crown.position.y = rw * 1.1;
+    crown.castShadow = true;
+    bodyG.add(crown);
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const spike = new THREE.Mesh(new THREE.BoxGeometry(rw * 0.3, rw * 0.75, rw * 0.3), BLOCK.ice);
+      spike.position.set(sx * rw * 0.52, rw * 1.5, sz * rw * 0.52);
+      spike.castShadow = true;
+      bodyG.add(spike);
+    }
+  } else if (typeKey === 'schattenboss') {
+    // Schattenfürst: Kapuze aus dem eigenen Material (verblasst beim Phasen)
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(rw * 1.6, rw * 0.7, rw * 1.6), bodyMat);
+    hood.position.y = rw * 1.2;
+    const tip = new THREE.Mesh(new THREE.BoxGeometry(rw * 0.8, rw * 0.7, rw * 0.8), bodyMat);
+    tip.position.y = rw * 1.85;
+    hood.castShadow = tip.castShadow = true;
+    bodyG.add(hood, tip);
+  } else if (typeKey === 'spalter') {
+    // Zwei Knubbel deuten an: der teilt sich gleich!
+    for (const side of [-1, 1]) {
+      const knub = new THREE.Mesh(new THREE.BoxGeometry(rw * 0.6, rw * 0.5, rw * 0.6), bodyMat);
+      knub.position.set(0, rw * 1.15, side * rw * 0.42);
+      knub.castShadow = true;
+      bodyG.add(knub);
+    }
+  } else if (typeKey === 'schild') {
+    // Schildträger: Steinplatte vor dem Körper
+    shieldPlate = new THREE.Mesh(new THREE.BoxGeometry(rw * 0.25, rw * 1.9, rw * 1.9), BLOCK.stone);
+    shieldPlate.position.x = rw * 1.15;
+    shieldPlate.castShadow = true;
+    bodyG.add(shieldPlate);
   } else if (typeKey === 'tank') {
     // Steinplatten-Helm macht den Panzer sofort erkennbar
     const helm = new THREE.Mesh(new THREE.BoxGeometry(rw * 2.05, rw * 0.5, rw * 2.05), BLOCK.stone);
@@ -1174,31 +1253,22 @@ function makeEnemyMesh(typeKey) {
     bodyG.add(c1, c2);
   }
 
-  // Lebensbalken (Billboard-Sprites)
-  const bw = (t.radius * 2.2) / CELL;
-  const bgMat = new THREE.SpriteMaterial({ color: 0x101418, depthTest: false });
-  const fgMat = new THREE.SpriteMaterial({ color: 0x5fd068, depthTest: false });
-  const bg = new THREE.Sprite(bgMat);
-  bg.scale.set(bw, 0.09, 1);
-  bg.renderOrder = 10;
-  const fg = new THREE.Sprite(fgMat);
-  fg.center.set(0, 0.5);
-  fg.position.x = -bw / 2;
-  fg.scale.set(bw, 0.07, 1);
-  fg.renderOrder = 11;
-  const barY = rw * 2 + 0.28;
-  bg.position.y = barY; fg.position.y = barY;
-  g.add(bg, fg);
+  // Lebens-Zahl über dem Kopf (statt Balken)
+  const hpLabel = makeHpLabel(0.75 + rw);
+  hpLabel.position.y = rw * 2 + 0.3;
+  g.add(hpLabel);
 
-  g.userData = { body, bodyG, orbiter, bodyMat, bgMat, fgMat, fg, bw, rw, baseColor: t.color };
+  // Der Schattenfürst kann verblassen
+  if (typeKey === 'schattenboss') bodyMat.transparent = true;
+
+  g.userData = { body, bodyG, orbiter, bodyMat, hpLabel, shieldPlate, rw, baseColor: t.color };
   return g;
 }
 
 function disposeEnemyMesh(g) {
   scene.remove(g);
   g.userData.bodyMat.dispose();
-  g.userData.bgMat.dispose();
-  g.userData.fgMat.dispose();
+  disposeHpLabel(g.userData.hpLabel);
 }
 
 // ---------- Projektil-Modelle (Würfelgeschosse) ----------
@@ -1209,6 +1279,9 @@ const projGeos = {
 };
 const frostBallMat = new THREE.MeshStandardMaterial({ color: 0xa8dcf0, emissive: 0x4aa8d8, emissiveIntensity: 0.8, roughness: 0.3 });
 const poisonBallMat = new THREE.MeshStandardMaterial({ color: 0x6fdc4f, emissive: 0x3f9e2a, emissiveIntensity: 0.8, roughness: 0.3 });
+// Eisblock-Overlay für Türme, die die Eiskönigin eingefroren hat
+const iceOverlayGeo = new THREE.BoxGeometry(0.92, 1.24, 0.92);
+const iceOverlayMat = new THREE.MeshStandardMaterial({ color: 0xbfe8ff, transparent: true, opacity: 0.45, roughness: 0.15 });
 
 function makeProjectileMesh(type) {
   if (type === 'cannon') return new THREE.Mesh(projGeos.cannon, BLOCK.dark);
@@ -1431,12 +1504,21 @@ function buildWave(w) {
     let type = 'normal';
     if (w >= 3 && i % fastEvery === fastEvery - 1) type = 'fast';
     if (w >= 5 && i % tankEvery === tankEvery - 1) type = 'tank';
-    if (w >= 7 && i % 9 === 5) type = 'healer'; // Sanitäter mischen sich unter die Welle
+    if (w >= 6 && i % 7 === 3) type = 'spalter';  // zerplatzt in Splitterlinge
+    if (w >= 9 && i % 8 === 6) type = 'schild';   // Schildträger blocken den ersten Schaden
+    if (w >= 7 && i % 9 === 5) type = 'healer';   // Sanitäter mischen sich unter die Welle
     queue.push({ type, delay: type === 'fast' ? 0.55 : 0.85 });
   }
   if (isBossWave) {
-    const bosses = 1 + Math.floor(w / 10);
-    for (let i = 0; i < bosses; i++) queue.push({ type: 'boss', delay: 1.6 });
+    if (w % 20 === 0) {
+      // Großes Finale: alle drei Bosse auf einmal!
+      for (const b of BOSS_KEYS) queue.push({ type: b, delay: 2 });
+    } else {
+      // Die Bosse wechseln sich ab: 5 = Panzerkönig, 10 = Eiskönigin, 15 = Schattenfürst …
+      const type = BOSS_KEYS[(w / 5 - 1) % 3];
+      const bosses = 1 + Math.floor(w / 25); // im Endlosmodus kommen sie im Rudel
+      for (let i = 0; i < bosses; i++) queue.push({ type, delay: 1.6 });
+    }
   }
   // Jede 10. Welle bringt einen Beschwörer mit, der unterwegs Diener ruft
   if (w % 10 === 0) queue.push({ type: 'summoner', delay: 2 });
@@ -1630,6 +1712,12 @@ function spawnEnemy(typeKey, opts = {}) {
     dist: opts.dist || 0,
     dead: false,
     hitFlash: 0,
+    shield: (t.shield || 0) * scale,   // Schildträger: blockt Schaden, bis er bricht
+    maxShield: (t.shield || 0) * scale,
+    enraged: false,                     // Panzerkönig: Wut unter halber Gesundheit
+    novaT: typeKey === 'frostboss' ? 4 : 0,     // Eiskönigin: Frost-Nova-Takt
+    phaseT: typeKey === 'schattenboss' ? 3.5 : 0, // Schattenfürst: Phasen-Takt
+    ethereal: false,                    // gerade körperlos (unverwundbar)?
     summonT: typeKey === 'summoner' ? 3 : 0,
     healT: typeKey === 'healer' ? 2 : 0,
     dirX: 1, dirY: 0,
@@ -1645,8 +1733,44 @@ function updateEnemies(dt) {
     if (e.slowT > 0) e.slowT -= dt;
     if (e.poisonT > 0) {
       e.poisonT -= dt;
-      e.hp -= e.poisonDps * dt;
-      if (e.hp <= 0) { killEnemy(e); continue; }
+      if (!e.ethereal) { // körperlos = auch immun gegen laufendes Gift
+        e.hp -= e.poisonDps * dt;
+        if (e.hp <= 0) { killEnemy(e); continue; }
+      }
+    }
+    // Panzerkönig: unter halber Gesundheit packt ihn die Wut — er rennt!
+    if (e.type === 'boss' && !e.enraged && e.hp < e.maxHp * 0.5) {
+      e.enraged = true;
+      e.speed *= 1.65;
+      spawnParticles(e.x, e.y, 0xe85d5d, 22);
+      addFloater(e.x, e.y - 20, '😡 WUT!', '#e85d5d');
+      sfx.summon();
+    }
+    // Eiskönigin: Frost-Nova friert Türme in der Nähe ein
+    if (e.type === 'frostboss' && e.wp < waypoints.length) {
+      e.novaT -= dt;
+      if (e.novaT <= 0) {
+        e.novaT = 5;
+        let any = false;
+        for (const t of state.towers) {
+          if (t.type === 'mine') continue;
+          if (Math.hypot(t.x - e.x, t.y - e.y) <= FROST_NOVA_RANGE) {
+            t.frozenT = 2.5;
+            any = true;
+          }
+        }
+        spawnPulse(e.x, e.y, 0x9fd7e8, FROST_NOVA_RANGE);
+        if (any) { addFloater(e.x, e.y - 20, '❄️ eingefroren!', '#9fd7e8'); sfx.frost(); }
+      }
+    }
+    // Schattenfürst: wird immer wieder körperlos und ist dann unverwundbar
+    if (e.type === 'schattenboss') {
+      e.phaseT -= dt;
+      if (e.phaseT <= 0) {
+        e.ethereal = !e.ethereal;
+        e.phaseT = e.ethereal ? 2 : 4.5;
+        spawnParticles(e.x, e.y, 0x8a6fd8, 14);
+      }
     }
     // Beschwörer rufen unterwegs Diener herbei
     if (e.type === 'summoner' && e.wp < waypoints.length) {
@@ -1725,13 +1849,49 @@ function killEnemy(e) {
   state.kills++;
   sfx.death();
   addFloater(e.x, e.y - 14, '+' + e.reward, '#f5b942');
-  spawnParticles(e.x, e.y, ENEMY_TYPES[e.type].color, e.type === 'boss' ? 26 : 12);
-  if (e.type === 'boss' || e.type === 'summoner') addShake(0.3); // großer Gegner fällt
+  spawnParticles(e.x, e.y, ENEMY_TYPES[e.type].color, isBossType(e.type) ? 26 : 12);
+  if (isBossType(e.type) || e.type === 'summoner') addShake(0.3); // großer Gegner fällt
+  // Spalter zerplatzt in zwei Splitterlinge, die weiterlaufen
+  if (e.type === 'spalter') {
+    for (const off of [-9, 9]) {
+      spawnEnemy('mini', { x: e.x + off, y: e.y, wp: e.wp, dist: e.dist });
+    }
+    spawnParticles(e.x, e.y, 0xe0954f, 10);
+  }
   updateUI();
 }
 
+// Roher Schaden (z. B. Rammen): respektiert Schild und Körperlosigkeit, ohne Sound
+function rawDamage(e, amount) {
+  if (e.dead || e.ethereal) return;
+  if (e.shield > 0) {
+    e.shield -= amount;
+    e.hitFlash = 1;
+    if (e.shield <= 0) breakShield(e);
+    return;
+  }
+  e.hp -= amount;
+  e.hitFlash = 1;
+  if (e.hp <= 0) killEnemy(e);
+}
+
+function breakShield(e) {
+  e.shield = 0;
+  if (e.mesh && e.mesh.userData.shieldPlate) e.mesh.userData.shieldPlate.visible = false;
+  spawnParticles(e.x, e.y, 0x8a99b0, 14);
+  addFloater(e.x, e.y - 16, '🛡️ Schild zerbrochen!', '#8a99b0');
+}
+
 function damageEnemy(e, dmg, slow, poison) {
-  if (e.dead) return;
+  if (e.dead || e.ethereal) return; // körperlose Schattenfürsten sind unverwundbar
+  if (e.shield > 0) {
+    // Der Schild schluckt Schaden UND Effekte (Frost/Gift), bis er bricht
+    e.shield -= dmg;
+    e.hitFlash = 1;
+    if (e.shield <= 0) breakShield(e);
+    sfx.hit();
+    return;
+  }
   e.hp -= dmg;
   if (slow) {
     e.slowT = Math.max(e.slowT, slow.dur);
@@ -1792,14 +1952,12 @@ function updateVehicles(dt) {
     const p = pathPosAt(v.s);
     v.x = p.x; v.y = p.y;
     if (v.s <= 0) { v.dead = true; v.retired = true; continue; } // am Start angekommen
-    // Rammkontakt: beide Seiten nehmen Schaden
+    // Rammkontakt: beide Seiten nehmen Schaden (körperlose Geister rauschen durch)
     for (const e of state.enemies) {
-      if (e.dead) continue;
+      if (e.dead || e.ethereal) continue;
       if (Math.hypot(e.x - v.x, e.y - v.y) <= e.radius + 12) {
-        e.hp -= v.ram * dt;
-        e.hitFlash = 1;
-        if (e.hp <= 0) killEnemy(e);
-        v.hp -= (e.type === 'boss' || e.type === 'summoner' ? 70 : e.type === 'tank' ? 45 : 25) * waveHpScale(Math.max(1, state.wave)) * dt * 0.5;
+        rawDamage(e, v.ram * dt);
+        v.hp -= (isBossType(e.type) || e.type === 'summoner' ? 70 : e.type === 'tank' ? 45 : 25) * waveHpScale(Math.max(1, state.wave)) * dt * 0.5;
       }
     }
     // Schütze (ab Stufe 3)
@@ -1808,7 +1966,7 @@ function updateVehicles(dt) {
       if (v.gunCd <= 0) {
         let best = null, bd = Infinity;
         for (const e of state.enemies) {
-          if (e.dead) continue;
+          if (e.dead || e.ethereal) continue;
           const d = Math.hypot(e.x - v.x, e.y - v.y);
           if (d <= v.gun.range && d < bd) { bd = d; best = e; }
         }
@@ -1921,6 +2079,7 @@ function placeTower(cx, cy, type) {
     recoil: 0,
     equip: null,
     priority: 'first',
+    frozenT: 0, // von der Eiskönigin eingefroren?
     vehicleCd: type === 'depot' ? 4 : 0, // erstes Fahrzeug rollt nach 4 s
     mesh,
   });
@@ -1948,6 +2107,7 @@ function isBuildable(cx, cy, type) {
 function updateTowers(dt) {
   for (const t of state.towers) {
     if (t.type === 'mine') continue; // Goldminen kämpfen nicht
+    if (t.frozenT > 0) { t.frozenT -= dt; continue; } // von der Eiskönigin eingefroren
     if (t.type === 'depot') {
       // Garage: Fahrzeug-Nachschub auf Abruf
       t.vehicleCd -= dt;
@@ -1964,7 +2124,7 @@ function updateTowers(dt) {
     const s = towerStats(t);
     let best = null;
     for (const e of state.enemies) {
-      if (e.dead) continue;
+      if (e.dead || e.ethereal) continue; // Körperlose kann man nicht anvisieren
       const d = Math.hypot(e.x - t.x, e.y - t.y);
       if (d > s.range) continue;
       if (TOWER_TYPES[t.type].arc) {
@@ -2270,7 +2430,7 @@ const tracerTo = new THREE.Vector3();
 
 function manualShoot() {
   const t = state.controlled;
-  if (!t || t.manualCd > 0 || state.paused || state.gameOver) return;
+  if (!t || t.manualCd > 0 || t.frozenT > 0 || state.paused || state.gameOver) return; // eingefroren = kein Schuss
   const m = TOWER_TYPES[t.type].manual;
   t.manualCd = 1 / m.rate;
   t.recoil = 1;
@@ -2301,7 +2461,7 @@ function manualShoot() {
     return;
   }
   const meshes = [];
-  for (const e of state.enemies) if (e.mesh) meshes.push(e.mesh);
+  for (const e of state.enemies) if (e.mesh && !e.ethereal) meshes.push(e.mesh); // Körperlose werden durchschossen
   const hits = raycaster.intersectObjects(meshes, true);
   tracerFrom.copy(camera.position);
   tracerFrom.y -= 0.06;
@@ -2411,11 +2571,14 @@ function syncScene(rawDt) {
     }
     // Beschwörer-Orbs kreisen
     if (e.mesh.userData.orbiter) e.mesh.userData.orbiter.rotation.y += rawDt * 3;
-    // Lebensbalken
-    const frac = Math.max(0, e.hp / e.maxHp);
-    const fg = e.mesh.userData.fg;
-    fg.scale.x = Math.max(0.001, e.mesh.userData.bw * frac);
-    e.mesh.userData.fgMat.color.set(frac > 0.5 ? 0x5fd068 : frac > 0.25 ? 0xe8b64f : 0xe85d5d);
+    // Schattenfürst verblasst, solange er körperlos ist
+    if (e.type === 'schattenboss') {
+      const target = e.ethereal ? 0.22 : 1;
+      const mat = e.mesh.userData.bodyMat;
+      mat.opacity += (target - mat.opacity) * Math.min(1, rawDt * 8);
+    }
+    // Lebens-Zahl über dem Kopf
+    updateHpLabel(e.mesh.userData.hpLabel, e.hp, e.maxHp, e.shield);
   }
 
   // Garage-Countdown im offenen Panel aktualisieren
@@ -2426,6 +2589,17 @@ function syncScene(rawDt) {
 
   // Türme (Geschütz drehen, Rückstoß, Kristall/Orb animieren)
   for (const t of state.towers) {
+    // Eingefrorene Türme stecken in einem halbdurchsichtigen Eisblock
+    if (t.frozenT > 0) {
+      if (!t.iceMesh) {
+        t.iceMesh = new THREE.Mesh(iceOverlayGeo, iceOverlayMat);
+        t.iceMesh.position.y = 0.62;
+        t.mesh.add(t.iceMesh);
+      }
+      t.iceMesh.visible = true;
+    } else if (t.iceMesh) {
+      t.iceMesh.visible = false;
+    }
     const ud = t.mesh.userData;
     if (ud.turret) ud.turret.rotation.y = -t.angle;
     if (t.recoil > 0) t.recoil = Math.max(0, t.recoil - rawDt * 5);
@@ -2451,9 +2625,7 @@ function syncScene(rawDt) {
     v.mesh.position.set(pxToWX(v.x), 0.02, pxToWZ(v.y));
     const ahead = pathPosAt(Math.max(0, v.s - 4));
     v.mesh.userData.body.rotation.y = -Math.atan2(ahead.y - v.y, ahead.x - v.x);
-    const frac = Math.max(0, v.hp / v.maxHp);
-    v.mesh.userData.fg.scale.x = Math.max(0.001, v.mesh.userData.bw * frac);
-    v.mesh.userData.fgMat.color.set(frac > 0.5 ? 0x5fd068 : frac > 0.25 ? 0xe8b64f : 0xe85d5d);
+    updateHpLabel(v.mesh.userData.hpLabel, v.hp, v.maxHp);
   }
 
   // Projektile
@@ -2676,16 +2848,25 @@ function updateWaveButton() {
 }
 
 // Vorschau: Was bringt die nächste Welle?
-const ENEMY_NAMES = { normal: 'Normale', fast: 'Flinke', tank: 'Panzer', healer: 'Heiler', boss: 'Bosse', summoner: 'Beschwörer' };
+const ENEMY_NAMES = {
+  normal: 'Normale', fast: 'Flinke', tank: 'Panzer', spalter: 'Spalter', mini: 'Splitterlinge',
+  schild: 'Schildträger', healer: 'Heiler', summoner: 'Beschwörer',
+  boss: 'Panzerkönig', frostboss: 'Eiskönigin', schattenboss: 'Schattenfürst',
+};
 
 // ---------- Gegner-Lexikon ----------
 const ENEMY_INFO = {
   normal:   { name: 'Normalo', desc: 'Solider Standardgegner ohne Extras.' },
   fast:     { name: 'Flinker', desc: 'Fast doppelt so schnell, dafür wenig Lebenspunkte.' },
   tank:     { name: 'Panzer', desc: 'Langsam und sehr zäh — kostet beim Durchbruch 2 Leben.' },
+  spalter:  { name: 'Spalter', desc: 'Ab Welle 6. Zerplatzt beim Tod in zwei flinke Splitterlinge — Flächenschaden lohnt sich.' },
+  mini:     { name: 'Splitterling', desc: 'Kommt aus einem Spalter. Klein, schnell, schnell erledigt.' },
+  schild:   { name: 'Schildträger', desc: 'Ab Welle 9. Sein Steinschild (blaue Zahl) blockt Schaden UND Frost/Gift, bis er bricht.' },
   healer:   { name: 'Heiler', desc: 'Heilt alle 3 s verletzte Gegner im Umkreis. Zuerst ausschalten!' },
-  boss:     { name: 'Boss', desc: 'Alle 5 Wellen. Riesige Lebenspunkte, kostet 5 Leben.' },
   summoner: { name: 'Beschwörer', desc: 'Jede 10. Welle. Ruft alle 4,5 s zwei Diener direkt auf den Pfad.' },
+  boss:         { name: '👑 Panzerkönig', desc: 'Boss (Welle 5, 20 …). Unter halber Gesundheit packt ihn die WUT: er wird viel schneller!' },
+  frostboss:    { name: '❄️ Eiskönigin', desc: 'Boss (Welle 10, 20 …). Ihre Frost-Nova friert alle 5 s die Türme in ihrer Nähe ein.' },
+  schattenboss: { name: '👻 Schattenfürst', desc: 'Boss (Welle 15, 20 …). Wird immer wieder körperlos — dann ist er unverwundbar und Türme ignorieren ihn.' },
 };
 
 function renderLexPanel() {
@@ -2695,7 +2876,7 @@ function renderLexPanel() {
       return '<div class="lex">' +
         '<span class="chip" style="background:#' + t.color.toString(16).padStart(6, '0') + '"></span>' +
         '<b>' + info.name + '</b><br><small>' + info.desc + '</small><br>' +
-        '<small>LP ' + t.hp + ' · Tempo ' + t.speed + ' · Belohnung 💰' + t.reward + ' · kostet ' + t.lives + ' ❤️</small></div>';
+        '<small>LP ' + t.hp + (t.shield ? ' + 🛡️' + t.shield : '') + ' · Tempo ' + t.speed + ' · Belohnung 💰' + t.reward + ' · kostet ' + t.lives + ' ❤️</small></div>';
     }).join('');
 }
 
