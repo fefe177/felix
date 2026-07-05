@@ -27,12 +27,18 @@ python3 -m http.server 8000
 | 🎡 **Roulette** | Europäisch (0–36, eine grüne Null). | Einfache Chancen ×2 · Volle Zahl ×36 |
 | 🃏 **Blackjack** | Gegen den Dealer (steht bei 17). | Gewinn ×2 · Blackjack 3:2 · Push = Einsatz zurück |
 | 🎲 **Dice** | Over/Under mit einstellbarem Ziel (1–100). | Dynamisch, 1 % Hausvorteil |
+| 🪙 **Coinflip** | Kopf oder Zahl, 50:50. | ×2 |
+| 🂡 **Video Poker** | Jacks or Better – Karten halten & tauschen. | Buben ×1 bis Royal Flush ×250 |
 
 ## Features
 
 - 💰 **Gemeinsames Guthaben** über alle Spiele (Start: 1.000 Credits)
+- 📊 **Statistik-Screen** mit Gewinnquote, größtem Gewinn, Netto-Gewinn,
+  Highscore (höchstes je erreichtes Guthaben) und Aufschlüsselung pro Spiel
+- 🔊 **Sound-Effekte** – per Web Audio API erzeugt (keine externen Dateien),
+  mit Mute-Schalter
 - 💾 **Automatisches Speichern** im `localStorage` – bleibt nach dem Neuladen erhalten
-- ↻ **Reset-Button** setzt das Guthaben zurück
+- ↻ **Reset-Button** setzt Guthaben & Statistik zurück
 - 📱 **Responsives Neon-Design**, funktioniert auf Desktop & Mobil
 - 🛡️ Einsätze werden validiert (keine negativen oder zu hohen Einsätze)
 
@@ -41,15 +47,19 @@ python3 -m http.server 8000
 ```
 index.html          # Aufbau & alle Screens
 css/styles.css      # Neon-Theme
-js/main.js          # Guthaben, Navigation, Speicherung (Modul "Casino")
+js/main.js          # Guthaben, Statistik, Navigation, Speicherung (Modul "Casino")
+js/sound.js         # Sound-Effekte (Web Audio API)
 js/slots.js         # Slots
 js/roulette.js      # Roulette
 js/blackjack.js     # Blackjack
 js/dice.js          # Dice
+js/coinflip.js      # Coinflip
+js/videopoker.js    # Video Poker (Jacks or Better)
 ```
 
 Jedes Spiel ist eine gekapselte IIFE und nutzt die gemeinsame `Casino`-API
-(`placeBet`, `payout`, `refund`) aus `main.js`.
+aus `main.js`: `placeBet(einsatz, spiel)` zieht den Einsatz ab und startet
+eine Runde, `settle(auszahlung)` schließt sie ab und aktualisiert die Statistik.
 
 ---
 

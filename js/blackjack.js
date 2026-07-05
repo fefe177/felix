@@ -70,8 +70,9 @@
     if (inRound) return;
     bet = readBet("bjBet");
     if (bet === null) return;
-    if (!Casino.placeBet(bet)) return;
+    if (!Casino.placeBet(bet, "blackjack")) return;
 
+    Sound.play("deal");
     buildDeck();
     player = [draw(), draw()];
     dealer = [draw(), draw()];
@@ -88,6 +89,7 @@
   function hit() {
     if (!inRound) return;
     player.push(draw());
+    Sound.play("deal");
     render(true);
     if (handValue(player) > 21) {
       finish("bust");
@@ -125,23 +127,23 @@
       outcome = "lose";
     }
 
-    if (prize > 0) Casino.payout(prize);
+    Casino.settle(prize);
 
     switch (outcome) {
       case "blackjack":
         msg.textContent = `Blackjack! +${prize - bet} Gewinn`;
-        msg.className = "bj-msg win"; toast(`Blackjack! +${prize - bet}`, "win"); break;
+        msg.className = "bj-msg win"; Sound.play("jackpot"); toast(`Blackjack! +${prize - bet}`, "win"); break;
       case "win":
         msg.textContent = `Gewonnen! (${p} vs ${d}) +${prize - bet}`;
-        msg.className = "bj-msg win"; toast(`+${prize - bet} Credits!`, "win"); break;
+        msg.className = "bj-msg win"; Sound.play("win"); toast(`+${prize - bet} Credits!`, "win"); break;
       case "push":
         msg.textContent = `Unentschieden (${p} vs ${d}) – Einsatz zurück`;
-        msg.className = "bj-msg push"; toast("Push – Einsatz zurück", null); break;
+        msg.className = "bj-msg push"; Sound.play("coin"); toast("Push – Einsatz zurück", null); break;
       case "lose":
         msg.textContent = p > 21
           ? `Überkauft mit ${p}! Verloren.`
           : `Verloren (${p} vs ${d}).`;
-        msg.className = "bj-msg lose"; toast(`−${bet} Credits`, "lose"); break;
+        msg.className = "bj-msg lose"; Sound.play("lose"); toast(`−${bet} Credits`, "lose"); break;
     }
   }
 

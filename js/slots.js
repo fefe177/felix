@@ -26,10 +26,11 @@
     if (spinning) return;
     const bet = readBet("slotsBet");
     if (bet === null) return;
-    if (!Casino.placeBet(bet)) return;
+    if (!Casino.placeBet(bet, "slots")) return;
 
     spinning = true;
     spinBtn.disabled = true;
+    Sound.play("spin");
     reels.forEach(r => { r.classList.add("spinning"); r.classList.remove("win"); });
     msg.textContent = "Dreht…";
 
@@ -49,11 +50,13 @@
   function finish(result, bet) {
     const { win, text } = evaluate(result, bet);
     msg.textContent = text;
+    Casino.settle(win);
     if (win > 0) {
-      Casino.payout(win);
       reels.forEach(r => r.classList.add("win"));
-      toast(`+${win} Credits!`, "win");
+      Sound.play(win >= bet * 8 ? "jackpot" : "win");
+      toast(`+${win - bet} Credits!`, "win");
     } else {
+      Sound.play("lose");
       toast(`−${bet} Credits`, "lose");
     }
     spinning = false;

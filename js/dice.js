@@ -55,10 +55,11 @@
     if (bet === null) return;
     const mult = payoutMult();
     if (mult <= 0) { toast("Ungültiges Ziel.", "lose"); return; }
-    if (!Casino.placeBet(bet)) return;
+    if (!Casino.placeBet(bet, "dice")) return;
 
     rolling = true;
     rollBtn.disabled = true;
+    Sound.play("spin");
     face.classList.add("rolling");
     msg.textContent = "Würfelt…";
     rollNum.textContent = "";
@@ -74,13 +75,15 @@
       rollNum.textContent = result;
 
       const won = mode === "under" ? result < t : result > t;
+      const prize = won ? Math.floor(bet * mult) : 0;
+      Casino.settle(prize);
       if (won) {
-        const prize = Math.floor(bet * mult);
-        Casino.payout(prize);
         msg.textContent = `${result} — ${mode === "under" ? "unter" : "über"} ${t}. Gewonnen!`;
+        Sound.play("win");
         toast(`+${prize - bet} Credits!`, "win");
       } else {
         msg.textContent = `${result} — daneben. Verloren.`;
+        Sound.play("lose");
         toast(`−${bet} Credits`, "lose");
       }
       rolling = false;

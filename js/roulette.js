@@ -43,9 +43,10 @@
         return;
       }
     }
-    if (!Casino.placeBet(bet)) return;
+    if (!Casino.placeBet(bet, "roulette")) return;
 
     spinning = true;
+    Sound.play("spin");
     betButtons.forEach(b => (b.disabled = true));
     wheel.className = "wheel spin";
     msg.textContent = "Die Kugel rollt…";
@@ -60,13 +61,15 @@
       wheel.className = "wheel " + color;
 
       const won = wins(type, result, straightNum);
+      const prize = won ? bet * PAYOUT[type] : 0;
+      Casino.settle(prize);
       if (won) {
-        const prize = bet * PAYOUT[type];
-        Casino.payout(prize);
         msg.textContent = `${result} (${colorLabel(color)}) – Gewonnen!`;
-        toast(`+${prize} Credits!`, "win");
+        Sound.play(type === "straight" ? "jackpot" : "win");
+        toast(`+${prize - bet} Credits!`, "win");
       } else {
         msg.textContent = `${result} (${colorLabel(color)}) – Verloren.`;
+        Sound.play("lose");
         toast(`−${bet} Credits`, "lose");
       }
       spinning = false;

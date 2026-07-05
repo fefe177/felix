@@ -18,6 +18,9 @@
       <button class="tab" data-game="roulette">Roulette</button>
       <button class="tab" data-game="blackjack">Blackjack</button>
       <button class="tab" data-game="dice">Dice</button>
+      <button class="tab" data-game="coinflip">Coinflip</button>
+      <button class="tab" data-game="poker">Poker</button>
+      <button class="tab" data-game="stats">📊</button>
     </nav>
     <div class="wallet">
       <div class="wallet-inner">
@@ -25,6 +28,7 @@
         <span id="balance">0</span>
         <span class="currency">Credits</span>
       </div>
+      <button id="muteBtn" class="reset-btn" title="Ton ausschalten">🔊</button>
       <button id="resetBtn" class="reset-btn" title="Guthaben zurücksetzen">↻</button>
     </div>
   </header>
@@ -52,6 +56,14 @@
         <button class="game-card" data-goto="dice">
           <span class="gc-icon">🎲</span><span class="gc-title">Dice</span>
           <span class="gc-desc">Over/Under – wähle deine Chance.</span>
+        </button>
+        <button class="game-card" data-goto="coinflip">
+          <span class="gc-icon">🪙</span><span class="gc-title">Coinflip</span>
+          <span class="gc-desc">Kopf oder Zahl – 50:50, ×2.</span>
+        </button>
+        <button class="game-card" data-goto="poker">
+          <span class="gc-icon">🂡</span><span class="gc-title">Video Poker</span>
+          <span class="gc-desc">Jacks or Better – halten & tauschen.</span>
         </button>
       </div>
     </section>
@@ -81,7 +93,7 @@
       <details class="paytable">
         <summary>Gewinntabelle</summary>
         <ul>
-          <li>🎰 🎰 🎰 — 3 Gleiche (7️⃣): <b>×20</b></li>
+          <li>7️⃣ 7️⃣ 7️⃣ — 3× Sieben: <b>×20</b></li>
           <li>Drei gleiche Symbole: <b>×8</b></li>
           <li>Zwei gleiche Symbole: <b>×2</b></li>
         </ul>
@@ -183,6 +195,92 @@
         <button class="primary-btn" id="rollBtn">ROLL</button>
       </div>
     </section>
+
+    <!-- COINFLIP -->
+    <section class="screen" id="coinflip">
+      <h2 class="game-heading">🪙 Coinflip</h2>
+      <div class="coin-display">
+        <div class="coin" id="coin">🪙</div>
+        <div class="coin-msg" id="coinMsg">Kopf oder Zahl?</div>
+      </div>
+      <div class="controls">
+        <div class="bet-row">
+          <label>Einsatz</label>
+          <div class="bet-stepper">
+            <button data-bet-adjust="coinflip" data-delta="-10">−</button>
+            <input type="number" id="coinflipBet" value="10" min="1" />
+            <button data-bet-adjust="coinflip" data-delta="10">+</button>
+          </div>
+        </div>
+        <div class="coin-choices">
+          <button class="primary-btn" id="headsBtn">KOPF ×2</button>
+          <button class="primary-btn" id="tailsBtn">ZAHL ×2</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VIDEO POKER -->
+    <section class="screen" id="poker">
+      <h2 class="game-heading">🂡 Video Poker <small>(Jacks or Better)</small></h2>
+      <div class="poker-table">
+        <div class="poker-cards" id="pokerCards">
+          <div class="pk-slot"><div class="card back"></div><button class="hold-btn" disabled>HALTEN</button></div>
+          <div class="pk-slot"><div class="card back"></div><button class="hold-btn" disabled>HALTEN</button></div>
+          <div class="pk-slot"><div class="card back"></div><button class="hold-btn" disabled>HALTEN</button></div>
+          <div class="pk-slot"><div class="card back"></div><button class="hold-btn" disabled>HALTEN</button></div>
+          <div class="pk-slot"><div class="card back"></div><button class="hold-btn" disabled>HALTEN</button></div>
+        </div>
+        <div class="poker-msg" id="pokerMsg">Setze und drück Deal.</div>
+      </div>
+      <div class="controls">
+        <div class="bet-row">
+          <label>Einsatz</label>
+          <div class="bet-stepper">
+            <button data-bet-adjust="poker" data-delta="-10">−</button>
+            <input type="number" id="pokerBet" value="10" min="1" />
+            <button data-bet-adjust="poker" data-delta="10">+</button>
+          </div>
+        </div>
+        <div class="poker-actions">
+          <button class="primary-btn" id="pokerDealBtn">DEAL</button>
+          <button class="action-btn" id="pokerDrawBtn" disabled>Tauschen</button>
+        </div>
+      </div>
+      <details class="paytable">
+        <summary>Gewinntabelle (× Einsatz)</summary>
+        <ul>
+          <li>Royal Flush: <b>×250</b></li>
+          <li>Straight Flush: <b>×50</b></li>
+          <li>Vierling: <b>×25</b></li>
+          <li>Full House: <b>×9</b></li>
+          <li>Flush: <b>×6</b></li>
+          <li>Straße: <b>×4</b></li>
+          <li>Drilling: <b>×3</b></li>
+          <li>Zwei Paare: <b>×2</b></li>
+          <li>Buben oder besser: <b>×1</b></li>
+        </ul>
+      </details>
+    </section>
+
+    <!-- STATISTIK -->
+    <section class="screen" id="stats">
+      <h2 class="game-heading">📊 Statistik</h2>
+      <div class="stats-grid">
+        <div class="st-tile"><div class="st-label">Guthaben</div><div class="st-value" id="stBalance">–</div></div>
+        <div class="st-tile highlight"><div class="st-label">🏆 Highscore</div><div class="st-value gold" id="stPeak">–</div></div>
+        <div class="st-tile"><div class="st-label">Netto-Gewinn</div><div class="st-value" id="stNet">–</div></div>
+        <div class="st-tile"><div class="st-label">Größter Gewinn</div><div class="st-value pos" id="stBiggest">–</div></div>
+        <div class="st-tile"><div class="st-label">Gewinnquote</div><div class="st-value" id="stWinRate">–</div></div>
+        <div class="st-tile"><div class="st-label">Runden gespielt</div><div class="st-value" id="stSpins">–</div></div>
+        <div class="st-tile"><div class="st-label">Gesamteinsatz</div><div class="st-value" id="stWagered">–</div></div>
+      </div>
+      <div class="st-table-wrap">
+        <table class="st-table">
+          <thead><tr><th>Spiel</th><th>Runden</th><th>Netto</th></tr></thead>
+          <tbody id="stPerGame"></tbody>
+        </table>
+      </div>
+    </section>
   </main>
 
   <div class="toast" id="toast"></div>
@@ -191,10 +289,13 @@
     Nur zu Unterhaltungszwecken · Kein Echtgeld · <span id="statLine"></span>
   </footer>
 
+  <script src="js/sound.js"></script>
   <script src="js/main.js"></script>
   <script src="js/slots.js"></script>
   <script src="js/roulette.js"></script>
   <script src="js/blackjack.js"></script>
   <script src="js/dice.js"></script>
+  <script src="js/coinflip.js"></script>
+  <script src="js/videopoker.js"></script>
 </body>
 </html>
