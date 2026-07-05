@@ -44,7 +44,20 @@ Das Spiel **speichert automatisch nach jeder geschafften Welle** (und bei jedem 
 | 🎯 Wachturm | 💰 120 | ⛰️ nur Anhöhe | **Betretbar!** Selbst zielen und schießen in der Ego-Ansicht |
 | 💥 Mörser | 💰 160 | nur Boden | **Betretbar!** Artillerie — Granaten fliegen im hohen Bogen und explodieren mit Flächenschaden |
 | ☠️ Giftturm | 💰 90 | nur Boden | Vergiftet Gegner — Schaden über Zeit (brodelnder Kessel) |
+| 🚗 Garage | 💰 140 | nur Boden | Schickt regelmäßig ein **Kampffahrzeug** den Pfad entlang (bis **Stufe 5** ausbaubar) |
 | ⛏️ Goldmine | 💰 100 | nur Boden | Kämpft nicht, erzeugt nach jeder Welle Gold |
+
+### 🚗 Die Garage
+
+Die Garage baut alle 30 Sekunden ein Fahrzeug, das den Gegnern auf dem Pfad **entgegenfährt** und sie rammt (beide Seiten nehmen dabei Schaden). Wird das Fahrzeug zerstört, explodiert es mit Flächenschaden. Jede Ausbaustufe **verkürzt die Wartezeit und erhöht die Lebenspunkte**:
+
+| Stufe | Fahrzeug | Nachschub | Besonderes |
+|---|---|---|---|
+| 1 | Holzkarre | alle 30 s | rammt |
+| 2 | Gepanzerter Wagen | alle 26 s | mehr LP |
+| 3 | Wagen **mit Schütze** | alle 22 s | ein Mensch an Bord schießt auf Gegner |
+| 4 | **Panzer** | alle 18 s | Kanone statt Gewehr, deutlich zäher |
+| 5 | **Gold-Panzer** mit Banner | alle 14 s | 💣 **Bombenabwurf** alle 4 s (Flächenschaden) |
 
 ## ⛰️ Anhöhen & Bauvorschau
 
@@ -107,13 +120,26 @@ Zwei Türme kann man **betreten und selbst steuern** (Turm anklicken → „🎯
 - **Beschwörer** (violett, mit Zauberhut und Geister-Orbs) — jede 10. Welle; ruft alle paar Sekunden zwei Diener direkt auf den Pfad! Schnell ausschalten, sonst wächst die Welle immer weiter
 - **Heiler** (weiß, mit rotem Kreuz) — ab Welle 7; heilt alle 3 Sekunden verletzte Gegner im Umkreis (grüner Heil-Ring). Zuerst ausschalten, sonst kämpfst du gegen regenerierende Panzer!
 
-Jede Karte hat ihren eigenen Wellen-Charakter: In der **Schlucht** stürmen deutlich mehr Flinke, auf den **Serpentinen** rollen Panzerkolonnen an.
+Jede Karte hat ihren eigenen Wellen-Charakter: In der **Schlucht** stürmen deutlich mehr Flinke, auf den **Serpentinen** rollen Panzerkolonnen an. Alle Gegner mit Werten und Taktik-Tipps stehen im **Gegner-Lexikon** (📖-Button oben).
 
 Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen kurz auf, und der Wellen-Button warnt vor Bosswellen (⚠️). Deine **beste Welle** wird im Browser gespeichert und am Spielende zusammen mit den Abschüssen angezeigt.
 
+## 🖥️ Vollbild-Oberfläche
+
+Das Spiel füllt **immer den ganzen Bildschirm** — alle Leisten schweben halbdurchsichtig über dem 3D-Bild:
+
+- **Oben links:** Gold, Leben, Welle und alle Spiel-Buttons (Pause, Tempo, Ton, Musik, Erfolge 🏆, Gegner-Lexikon 📖, Neustart, **Vollbild ⛶**)
+- **Oben rechts:** Kartenwahl und die Wellen-Vorschau
+- **Unten:** die Turmleiste — jeder Turm wird dort als **echtes 3D-Modell-Bild** angezeigt (beim Start einmal aus den Originalmodellen gerendert). Zu teure Türme werden grau.
+- Der ⛶-Button schaltet zusätzlich in den **Browser-Vollbildmodus** (ohne Adressleiste)
+
+## 🎯 Zielpriorität
+
+Jeder Kampfturm lässt sich einstellen, **wen er zuerst angreift** (Turm anklicken): **Vorderster** (Standard), **Stärkster** (z. B. für Wachturm/Mörser gegen Panzer) oder **Schwächster** (Restetöter). Die Wahl wird mitgespeichert.
+
 ## Steuerung
 
-- **Turm bauen:** Turm in der Leiste unten anklicken (oder Tasten `1`–`8`) — der Geister-Turm hängt am Zeiger — dann aufs Feld klicken (Gelände-Regel beachten!)
+- **Turm bauen:** Turm in der Leiste unten anklicken (oder Tasten `1`–`9`) — der Geister-Turm hängt am Zeiger — dann aufs Feld klicken (Gelände-Regel beachten!)
 - **Wellen-Vorschau:** Über dem Spielfeld steht immer, was die nächste Welle bringt (z. B. „24 Gegner — 6 Flinke · 5 Panzer · 2 Heiler")
 - **Aufwerten/Verkaufen:** platzierten Turm anklicken
 - **Kamera drehen:** rechte Maustaste gedrückt halten und ziehen
@@ -133,6 +159,6 @@ Die Lebenspunkte der Gegner steigen mit jeder Welle. Getroffene Gegner blitzen k
 - **Minecraft-Look:** Alle Oberflächen nutzen prozedurale 16×16-Pixel-Texturen mit Nearest-Filter (Gras, Erde, Trampelpfad, Stein, Bruchstein, Holz, Laub, Golderz, Obsidian …) — und die ganze Welt ist aus Würfeln gebaut: Grasblock-Anhöhen mit Erdkante, Klötzchen-Bäume, gestufte Blockberge mit Schneeplatten, flache Wolken, Obsidian-Portale mit leuchtender Füllung, Würfel-Türme und Block-Mobs mit Pixel-Augen
 - **Tagesverlauf:** Mit jeder Welle wandert die Sonne tiefer — das Finale ab Welle 15 wird im goldvioletten Abendlicht mit langen Schatten geschlagen
 - **Wetter:** Über der Schlucht-Karte fällt Dauerregen unter grauem Himmel
-- **Wucht-Effekte:** Screenshake bei Kanonen-/Mörser-Explosionen und beim Fall großer Gegner, Explosionsringe
+- **Wucht-Effekte:** Screenshake bei Kanonen-/Mörser-Explosionen und beim Fall großer Gegner, Explosionsringe — und ein buntes **Sieg-Feuerwerk** nach Welle 20
 - Spiellogik läuft in 2D-Pfadkoordinaten, die 3D-Szene ist die Darstellung darüber — Turm-Platzierung per Raycasting auf das Spielfeld
 - Alle Modelle (Türme, Gegner, Bäume, Portale) sind prozedural aus Three.js-Grundkörpern gebaut, es werden keine externen Assets geladen

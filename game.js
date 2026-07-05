@@ -77,6 +77,51 @@ function loadMapData(i) {
   }
   HILL_CELLS = m.hills;
   hillCells = new Set(HILL_CELLS.map(([c, r]) => c + ',' + r));
+  computePathCum();
+}
+
+// ---------- Pfad-Mathematik (für Fahrzeuge, die den Pfad entlangfahren) ----------
+let pathCum = [0];
+
+function computePathCum() {
+  pathCum = [0];
+  for (let i = 1; i < waypoints.length; i++) {
+    pathCum.push(pathCum[i - 1] + Math.hypot(waypoints[i].x - waypoints[i - 1].x, waypoints[i].y - waypoints[i - 1].y));
+  }
+}
+
+// Position auf dem Pfad bei Strecke d (in px ab Start)
+function pathPosAt(d) {
+  d = Math.max(0, Math.min(d, pathCum[pathCum.length - 1]));
+  for (let i = 1; i < pathCum.length; i++) {
+    if (d <= pathCum[i]) {
+      const f = (d - pathCum[i - 1]) / Math.max(0.001, pathCum[i] - pathCum[i - 1]);
+      return {
+        x: waypoints[i - 1].x + (waypoints[i].x - waypoints[i - 1].x) * f,
+        y: waypoints[i - 1].y + (waypoints[i].y - waypoints[i - 1].y) * f,
+      };
+    }
+  }
+  return { x: waypoints[waypoints.length - 1].x, y: waypoints[waypoints.length - 1].y };
+}
+
+// Pfadstrecke des nächstgelegenen Punkts zu (x,y) — Startpunkt der Fahrzeuge
+function pathDistOfPoint(x, y) {
+  let bestD = Infinity, bestS = 0;
+  for (let i = 1; i < waypoints.length; i++) {
+    const ax = waypoints[i - 1].x, ay = waypoints[i - 1].y;
+    const bx = waypoints[i].x, by = waypoints[i].y;
+    const dx = bx - ax, dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (y - ay) * dy) / Math.max(1, len2)));
+    const px = ax + dx * t, py = ay + dy * t;
+    const d = Math.hypot(x - px, y - py);
+    if (d < bestD) {
+      bestD = d;
+      bestS = pathCum[i - 1] + Math.hypot(px - ax, py - ay);
+    }
+  }
+  return bestS;
 }
 
 // ---------- Turmtypen ----------
@@ -121,12 +166,17 @@ const TOWER_TYPES = {
     projSpeed: 320, poison: { dps: 16, dur: 3 }, color: '#5a9e3f', terrain: 'ground',
     desc: 'Gift: Schaden über Zeit',
   },
+  depot: {
+    name: 'Garage', cost: 140, color: '#8a6d3b', terrain: 'ground', maxLevel: 5,
+    vehicle: true,
+    desc: 'Schickt regelmäßig ein Kampffahrzeug den Pfad entlang',
+  },
   mine: {
     name: 'Goldmine', cost: 100, income: 15, color: '#b8912f', terrain: 'ground',
     desc: 'Erzeugt Gold nach jeder Welle',
   },
 };
-const TOWER_KEYS = ['archer', 'cannon', 'frost', 'bolt', 'guard', 'mortar', 'poison', 'mine'];
+const TOWER_KEYS = ['archer', 'cannon', 'frost', 'bolt', 'guard', 'mortar', 'poison', 'depot', 'mine'];
 
 // ---------- Ausrüstung (ein Gegenstand pro Turm) ----------
 const EQUIP = {
@@ -135,14 +185,24 @@ const EQUIP = {
   ammo:   { icon: '💥', name: 'Schwere Munition', cost: 100, dmg: 1.35,   color: 0xe85d5d },
 };
 
-const LEVEL_MULT = [1, 1.6, 2.5];
-const RANGE_MULT = [1, 1.12, 1.25];
-const RATE_MULT = [1, 1.15, 1.32];
-const MAX_LEVEL = 3;
+const LEVEL_MULT = [1, 1.6, 2.5, 3.6, 5];
+const RANGE_MULT = [1, 1.12, 1.25, 1.35, 1.45];
+const RATE_MULT = [1, 1.15, 1.32, 1.5, 1.7];
+const MAX_LEVEL = 3; // Standard — einzelne Türme (Garage) können mehr
+const maxLevelOf = (t) => TOWER_TYPES[t.type].maxLevel || MAX_LEVEL;
 
 function upgradeCost(type, level) {
   return Math.round(TOWER_TYPES[type].cost * 0.9 * level);
 }
+
+// Fahrzeuge der Garage: pro Stufe stärker, schneller nachgeliefert
+const VEHICLE_STATS = [
+  { cd: 30, hp: 70, ram: 35, boom: { dmg: 40, r: 50 } },
+  { cd: 26, hp: 110, ram: 45, boom: { dmg: 55, r: 55 } },
+  { cd: 22, hp: 160, ram: 55, gun: { dmg: 16, rate: 1.4, range: 110 }, boom: { dmg: 70, r: 60 } },
+  { cd: 18, hp: 240, ram: 70, gun: { dmg: 30, rate: 1.2, range: 130 }, boom: { dmg: 90, r: 70 } },
+  { cd: 14, hp: 340, ram: 85, gun: { dmg: 40, rate: 1.4, range: 140 }, boom: { dmg: 150, r: 95 }, bomb: { cd: 4, dmg: 90, r: 80 } },
+];
 
 // ---------- Gegnertypen ----------
 const ENEMY_TYPES = {
@@ -209,8 +269,9 @@ function updateCamera() {
 updateCamera();
 
 function resize() {
-  const w = container.clientWidth || 800;
-  const h = Math.round(w * 0.7);
+  // Vollbild: das Spiel füllt immer das ganze Fenster
+  const w = window.innerWidth || 800;
+  const h = window.innerHeight || 600;
   renderer.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -412,6 +473,9 @@ const TEX = {
     }
   }),
   obsidian: pixelTex((g, s) => fillNoise(g, s, 30, 22, 48, 0.25)),
+  bluewool: pixelTex((g, s) => fillNoise(g, s, 62, 98, 190, 0.08)),
+  skin: pixelTex((g, s) => fillNoise(g, s, 224, 172, 138, 0.05)),
+  camo: pixelTex((g, s) => fillNoise(g, s, 78, 102, 62, 0.12)),
 };
 
 function blockMat(tex, opts = {}) {
@@ -431,6 +495,9 @@ const BLOCK = {
   goldore: blockMat(TEX.goldore),
   grassSide: blockMat(TEX.grassSide),
   obsidian: blockMat(TEX.obsidian, { roughness: 0.5 }),
+  bluewool: blockMat(TEX.bluewool),
+  skin: blockMat(TEX.skin),
+  camo: blockMat(TEX.camo),
 };
 
 // Spielfeld: Pixel-Schachbrett, 16 Texel pro Zelle
@@ -899,6 +966,31 @@ function makeTowerMesh(type, level) {
     g.add(orbiter);
     g.userData.orbiter = orbiter;
     g.userData.muzzleY = potTop + 0.1;
+  } else if (type === 'depot') {
+    // Garage: Halle mit offener Ausfahrt — wird pro Stufe massiver
+    const wallM = level >= 4 ? BLOCK.camo : level >= 2 ? BLOCK.stone : BLOCK.planks;
+    addPart(g, new THREE.BoxGeometry(0.9, 0.12, 0.9), BLOCK.dark, 0, 0.06, 0);
+    addPart(g, new THREE.BoxGeometry(0.1, 0.5, 0.8), wallM, -0.4, 0.37, 0);   // Rückwand
+    addPart(g, new THREE.BoxGeometry(0.8, 0.5, 0.1), wallM, 0, 0.37, -0.35);  // Seitenwände
+    addPart(g, new THREE.BoxGeometry(0.8, 0.5, 0.1), wallM, 0, 0.37, 0.35);
+    addPart(g, new THREE.BoxGeometry(0.95, 0.12, 0.95), level >= 3 ? BLOCK.dark : BLOCK.planks, 0, 0.68, 0); // Dach
+    if (level >= 2) addCollar(g, 0.6, 0.74, BLOCK.gold);
+    if (level >= 3) {
+      // Werkstatt-Schild: kleines Zahnrad aus Goldwürfeln
+      addPart(g, new THREE.BoxGeometry(0.14, 0.14, 0.06), BLOCK.gold, 0.44, 0.5, 0);
+    }
+    if (level >= 4) {
+      // Panzersperren an den Ecken
+      for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+        addPart(g, new THREE.BoxGeometry(0.12, 0.24, 0.12), BLOCK.dark, sx * 0.5, 0.12, sz * 0.5);
+      }
+    }
+    if (level >= 5) {
+      addPart(g, new THREE.BoxGeometry(0.06, 0.6, 0.06), BLOCK.log, -0.4, 1.0, -0.4);
+      addPart(g, new THREE.BoxGeometry(0.26, 0.18, 0.05), BLOCK.redwool, -0.26, 1.2, -0.4);
+      addCollar(g, 0.99, 0.74, BLOCK.gold);
+    }
+    g.userData.muzzleY = 0.4;
   } else if (type === 'mine') {
     // Goldader: Steinwürfel mit Golderz — mehr Erz pro Stufe
     addPart(g, new THREE.BoxGeometry(0.5, 0.5, 0.5), BLOCK.stone, -0.12, 0.25, 0.06);
@@ -923,6 +1015,75 @@ function makeTowerMesh(type, level) {
   g.userData.gun = gun;
   g.userData.level = level;
   return g;
+}
+
+// ---------- Fahrzeuge der Garage (Klötzchen-Karren bis Gold-Panzer) ----------
+function makeVehicleMesh(level) {
+  const g = new THREE.Group();
+  // Karosserie in eigener Gruppe: nur sie dreht sich in Fahrtrichtung,
+  // der Lebensbalken bleibt gerade (Sprites + rotierter Versatz driften sonst)
+  const body = new THREE.Group();
+  g.add(body);
+  const wheelG = new THREE.BoxGeometry(0.14, 0.14, 0.08);
+  const addWheels = (bodyW, bodyD, y) => {
+    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      addPart(body, wheelG, BLOCK.dark, sx * bodyW * 0.32, y, sz * (bodyD / 2 + 0.03));
+    }
+  };
+  if (level <= 2) {
+    // Stufe 1: Holzkarre · Stufe 2: gepanzerter Wagen mit Kabine
+    const bodyM = level === 1 ? BLOCK.planks : BLOCK.stone;
+    addPart(body, new THREE.BoxGeometry(0.56, 0.2, 0.34), bodyM, 0, 0.24, 0);
+    if (level === 2) addPart(body, new THREE.BoxGeometry(0.24, 0.18, 0.3), BLOCK.dark, -0.14, 0.43, 0);
+    addWheels(0.56, 0.34, 0.1);
+  } else if (level === 3) {
+    // Fahrzeug mit Schütze obendrauf
+    addPart(body, new THREE.BoxGeometry(0.6, 0.2, 0.36), BLOCK.stone, 0, 0.24, 0);
+    addPart(body, new THREE.BoxGeometry(0.26, 0.16, 0.32), BLOCK.dark, -0.15, 0.42, 0);
+    addWheels(0.6, 0.36, 0.1);
+    // Der Mensch: Körper, Kopf, Gewehr
+    addPart(body, new THREE.BoxGeometry(0.14, 0.22, 0.14), BLOCK.bluewool, 0.08, 0.48, 0);
+    addPart(body, new THREE.BoxGeometry(0.13, 0.13, 0.13), BLOCK.skin, 0.08, 0.66, 0);
+    addPart(body, new THREE.BoxGeometry(0.32, 0.05, 0.05), BLOCK.dark, 0.26, 0.52, 0);
+  } else {
+    // Stufe 4: Panzer · Stufe 5: Gold-Panzer mit Banner und Bomben
+    const hullM = BLOCK.camo;
+    addPart(body, new THREE.BoxGeometry(0.68, 0.22, 0.42), hullM, 0, 0.24, 0);
+    for (const side of [-1, 1]) { // Ketten
+      addPart(body, new THREE.BoxGeometry(0.72, 0.16, 0.12), BLOCK.dark, 0, 0.12, side * 0.26);
+    }
+    addPart(body, new THREE.BoxGeometry(0.3, 0.16, 0.3), hullM, -0.06, 0.43, 0); // Turm
+    addPart(body, new THREE.BoxGeometry(0.42, 0.08, 0.08), BLOCK.dark, 0.22, 0.46, 0); // Rohr
+    if (level >= 5) {
+      addCollar(body, 0.36, 0.52, BLOCK.gold);
+      addPart(body, new THREE.BoxGeometry(0.05, 0.34, 0.05), BLOCK.log, -0.28, 0.68, 0);
+      addPart(body, new THREE.BoxGeometry(0.18, 0.12, 0.04), BLOCK.redwool, -0.19, 0.8, 0);
+      addPart(body, new THREE.BoxGeometry(0.12, 0.12, 0.12), BLOCK.gold, 0.42, 0.46, 0); // Goldmündung
+    }
+  }
+  // Lebensbalken
+  const bw = 0.7;
+  const bgMat = new THREE.SpriteMaterial({ color: 0x101418, depthTest: false });
+  const fgMat = new THREE.SpriteMaterial({ color: 0x5fd068, depthTest: false });
+  const bg = new THREE.Sprite(bgMat);
+  bg.scale.set(bw, 0.08, 1);
+  bg.position.y = 0.95;
+  bg.renderOrder = 10;
+  const fg = new THREE.Sprite(fgMat);
+  fg.center.set(0, 0.5);
+  fg.position.set(-bw / 2, 0.95, 0);
+  fg.scale.set(bw, 0.06, 1);
+  fg.renderOrder = 11;
+  g.add(bg, fg);
+  g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.userData = { body, bg, fg, bgMat, fgMat, bw };
+  return g;
+}
+
+function disposeVehicleMesh(g) {
+  scene.remove(g);
+  g.userData.bgMat.dispose();
+  g.userData.fgMat.dispose();
 }
 
 // Nach einem Upgrade das Modell durch die nächste Ausbaustufe ersetzen
@@ -1156,6 +1317,7 @@ const state = {};
 
 function clearActors() {
   if (state.enemies) for (const e of state.enemies) if (e.mesh) disposeEnemyMesh(e.mesh);
+  if (state.vehicles) for (const v of state.vehicles) if (v.mesh) disposeVehicleMesh(v.mesh);
   if (state.towers) for (const t of state.towers) scene.remove(t.mesh);
   if (state.projectiles) for (const p of state.projectiles) scene.remove(p.mesh);
   if (state.beams) for (const b of state.beams) { scene.remove(b.line); b.line.geometry.dispose(); b.line.material.dispose(); }
@@ -1175,6 +1337,7 @@ function resetGame() {
   state.wave = 0;
   state.phase = 'build';
   state.enemies = [];
+  state.vehicles = [];
   state.towers = [];
   state.projectiles = [];
   state.beams = [];
@@ -1193,6 +1356,8 @@ function resetGame() {
   setGhost(null);
   state.selectedTower = null;
   state.hoverCell = null;
+  state.fireworkT = 0;
+  state.fireworkNext = 0;
   hideOverlay();
   hideTowerPanel();
   el.pauseOv.style.display = 'none';
@@ -1236,6 +1401,7 @@ const sfx = {
   heal:    () => { beep(660, 0.1, 'sine', 0.035, 220); setTimeout(() => beep(880, 0.12, 'sine', 0.03, 180), 90); },
   bolt:    () => beep(1200, 0.12, 'sawtooth', 0.04, -900),
   guard:   () => beep(700, 0.06, 'square', 0.05, -260),
+  launch:  () => { beep(90, 0.35, 'sawtooth', 0.06, 60); setTimeout(() => beep(120, 0.25, 'sawtooth', 0.05, 40), 180); },
   hit:     () => beep(300, 0.05, 'triangle', 0.03, -100),
   death:   () => beep(220, 0.15, 'sawtooth', 0.04, -140),
   place:   () => beep(600, 0.1, 'sine', 0.06, 200),
@@ -1359,6 +1525,7 @@ function saveGame() {
     towers: state.towers.map(t => ({
       type: t.type, cx: t.cx, cy: t.cy, level: t.level,
       equip: t.equip, guardAngle: t.guardAngle, invested: t.invested,
+      priority: t.priority,
     })),
   };
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(data)); } catch (e) { /* egal */ }
@@ -1389,9 +1556,10 @@ function tryLoadGame() {
     state.gold = 1e9;
     if (!placeTower(td.cx, td.cy, td.type)) continue;
     const t = state.towers[state.towers.length - 1];
-    t.level = Math.min(MAX_LEVEL, td.level || 1);
+    t.level = Math.min(maxLevelOf(t), td.level || 1);
     t.equip = td.equip && EQUIP[td.equip] ? td.equip : null;
     t.invested = td.invested || TOWER_TYPES[td.type].cost;
+    if (['first', 'strong', 'weak'].includes(td.priority)) t.priority = td.priority;
     if (typeof td.guardAngle === 'number') { t.guardAngle = td.guardAngle; t.angle = td.guardAngle; }
     rebuildTowerMesh(t);
   }
@@ -1428,6 +1596,8 @@ function endWave() {
     unlock('sieg');
     if (state.lives === 20) unlock('perfekt');
     clearSave();
+    state.fireworkT = 4; // Sieg-Feuerwerk!
+    state.fireworkNext = 0;
     showOverlay('🏆 Sieg!', statsText('Du hast alle ' + TOTAL_WAVES + ' Wellen überstanden!'), true);
   } else {
     state.autoTimer = 12;
@@ -1576,6 +1746,108 @@ function damageEnemy(e, dmg, slow, poison) {
   else sfx.hit();
 }
 
+// ---------- Fahrzeuge (von der Garage losgeschickt) ----------
+function launchVehicle(t) {
+  const st = VEHICLE_STATS[t.level - 1];
+  const scale = waveHpScale(Math.max(1, state.wave));
+  const mesh = makeVehicleMesh(t.level);
+  scene.add(mesh);
+  state.vehicles.push({
+    level: t.level,
+    s: pathDistOfPoint(t.x, t.y), // Startpunkt: nächster Pfadpunkt zur Garage
+    hp: st.hp * scale,
+    maxHp: st.hp * scale,
+    ram: st.ram * scale,
+    gun: st.gun ? { dmg: st.gun.dmg * scale, rate: st.gun.rate, range: st.gun.range } : null,
+    boom: { dmg: st.boom.dmg * scale, r: st.boom.r },
+    bomb: st.bomb ? { cd: st.bomb.cd, dmg: st.bomb.dmg * scale, r: st.bomb.r } : null,
+    gunCd: 0.5,
+    bombCd: st.bomb ? st.bomb.cd : 0,
+    speed: 55,
+    x: t.x, y: t.y,
+    dead: false,
+    mesh,
+  });
+  sfx.launch();
+  spawnParticles(t.x, t.y, 0x8a8a99, 8);
+}
+
+function splashDamage(xPx, yPx, dmg, radius, color) {
+  spawnParticles(xPx, yPx, color, 18);
+  spawnPulse(xPx, yPx, color, radius);
+  addShake(radius / 500);
+  for (const e of state.enemies) {
+    if (!e.dead && Math.hypot(e.x - xPx, e.y - yPx) <= radius + e.radius) {
+      damageEnemy(e, dmg);
+    }
+  }
+  sfx.cannon();
+}
+
+function updateVehicles(dt) {
+  for (const v of state.vehicles) {
+    if (v.dead) continue;
+    // den Pfad rückwärts Richtung Gegner-Spawn fahren
+    v.s -= v.speed * dt;
+    const p = pathPosAt(v.s);
+    v.x = p.x; v.y = p.y;
+    if (v.s <= 0) { v.dead = true; v.retired = true; continue; } // am Start angekommen
+    // Rammkontakt: beide Seiten nehmen Schaden
+    for (const e of state.enemies) {
+      if (e.dead) continue;
+      if (Math.hypot(e.x - v.x, e.y - v.y) <= e.radius + 12) {
+        e.hp -= v.ram * dt;
+        e.hitFlash = 1;
+        if (e.hp <= 0) killEnemy(e);
+        v.hp -= (e.type === 'boss' || e.type === 'summoner' ? 70 : e.type === 'tank' ? 45 : 25) * waveHpScale(Math.max(1, state.wave)) * dt * 0.5;
+      }
+    }
+    // Schütze (ab Stufe 3)
+    if (v.gun) {
+      v.gunCd -= dt;
+      if (v.gunCd <= 0) {
+        let best = null, bd = Infinity;
+        for (const e of state.enemies) {
+          if (e.dead) continue;
+          const d = Math.hypot(e.x - v.x, e.y - v.y);
+          if (d <= v.gun.range && d < bd) { bd = d; best = e; }
+        }
+        if (best) {
+          v.gunCd = 1 / v.gun.rate;
+          const mesh = makeProjectileMesh(v.level >= 4 ? 'cannon' : 'archer');
+          mesh.position.set(pxToWX(v.x), 0.55, pxToWZ(v.y));
+          scene.add(mesh);
+          state.projectiles.push({
+            x: v.x, y: v.y, target: best, tx: best.x, ty: best.y,
+            speed: 400, dmg: v.gun.dmg, splash: 0, slow: null, poison: null,
+            lob: false, traveled: 0, type: v.level >= 4 ? 'cannon' : 'archer', mesh,
+          });
+          sfx.shoot();
+        }
+      }
+    }
+    // Bomben-Fähigkeit (Stufe 5)
+    if (v.bomb) {
+      v.bombCd -= dt;
+      if (v.bombCd <= 0) {
+        v.bombCd = v.bomb.cd;
+        splashDamage(v.x, v.y, v.bomb.dmg, v.bomb.r, 0xffb347);
+      }
+    }
+    if (v.hp <= 0) v.dead = true;
+  }
+  // Zerstörte Fahrzeuge explodieren, ausgefahrene verschwinden leise
+  for (const v of state.vehicles) {
+    if (v.dead && v.mesh) {
+      if (!v.retired) splashDamage(v.x, v.y, v.boom.dmg, v.boom.r, 0xffb347);
+      else spawnParticles(v.x, v.y, 0x8a8a99, 6);
+      disposeVehicleMesh(v.mesh);
+      v.mesh = null;
+    }
+  }
+  state.vehicles = state.vehicles.filter(v => !v.dead);
+}
+
 // ---------- Türme ----------
 function towerStats(t) {
   const base = TOWER_TYPES[t.type];
@@ -1609,7 +1881,7 @@ function equipTower(t, key) {
   addEquipBadge(t);
   sfx.upgrade();
   spawnParticles(t.x, t.y, EQUIP[key].color, 10);
-  if (t.level >= MAX_LEVEL) unlock('vollausbau');
+  if (t.level >= maxLevelOf(t)) unlock('vollausbau');
   updateUI();
   if (state.phase === 'build') saveGame();
 }
@@ -1648,6 +1920,8 @@ function placeTower(cx, cy, type) {
     manualCd: 0,
     recoil: 0,
     equip: null,
+    priority: 'first',
+    vehicleCd: type === 'depot' ? 4 : 0, // erstes Fahrzeug rollt nach 4 s
     mesh,
   });
   sfx.place();
@@ -1674,6 +1948,15 @@ function isBuildable(cx, cy, type) {
 function updateTowers(dt) {
   for (const t of state.towers) {
     if (t.type === 'mine') continue; // Goldminen kämpfen nicht
+    if (t.type === 'depot') {
+      // Garage: Fahrzeug-Nachschub auf Abruf
+      t.vehicleCd -= dt;
+      if (t.vehicleCd <= 0) {
+        launchVehicle(t);
+        t.vehicleCd = VEHICLE_STATS[t.level - 1].cd;
+      }
+      continue;
+    }
     if (t.manualCd > 0) t.manualCd -= dt;
     t.cooldown -= dt;
     if (t.cooldown > 0) continue;
@@ -1689,7 +1972,15 @@ function updateTowers(dt) {
         const da = Math.atan2(e.y - t.y, e.x - t.x) - t.guardAngle;
         if (Math.abs(Math.atan2(Math.sin(da), Math.cos(da))) > TOWER_TYPES[t.type].arc) continue;
       }
-      if (!best || e.dist > best.dist) best = e;
+      if (!best) { best = e; continue; }
+      // Zielpriorität des Turms: Vorderster / Stärkster / Schwächster
+      if (t.priority === 'strong') {
+        if (e.hp > best.hp || (e.hp === best.hp && e.dist > best.dist)) best = e;
+      } else if (t.priority === 'weak') {
+        if (e.hp < best.hp || (e.hp === best.hp && e.dist > best.dist)) best = e;
+      } else if (e.dist > best.dist) {
+        best = e;
+      }
     }
     if (!best) continue;
     t.cooldown = 1 / s.rate;
@@ -1804,7 +2095,7 @@ function particleMat(color) {
   return particleMatCache[color];
 }
 
-function spawnParticles(xPx, yPx, color, n) {
+function spawnParticles(xPx, yPx, color, n, height = 0.3) {
   const wx = pxToWX(xPx), wz = pxToWZ(yPx);
   for (let i = 0; i < n; i++) {
     const a = Math.random() * Math.PI * 2;
@@ -1812,7 +2103,7 @@ function spawnParticles(xPx, yPx, color, n) {
     const mesh = new THREE.Mesh(particleGeo, particleMat(color));
     const size = 0.04 + Math.random() * 0.07;
     mesh.scale.setScalar(size);
-    mesh.position.set(wx, 0.3 + Math.random() * 0.3, wz);
+    mesh.position.set(wx, height + Math.random() * 0.3, wz);
     scene.add(mesh);
     state.particles.push({
       mesh, size,
@@ -1924,6 +2215,7 @@ function enterTower(t) {
   camera.fov = 60;
   camera.updateProjectionMatrix();
   el.fpHud.style.display = 'block';
+  el.shop.classList.add('hidden'); // im Turm braucht es keine Bauleiste
   // Maus einfangen, wo möglich (sonst: Ziehen zum Zielen)
   if (renderer.domElement.requestPointerLock) {
     try { renderer.domElement.requestPointerLock(); } catch (e) { /* Fallback: Drag */ }
@@ -1940,6 +2232,7 @@ function exitTower() {
   camera.fov = 42;
   camera.updateProjectionMatrix();
   el.fpHud.style.display = 'none';
+  el.shop.classList.remove('hidden');
   if (document.pointerLockElement) document.exitPointerLock();
   updateCamera();
 }
@@ -2041,7 +2334,22 @@ function manualShoot() {
 }
 
 // ---------- Haupt-Update (Spiellogik) ----------
+const FIREWORK_COLORS = [0xf5c542, 0x5fd068, 0xe85d5d, 0x5da9e8, 0xc9a7ff];
+
 function update(dt) {
+  // Sieg-Feuerwerk: bunte Salven über dem Spielfeld
+  if (state.fireworkT > 0) {
+    state.fireworkT -= dt;
+    state.fireworkNext -= dt;
+    if (state.fireworkNext <= 0) {
+      state.fireworkNext = 0.22;
+      const fx = (2 + Math.random() * (COLS - 4)) * CELL;
+      const fy = (2 + Math.random() * (ROWS - 4)) * CELL;
+      spawnParticles(fx, fy, FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)], 26, 1.6 + Math.random() * 1.4);
+      spawnPulse(fx, fy, FIREWORK_COLORS[Math.floor(Math.random() * FIREWORK_COLORS.length)], 80);
+      sfx.shoot();
+    }
+  }
   if (state.phase === 'wave') {
     if (state.spawnQueue.length > 0) {
       state.spawnTimer -= dt;
@@ -2059,6 +2367,7 @@ function update(dt) {
     else updateWaveButton();
   }
   updateEnemies(dt);
+  updateVehicles(dt);
   updateTowers(dt);
   updateProjectiles(dt);
   updateParticles(dt);
@@ -2109,6 +2418,12 @@ function syncScene(rawDt) {
     e.mesh.userData.fgMat.color.set(frac > 0.5 ? 0x5fd068 : frac > 0.25 ? 0xe8b64f : 0xe85d5d);
   }
 
+  // Garage-Countdown im offenen Panel aktualisieren
+  if (state.selectedTower && state.selectedTower.type === 'depot') {
+    const cdEl = document.getElementById('tp-cd');
+    if (cdEl) cdEl.textContent = Math.max(0, Math.ceil(state.selectedTower.vehicleCd)) + ' s';
+  }
+
   // Türme (Geschütz drehen, Rückstoß, Kristall/Orb animieren)
   for (const t of state.towers) {
     const ud = t.mesh.userData;
@@ -2128,6 +2443,17 @@ function syncScene(rawDt) {
       ud.badge.rotation.y += rawDt * 2;
       ud.badge.position.y = 0.55 + Math.sin(performance.now() / 500) * 0.04;
     }
+  }
+
+  // Fahrzeuge: Position, Fahrtrichtung, Lebensbalken
+  for (const v of state.vehicles) {
+    if (!v.mesh) continue;
+    v.mesh.position.set(pxToWX(v.x), 0.02, pxToWZ(v.y));
+    const ahead = pathPosAt(Math.max(0, v.s - 4));
+    v.mesh.userData.body.rotation.y = -Math.atan2(ahead.y - v.y, ahead.x - v.x);
+    const frac = Math.max(0, v.hp / v.maxHp);
+    v.mesh.userData.fg.scale.x = Math.max(0.001, v.mesh.userData.bw * frac);
+    v.mesh.userData.fgMat.color.set(frac > 0.5 ? 0x5fd068 : frac > 0.25 ? 0xe8b64f : 0xe85d5d);
   }
 
   // Projektile
@@ -2170,7 +2496,7 @@ function syncScene(rawDt) {
   } else if (state.selectedTower) {
     cellHighlight.visible = false;
     const t = state.selectedTower;
-    if (t.type === 'mine') {
+    if (t.type === 'mine' || t.type === 'depot') {
       rangeGroup.visible = false;
       guardArc.visible = false;
     } else {
@@ -2210,6 +2536,9 @@ const el = {
   tpStats: document.getElementById('tp-stats'),
   tpEnter: document.getElementById('tp-enter'),
   tpEquip: document.getElementById('tp-equip'),
+  tpPriority: document.getElementById('tp-priority'),
+  btnLex: document.getElementById('btn-lex'),
+  lexPanel: document.getElementById('lex-panel'),
   tpUpgrade: document.getElementById('tp-upgrade'),
   tpSell: document.getElementById('tp-sell'),
   fpHud: document.getElementById('fp-hud'),
@@ -2225,12 +2554,27 @@ const el = {
   btnMusic: document.getElementById('btn-music'),
   btnRestart: document.getElementById('btn-restart'),
   btnAch: document.getElementById('btn-ach'),
+  btnFs: document.getElementById('btn-fs'),
   achPanel: document.getElementById('ach-panel'),
 };
 
 el.btnAch.addEventListener('click', () => {
   ensureAudio();
   el.achPanel.style.display = el.achPanel.style.display === 'block' ? 'none' : 'block';
+});
+
+el.btnLex.addEventListener('click', () => {
+  ensureAudio();
+  el.lexPanel.style.display = el.lexPanel.style.display === 'block' ? 'none' : 'block';
+});
+
+el.btnFs.addEventListener('click', () => {
+  ensureAudio();
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else if (document.documentElement.requestFullscreen) {
+    document.documentElement.requestFullscreen().catch(() => { /* z. B. iOS: nicht verfügbar */ });
+  }
 });
 
 function buildMapBar() {
@@ -2254,7 +2598,31 @@ function updateMapButtons() {
   }
 }
 
+// Turm-Icons: jedes Modell einmal in einen Mini-Renderer zeichnen und als Bild einbetten
+function makeTowerIcons() {
+  const icons = {};
+  const ir = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+  ir.setSize(96, 96);
+  const cam = new THREE.PerspectiveCamera(34, 1, 0.1, 10);
+  for (const key of TOWER_KEYS) {
+    const sc = new THREE.Scene();
+    sc.add(new THREE.HemisphereLight(0xffffff, 0x55604a, 0.95));
+    const dl = new THREE.DirectionalLight(0xfff4dd, 0.9);
+    dl.position.set(2, 3, 1.5);
+    sc.add(dl);
+    sc.add(makeTowerMesh(key, 1));
+    const lookY = (key === 'mine' || key === 'depot' || key === 'poison') ? 0.35 : 0.55;
+    cam.position.set(1.5, 1.35, 1.5);
+    cam.lookAt(0, lookY, 0);
+    ir.render(sc, cam);
+    icons[key] = ir.domElement.toDataURL();
+  }
+  ir.dispose();
+  return icons;
+}
+
 function buildShop() {
+  const icons = makeTowerIcons();
   el.shop.innerHTML = '';
   for (const key of TOWER_KEYS) {
     const t = TOWER_TYPES[key];
@@ -2262,9 +2630,11 @@ function buildShop() {
     btn.className = 'shop-btn';
     btn.dataset.type = key;
     const terrTag = t.terrain === 'hill' ? ' · ⛰️ nur Anhöhe' : t.terrain === 'ground' ? ' · nur Boden' : '';
+    btn.title = t.desc.replace(/&amp;/g, '&') + terrTag;
     btn.innerHTML =
-      '<div>' + t.name + ' <span class="cost">💰' + t.cost + '</span></div>' +
-      '<small>' + t.desc + terrTag + '</small>';
+      '<img src="' + icons[key] + '" alt="' + t.name + '">' +
+      '<div class="sb-name">' + t.name + '</div>' +
+      '<div class="cost">💰' + t.cost + '</div>';
     btn.addEventListener('click', () => {
       ensureAudio();
       selectBuildType(state.buildType === key ? null : key);
@@ -2308,6 +2678,27 @@ function updateWaveButton() {
 // Vorschau: Was bringt die nächste Welle?
 const ENEMY_NAMES = { normal: 'Normale', fast: 'Flinke', tank: 'Panzer', healer: 'Heiler', boss: 'Bosse', summoner: 'Beschwörer' };
 
+// ---------- Gegner-Lexikon ----------
+const ENEMY_INFO = {
+  normal:   { name: 'Normalo', desc: 'Solider Standardgegner ohne Extras.' },
+  fast:     { name: 'Flinker', desc: 'Fast doppelt so schnell, dafür wenig Lebenspunkte.' },
+  tank:     { name: 'Panzer', desc: 'Langsam und sehr zäh — kostet beim Durchbruch 2 Leben.' },
+  healer:   { name: 'Heiler', desc: 'Heilt alle 3 s verletzte Gegner im Umkreis. Zuerst ausschalten!' },
+  boss:     { name: 'Boss', desc: 'Alle 5 Wellen. Riesige Lebenspunkte, kostet 5 Leben.' },
+  summoner: { name: 'Beschwörer', desc: 'Jede 10. Welle. Ruft alle 4,5 s zwei Diener direkt auf den Pfad.' },
+};
+
+function renderLexPanel() {
+  el.lexPanel.innerHTML = '<h3>📖 Gegner-Lexikon</h3>' +
+    Object.entries(ENEMY_INFO).map(([key, info]) => {
+      const t = ENEMY_TYPES[key];
+      return '<div class="lex">' +
+        '<span class="chip" style="background:#' + t.color.toString(16).padStart(6, '0') + '"></span>' +
+        '<b>' + info.name + '</b><br><small>' + info.desc + '</small><br>' +
+        '<small>LP ' + t.hp + ' · Tempo ' + t.speed + ' · Belohnung 💰' + t.reward + ' · kostet ' + t.lives + ' ❤️</small></div>';
+    }).join('');
+}
+
 function updateWavePreview() {
   if (state.gameOver) { el.wavePreview.textContent = ''; return; }
   if (state.phase === 'wave') {
@@ -2339,6 +2730,14 @@ function showTowerPanel(t) {
   if (t.type === 'mine') {
     const inc = Math.round(TOWER_TYPES.mine.income * LEVEL_MULT[t.level - 1]);
     el.tpStats.innerHTML = 'Einkommen: ' + inc + ' 💰 pro Welle';
+  } else if (t.type === 'depot') {
+    const st = VEHICLE_STATS[t.level - 1];
+    el.tpStats.innerHTML =
+      'Fahrzeug: ' + st.hp + ' LP · Rammschaden ' + st.ram + '/s<br>' +
+      'Nachschub alle ' + st.cd + ' s — nächstes in <span id="tp-cd">?</span><br>' +
+      (st.gun ? 'Schütze an Bord (' + st.gun.dmg + ' Schaden)<br>' : '') +
+      (st.bomb ? '💣 Bombenabwurf alle ' + st.bomb.cd + ' s<br>' : '') +
+      (t.level < 5 ? '<small>Stufe 3: Schütze · Stufe 4: Panzer · Stufe 5: Bomben</small>' : '');
   } else {
     const s = towerStats(t);
     el.tpStats.innerHTML =
@@ -2353,9 +2752,9 @@ function showTowerPanel(t) {
           ' Schaden' + (TOWER_TYPES[t.type].manual.splash ? ' (Fläche)' : '')
         : '');
   }
-  // Ausrüstung: ein Gegenstand pro Turm (nicht für Goldminen)
+  // Ausrüstung: ein Gegenstand pro Turm (nicht für Goldminen/Garagen)
   el.tpEquip.innerHTML = '';
-  if (t.type !== 'mine') {
+  if (t.type !== 'mine' && t.type !== 'depot') {
     if (t.equip) {
       el.tpEquip.textContent = 'Ausrüstung: ' + EQUIP[t.equip].icon + ' ' + EQUIP[t.equip].name;
     } else {
@@ -2374,8 +2773,28 @@ function showTowerPanel(t) {
       el.tpEquip.append(label, row);
     }
   }
+  // Zielpriorität (nicht für Goldminen/Garagen)
+  el.tpPriority.innerHTML = '';
+  if (t.type !== 'mine' && t.type !== 'depot') {
+    const label = document.createElement('div');
+    label.textContent = 'Zielpriorität:';
+    const row = document.createElement('div');
+    row.className = 'eq-row';
+    for (const [key, name] of [['first', 'Vorderster'], ['strong', 'Stärkster'], ['weak', 'Schwächster']]) {
+      const btn = document.createElement('button');
+      btn.textContent = name;
+      btn.classList.toggle('selected', t.priority === key);
+      btn.addEventListener('click', () => {
+        t.priority = key;
+        updateUI();
+        if (state.phase === 'build') saveGame();
+      });
+      row.appendChild(btn);
+    }
+    el.tpPriority.append(label, row);
+  }
   el.tpEnter.style.display = TOWER_TYPES[t.type].enterable ? '' : 'none';
-  if (t.level < MAX_LEVEL) {
+  if (t.level < maxLevelOf(t)) {
     const cost = upgradeCost(t.type, t.level);
     el.tpUpgrade.textContent = 'Aufwerten (💰' + cost + ')';
     el.tpUpgrade.disabled = state.gold < cost;
@@ -2417,9 +2836,9 @@ function showOverlay(title, text, isVictory) {
 function showStartScreen() {
   el.ovTitle.textContent = '🏰 Turm-Verteidigung 3D';
   el.ovText.textContent =
-    'Halte 20 Wellen stand! Baue Türme auf Gras und Anhöhen, rüste sie aus, ' +
-    'betritt Wachturm und Mörser für die Ego-Ansicht — und pass auf Heiler und Beschwörer auf. ' +
-    'Karte oben wählen, dann Welle starten. Viel Erfolg!';
+    'Halte 20 Wellen stand! Wähle unten einen Turm (Tasten 1–9) und setze ihn mit dem durchsichtigen Vorschau-Modell aufs Feld. ' +
+    'Rüste Türme aus, betritt Wachturm und Mörser für die Ego-Ansicht, schicke Kampffahrzeuge aus der Garage — ' +
+    'und pass auf Heiler und Beschwörer auf. Kamera: rechte Maustaste/2 Finger drehen, Mausrad/Pinch zoomen, R = zurücksetzen, Leertaste = Pause. Viel Erfolg!';
   el.ovRestart.textContent = '▶ Spielen';
   el.ovEndless.style.display = 'none';
   el.overlay.style.display = 'flex';
@@ -2678,7 +3097,8 @@ document.addEventListener('keydown', (evt) => {
   else if (evt.code === 'Digit5') selectBuildType('guard');
   else if (evt.code === 'Digit6') selectBuildType('mortar');
   else if (evt.code === 'Digit7') selectBuildType('poison');
-  else if (evt.code === 'Digit8') selectBuildType('mine');
+  else if (evt.code === 'Digit8') selectBuildType('depot');
+  else if (evt.code === 'Digit9') selectBuildType('mine');
   else if (evt.code === 'Enter') { ensureAudio(); startWave(); updateUI(); }
 });
 
@@ -2741,14 +3161,14 @@ el.fpExit.addEventListener('click', () => exitTower());
 
 el.tpUpgrade.addEventListener('click', () => {
   const t = state.selectedTower;
-  if (!t || t.level >= MAX_LEVEL) return;
+  if (!t || t.level >= maxLevelOf(t)) return;
   const cost = upgradeCost(t.type, t.level);
   if (state.gold < cost) return;
   state.gold -= cost;
   t.invested += cost;
   t.level++;
   rebuildTowerMesh(t);
-  if (t.level >= MAX_LEVEL && t.equip) unlock('vollausbau');
+  if (t.level >= maxLevelOf(t) && t.equip) unlock('vollausbau');
   sfx.upgrade();
   spawnParticles(t.x, t.y, 0xf5b942, 14);
   updateUI();
@@ -2827,6 +3247,7 @@ buildMapScene();
 buildMapBar();
 buildShop();
 renderAchPanel();
+renderLexPanel();
 resetGame();
 if (!tryLoadGame()) showStartScreen(); // fortsetzen oder Startbildschirm zeigen
 requestAnimationFrame(loop);

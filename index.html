@@ -7,11 +7,12 @@
 <style>
   :root {
     --bg: #1a2332;
-    --panel: #232f45;
-    --panel-light: #2d3b55;
+    --panel: rgba(26, 35, 50, 0.68);
+    --panel-solid: #232f45;
+    --panel-light: rgba(45, 59, 85, 0.85);
     --accent: #f5b942;
     --text: #e8edf5;
-    --text-dim: #9aa8c0;
+    --text-dim: #b9c4d8;
     --green: #5fd068;
     --red: #e85d5d;
     --blue: #5da9e8;
@@ -22,39 +23,27 @@
     color: var(--text);
     font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
     height: 100%;
+    overflow: hidden;
     touch-action: manipulation;
     -webkit-user-select: none;
     user-select: none;
   }
-  #app {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    min-height: 100%;
-    padding: 8px;
-    gap: 8px;
+
+  /* ---- Vollbild: das Spiel füllt den Bildschirm, UI schwebt darüber ---- */
+  #game-wrap { position: fixed; inset: 0; }
+  #game3d { position: absolute; inset: 0; line-height: 0; }
+  #game3d canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    cursor: crosshair;
+    touch-action: none;
   }
-  #topbar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    max-width: 800px;
-    background: var(--panel);
-    border-radius: 10px;
-    padding: 8px 14px;
-  }
-  .stats { display: flex; gap: 18px; font-size: 17px; font-weight: 600; }
-  .stat span { color: var(--accent); }
-  #stat-lives span { color: var(--red); }
-  #stat-wave span { color: var(--blue); }
-  .controls { display: flex; gap: 6px; }
+
   button {
     background: var(--panel-light);
     color: var(--text);
-    border: 1px solid #3d4d6e;
+    border: 1px solid rgba(90, 110, 150, 0.55);
     border-radius: 8px;
     padding: 7px 12px;
     font-size: 14px;
@@ -62,78 +51,122 @@
     cursor: pointer;
     transition: background .15s, transform .05s;
   }
-  button:hover { background: #3a4a68; }
+  button:hover { background: rgba(58, 74, 104, 0.9); }
   button:active { transform: scale(.96); }
   button.primary { background: var(--accent); color: #1a2332; border-color: var(--accent); }
   button.primary:hover { background: #ffd06a; }
   button:disabled { opacity: .45; cursor: default; }
   button.off { opacity: .45; }
+  .hidden { display: none !important; }
+
+  /* ---- Obere Leisten: durchsichtig am Rand ---- */
+  #topbar {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: flex-start;
+    max-width: 62vw;
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(90, 110, 150, 0.35);
+    border-radius: 12px;
+    padding: 8px 14px;
+    z-index: 6;
+  }
+  .stats { display: flex; gap: 16px; font-size: 17px; font-weight: 600; }
+  .stat span { color: var(--accent); }
+  #stat-lives span { color: var(--red); }
+  #stat-wave span { color: var(--blue); }
+  .controls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+
   #map-bar {
+    position: fixed;
+    top: 10px;
+    right: 10px;
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
     align-items: center;
-    width: 100%;
-    max-width: 800px;
+    justify-content: flex-end;
+    max-width: 46vw;
     font-size: 13px;
     color: var(--text-dim);
-  }
-  #map-bar button { padding: 5px 10px; font-size: 13px; }
-  #map-bar button.selected { outline: 2px solid var(--accent); background: #3a4a68; }
-  #wave-preview {
-    width: 100%;
-    max-width: 800px;
-    font-size: 13px;
-    color: var(--text-dim);
-    min-height: 17px;
-  }
-  #ach-panel {
-    display: none;
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    z-index: 8;
     background: var(--panel);
-    border: 1px solid #3d4d6e;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
     border-radius: 10px;
-    padding: 10px 12px;
-    max-width: 250px;
-    max-height: 85%;
-    overflow-y: auto;
-    box-shadow: 0 6px 18px rgba(0,0,0,.45);
+    padding: 5px 10px;
+    z-index: 6;
   }
-  #ach-panel h3 { font-size: 14px; margin-bottom: 6px; }
-  #ach-panel .ach { font-size: 13px; padding: 5px 0; opacity: .4; border-top: 1px solid #32405c; }
-  #ach-panel .ach.done { opacity: 1; }
-  #ach-panel .ach small { color: var(--text-dim); }
-  .ach-toast {
-    position: absolute;
-    top: 12px;
+  #map-bar button { padding: 4px 10px; font-size: 13px; }
+  #map-bar button.selected { outline: 2px solid var(--accent); background: rgba(58, 74, 104, 0.9); }
+
+  #wave-preview {
+    position: fixed;
+    top: 58px;
+    right: 10px;
+    max-width: 36vw;
+    font-size: 13px;
+    color: var(--text-dim);
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border-radius: 8px;
+    padding: 4px 12px;
+    z-index: 6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #wave-preview:empty { display: none; }
+
+  /* ---- Turmleiste unten: 3D-Modelle zum Auswählen ---- */
+  #shop {
+    position: fixed;
+    bottom: 10px;
     left: 50%;
     transform: translateX(-50%);
-    z-index: 9;
-    background: var(--accent);
-    color: #1a2332;
-    font-weight: 700;
-    font-size: 14px;
-    padding: 8px 16px;
-    border-radius: 20px;
-    box-shadow: 0 4px 14px rgba(0,0,0,.5);
-    animation: achpop .3s ease-out, achfade .5s ease-in 3s forwards;
+    display: flex;
+    gap: 8px;
+    max-width: 98vw;
+    overflow-x: auto;
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(90, 110, 150, 0.35);
+    border-radius: 12px;
+    padding: 8px;
+    z-index: 6;
+  }
+  .shop-btn {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    width: 86px;
+    padding: 6px 4px;
+    text-align: center;
+    line-height: 1.15;
+  }
+  .shop-btn img {
+    width: 52px;
+    height: 52px;
+    image-rendering: auto;
     pointer-events: none;
-    white-space: nowrap;
   }
-  @keyframes achpop { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
-  @keyframes achfade { to { opacity: 0; } }
-  #game-wrap { position: relative; width: 100%; max-width: 800px; }
-  #game3d { position: relative; border-radius: 10px; overflow: hidden; line-height: 0; }
-  #game3d canvas {
-    display: block;
-    width: 100% !important;
-    height: auto !important;
-    cursor: crosshair;
-    touch-action: none;
-  }
+  .shop-btn .sb-name { font-size: 11px; font-weight: 700; }
+  .shop-btn .cost { color: var(--accent); font-size: 11px; }
+  .shop-btn small { display: none; }
+  .shop-btn.selected { outline: 2px solid var(--accent); background: rgba(58, 74, 104, 0.9); }
+  .shop-btn.unaffordable .cost { color: var(--red); }
+  .shop-btn.unaffordable img { filter: grayscale(0.8) brightness(0.7); }
+
+  /* ---- Panels & Overlays ---- */
   .floater {
     position: absolute;
     pointer-events: none;
@@ -151,19 +184,12 @@
     align-items: center;
     justify-content: center;
     background: rgba(10,15,25,.55);
-    border-radius: 10px;
     font-size: 36px;
     font-weight: 700;
-    z-index: 6;
-    pointer-events: none;
-  }
-  #fp-hud {
-    position: absolute;
-    inset: 0;
-    display: none;
-    pointer-events: none;
     z-index: 7;
+    pointer-events: none;
   }
+  #fp-hud { position: absolute; inset: 0; display: none; pointer-events: none; z-index: 7; }
   #crosshair {
     position: absolute;
     left: 50%;
@@ -176,7 +202,7 @@
   }
   #fp-bar {
     position: absolute;
-    bottom: 10px;
+    bottom: 14px;
     left: 50%;
     transform: translateX(-50%);
     display: flex;
@@ -189,48 +215,30 @@
     font-size: 13px;
     pointer-events: auto;
     white-space: nowrap;
+    z-index: 8;
   }
-  #shop {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    width: 100%;
-    max-width: 800px;
-    background: var(--panel);
-    border-radius: 10px;
-    padding: 10px;
-  }
-  .shop-btn {
-    flex: 1 1 150px;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    padding: 8px 12px;
-    text-align: left;
-    line-height: 1.3;
-  }
-  .shop-btn small { color: var(--text-dim); font-weight: 400; font-size: 12px; }
-  .shop-btn .cost { color: var(--accent); }
-  .shop-btn.selected { outline: 2px solid var(--accent); background: #3a4a68; }
-  .shop-btn.unaffordable .cost { color: var(--red); }
   #tower-panel {
     position: absolute;
     display: none;
     flex-direction: column;
     gap: 6px;
     background: var(--panel);
-    border: 1px solid #3d4d6e;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(90, 110, 150, 0.5);
     border-radius: 10px;
     padding: 10px;
-    min-width: 170px;
-    z-index: 5;
+    min-width: 185px;
+    max-width: 240px;
+    z-index: 6;
     box-shadow: 0 6px 18px rgba(0,0,0,.45);
   }
   #tower-panel h3 { font-size: 15px; }
   #tower-panel .row { font-size: 13px; color: var(--text-dim); }
-  #tp-equip .eq-row { display: flex; gap: 4px; margin-top: 3px; }
-  #tp-equip button { padding: 4px 8px; font-size: 13px; flex: 1; }
+  #tp-equip .eq-row, #tp-priority .eq-row { display: flex; gap: 4px; margin-top: 3px; }
+  #tp-equip button, #tp-priority button { padding: 4px 8px; font-size: 13px; flex: 1; }
+  #tp-priority button { font-size: 11px; padding: 4px 4px; }
+  #tp-priority button.selected { outline: 2px solid var(--accent); background: rgba(58, 74, 104, 0.9); }
   #overlay {
     position: absolute;
     inset: 0;
@@ -240,21 +248,63 @@
     justify-content: center;
     gap: 14px;
     background: rgba(10, 15, 25, .82);
-    border-radius: 10px;
     z-index: 10;
     text-align: center;
     padding: 20px;
   }
   #overlay h2 { font-size: 34px; }
-  #overlay p { color: var(--text-dim); font-size: 16px; }
+  #overlay p { color: var(--text-dim); font-size: 16px; max-width: 640px; }
   #overlay .btn-row { display: flex; gap: 10px; }
-  #hint {
-    width: 100%;
-    max-width: 800px;
-    text-align: center;
-    color: var(--text-dim);
-    font-size: 13px;
+  #ach-panel, #lex-panel {
+    display: none;
+    position: absolute;
+    top: 150px;
+    z-index: 8;
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(90, 110, 150, 0.5);
+    border-radius: 10px;
+    padding: 10px 12px;
+    max-width: 260px;
+    max-height: 62vh;
+    overflow-y: auto;
+    box-shadow: 0 6px 18px rgba(0,0,0,.45);
   }
+  #ach-panel { right: 10px; }
+  #lex-panel { left: 10px; }
+  #ach-panel h3, #lex-panel h3 { font-size: 14px; margin-bottom: 6px; }
+  #ach-panel .ach { font-size: 13px; padding: 5px 0; opacity: .4; border-top: 1px solid rgba(90,110,150,.35); }
+  #ach-panel .ach.done { opacity: 1; }
+  #ach-panel .ach small, #lex-panel .lex small { color: var(--text-dim); }
+  #lex-panel .lex { font-size: 13px; padding: 5px 0; border-top: 1px solid rgba(90,110,150,.35); }
+  #lex-panel .chip {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  .ach-toast {
+    position: absolute;
+    top: 150px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 9;
+    background: var(--accent);
+    color: #1a2332;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 20px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.5);
+    animation: achpop .3s ease-out, achfade .5s ease-in 3s forwards;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  @keyframes achpop { from { transform: translate(-50%, -20px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
+  @keyframes achfade { to { opacity: 0; } }
 </style>
 </head>
 <body>
@@ -272,7 +322,9 @@
       <button id="btn-sound" title="Ton an/aus">🔊</button>
       <button id="btn-music" class="off" title="Musik an/aus">🎵</button>
       <button id="btn-ach" title="Erfolge">🏆</button>
+      <button id="btn-lex" title="Gegner-Lexikon">📖</button>
       <button id="btn-restart" title="Neustart">↺</button>
+      <button id="btn-fs" title="Vollbild">⛶</button>
     </div>
   </div>
 
@@ -286,11 +338,13 @@
       <h3 id="tp-name">Turm</h3>
       <div class="row" id="tp-stats"></div>
       <div class="row" id="tp-equip"></div>
+      <div class="row" id="tp-priority"></div>
       <button id="tp-enter" style="display:none">🎯 Betreten &amp; steuern</button>
       <button id="tp-upgrade" class="primary">Aufwerten</button>
       <button id="tp-sell">Verkaufen</button>
     </div>
     <div id="ach-panel"></div>
+    <div id="lex-panel"></div>
     <div id="fp-hud">
       <div id="crosshair">+</div>
       <div id="fp-bar">
@@ -309,7 +363,6 @@
   </div>
 
   <div id="shop"></div>
-  <div id="hint">Turm wählen &amp; auf freies Feld klicken · Turm anklicken zum Aufwerten/Verkaufen · Wachturm: „Betreten“ im Panel = selbst zielen &amp; schießen! · Kamera: rechte Maustaste ziehen (Touch: 2 Finger) · Zoom: Mausrad/Pinch · Tasten 1–7 = Türme, Esc = Abbrechen, Leertaste = Pause, R = Kamera zurücksetzen</div>
 </div>
 <script src="vendor/three.min.js"></script>
 <script src="game.js"></script>
