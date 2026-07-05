@@ -19,6 +19,26 @@ python3 -m http.server 8000
 # → http://localhost:8000
 ```
 
+## Auf dem Handy spielen 📱
+
+Das Layout ist vollständig responsiv (Touch-optimiert, kein horizontales
+Scrollen). Es gibt drei einfache Wege aufs Handy:
+
+- **Einzeldatei:** `dist/index.html` enthält alles inline (CSS + JS, keine
+  externen Referenzen). Diese eine Datei aufs Handy schicken/öffnen genügt.
+- **GitHub Pages:** In den Repo-Einstellungen *Pages* aktivieren
+  (Quelle: Branch + Wurzelverzeichnis). Dann ist das Spiel unter einer festen
+  URL erreichbar, die man am Handy öffnen (und als Icon zum Homescreen
+  hinzufügen) kann.
+- **Lokales Netz:** `python3 -m http.server 8000` starten und am Handy im
+  gleichen WLAN `http://<PC-IP>:8000` öffnen.
+
+Die Einzeldatei wird aus den modularen Quellen erzeugt:
+
+```bash
+node scripts/build.mjs   # → dist/index.html
+```
+
 ## Spiele
 
 | Spiel | Beschreibung | Auszahlung |
