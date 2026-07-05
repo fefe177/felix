@@ -200,7 +200,13 @@
     <section class="screen" id="coinflip">
       <h2 class="game-heading">🪙 Coinflip</h2>
       <div class="coin-display">
-        <div class="coin" id="coin">🪙</div>
+        <div class="coin-stage">
+          <div class="coin" id="coin">
+            <div class="coin-face front" id="coinFront">🪙</div>
+            <div class="coin-face back" id="coinBack">✦</div>
+          </div>
+          <div class="coin-shadow" id="coinShadow"></div>
+        </div>
         <div class="coin-msg" id="coinMsg">Kopf oder Zahl?</div>
       </div>
       <div class="controls">
