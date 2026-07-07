@@ -92,3 +92,59 @@ Beim Empfangen blinkt außerdem kurz die eingebaute **LED** auf dem Arduino.
 | Nur wirre Zeichen kommen an            | Baudrate muss überall **9600** sein.                        |
 | Keine Antwort                          | Wurde der Sketch wirklich hochgeladen? Richtiges Board?     |
 | `pip` nicht gefunden                   | Python neu installieren und "Add to PATH" anhaken.          |
+
+---
+
+## Zusatz: Mausbewegungen senden (Arduino als USB-Maus)
+
+Wenn der Arduino **den echten Mauszeiger bewegen** soll, gibt es dafür
+eigene Dateien:
+
+| Ordner            | Datei                | Wofür?                                          |
+|-------------------|----------------------|-------------------------------------------------|
+| `arduino_maus/`   | `arduino_maus.ino`   | Arduino spielt USB-Maus, führt Bewegungen aus   |
+| `pc_programm/`    | `maus_senden.py`     | Erfasst deine Mausbewegung und schickt sie hin  |
+
+### Wichtig: passendes Board
+
+Sich als USB-Maus auszugeben, geht **nur** mit diesen Boards
+(Chip ATmega32u4):
+
+- Arduino **Leonardo**
+- Arduino **Micro**
+- Arduino **Pro Micro**
+
+Ein **Uno / Nano / Mega** kann das **nicht** ohne Weiteres.
+
+### So funktioniert es
+
+1. Sketch `arduino_maus/arduino_maus.ino` hochladen
+   (unter Werkzeuge das Board **Leonardo** o. ä. wählen).
+2. Zusätzliche Bibliothek installieren:
+
+   ```
+   pip install pyserial pynput
+   ```
+
+3. In `pc_programm/maus_senden.py` oben den **Port** eintragen
+   und beachten: Baudrate ist hier **115200** (nicht 9600).
+4. Starten:
+
+   ```
+   python maus_senden.py
+   ```
+
+5. Bewege die Maus – der Arduino gibt die Bewegung als USB-Maus aus.
+   Beenden mit **Strg + C**.
+
+### Befehls-Format (was der Arduino versteht)
+
+- `x,y`  → Bewegung (z. B. `10,-5` = 10 nach rechts, 5 nach oben)
+- `L`    → Linksklick
+- `R`    → Rechtsklick
+
+### Verzögerung
+
+Für Mausbewegungen wird die schnelle Baudrate **115200** genutzt und auf
+feste Wartezeiten verzichtet, damit die Bewegung flüssig ist (nur wenige
+Millisekunden Verzögerung).
