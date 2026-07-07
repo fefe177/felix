@@ -1,34 +1,49 @@
-"""Grafische Oberfläche (tkinter) für den Makro Recorder."""
+"""Moderne, cleane Oberfläche (CustomTkinter) für den Makro Recorder."""
 
 import os
 import queue
-import tkinter as tk
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
 
+import customtkinter as ctk
 from pynput import keyboard
 
 from .player import MacroPlayer
 from .recorder import MacroRecorder
 from .storage import load_macro, save_macro
 
-ACCENT_OK = "#2d7d46"
-ACCENT_BUSY = "#c0392b"
+# ----------------------------------------------------------------- Farben
+BG = "#141416"
+CARD = "#1d1d21"
+FIELD = "#27272e"
+TEXT = "#f2f2f5"
+MUTED = "#8c8c96"
+BORDER = "#33333c"
+
+RED = "#e5484d"
+RED_HOVER = "#d13840"
+GREEN = "#2fa572"
+GREEN_HOVER = "#26895f"
+GHOST_HOVER = "#27272e"
+
+STATUS_IDLE = "#4dd08a"
+STATUS_BUSY = "#ff6b6b"
+
+ctk.set_appearance_mode("dark")
 
 
 class MacroApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Makro Recorder")
-        self.root.geometry("470x560")
-        self.root.minsize(440, 520)
+        self.root.geometry("440x660")
+        self.root.minsize(420, 620)
+        self.root.configure(fg_color=BG)
 
         self.recorder = MacroRecorder()
         self.player = MacroPlayer()
         self.events = []
         self.current_name = "Unbenannt"
 
-        # Ereignisse aus Listener-/Player-Threads werden über diese Queue
-        # in den tkinter-Hauptthread übergeben.
         self._ui_queue = queue.Queue()
         self._progress = None
         self._abort_listener = None
@@ -39,78 +54,141 @@ class MacroApp:
 
     # ------------------------------------------------------------------ UI
     def _build_ui(self):
-        style = ttk.Style()
-        try:
-            style.theme_use("clam")
-        except tk.TclError:
-            pass
+        wrap = ctk.CTkFrame(self.root, fg_color="transparent")
+        wrap.pack(fill="both", expand=True, padx=22, pady=22)
 
-        ttk.Label(self.root, text="🎬  Makro Recorder",
-                  font=("Helvetica", 17, "bold")).pack(pady=(16, 2))
-        ttk.Label(self.root,
-                  text="Maus & Tastatur aufnehmen und abspielen").pack()
+        # --- Kopf ---
+        ctk.CTkLabel(
+            wrap, text="Makro Recorder",
+            font=ctk.CTkFont(size=24, weight="bold"), text_color=TEXT,
+        ).pack(anchor="w")
+        ctk.CTkLabel(
+            wrap, text="Maus & Tastatur aufnehmen und abspielen",
+            font=ctk.CTkFont(size=13), text_color=MUTED,
+        ).pack(anchor="w", pady=(2, 0))
 
-        self.status_var = tk.StringVar(value="Bereit")
-        self.status_lbl = ttk.Label(self.root, textvariable=self.status_var,
-                                     font=("Helvetica", 12, "bold"),
-                                     foreground=ACCENT_OK)
-        self.status_lbl.pack(pady=(16, 2))
+        # --- Status-Karte ---
+        status = ctk.CTkFrame(wrap, fg_color=CARD, corner_radius=14)
+        status.pack(fill="x", pady=(18, 0))
+        inner = ctk.CTkFrame(status, fg_color="transparent")
+        inner.pack(fill="x", padx=18, pady=16)
 
-        self.count_var = tk.StringVar(value="0 Ereignisse")
-        ttk.Label(self.root, textvariable=self.count_var).pack()
+        self.dot = ctk.CTkLabel(inner, text="●", font=ctk.CTkFont(size=16),
+                                text_color=STATUS_IDLE, width=16)
+        self.dot.pack(side="left")
+        text_col = ctk.CTkFrame(inner, fg_color="transparent")
+        text_col.pack(side="left", padx=(10, 0), fill="x", expand=True)
+        self.status_var = ctk.StringVar(value="Bereit")
+        ctk.CTkLabel(text_col, textvariable=self.status_var, anchor="w",
+                     font=ctk.CTkFont(size=15, weight="bold"),
+                     text_color=TEXT).pack(anchor="w", fill="x")
+        self.count_var = ctk.StringVar(value="0 Ereignisse")
+        ctk.CTkLabel(text_col, textvariable=self.count_var, anchor="w",
+                     font=ctk.CTkFont(size=12),
+                     text_color=MUTED).pack(anchor="w", fill="x")
 
-        # Steuerung
-        controls = ttk.Frame(self.root)
-        controls.pack(pady=16)
-        self.record_btn = ttk.Button(controls, text="●  Aufnehmen",
-                                      width=16, command=self.toggle_record)
-        self.record_btn.grid(row=0, column=0, padx=6)
-        self.play_btn = ttk.Button(controls, text="▶  Abspielen",
-                                   width=16, command=self.toggle_play)
-        self.play_btn.grid(row=0, column=1, padx=6)
+        # --- Haupt-Buttons ---
+        buttons = ctk.CTkFrame(wrap, fg_color="transparent")
+        buttons.pack(fill="x", pady=(16, 0))
+        buttons.columnconfigure(0, weight=1)
+        buttons.columnconfigure(1, weight=1)
 
-        # Optionen
-        options = ttk.LabelFrame(self.root, text="Optionen")
-        options.pack(fill="x", padx=18, pady=8)
-        options.columnconfigure(1, weight=1)
+        self.record_btn = ctk.CTkButton(
+            buttons, text="Aufnehmen", command=self.toggle_record,
+            height=50, corner_radius=12, fg_color=RED, hover_color=RED_HOVER,
+            font=ctk.CTkFont(size=15, weight="bold"), text_color="#ffffff",
+        )
+        self.record_btn.grid(row=0, column=0, sticky="ew", padx=(0, 6))
 
-        ttk.Label(options, text="Wiederholungen (0 = endlos):").grid(
-            row=0, column=0, sticky="w", padx=8, pady=8)
-        self.repeat_var = tk.IntVar(value=1)
-        ttk.Spinbox(options, from_=0, to=99999, width=8,
-                    textvariable=self.repeat_var).grid(
-            row=0, column=1, sticky="e", padx=8)
+        self.play_btn = ctk.CTkButton(
+            buttons, text="Abspielen", command=self.toggle_play,
+            height=50, corner_radius=12, fg_color=GREEN,
+            hover_color=GREEN_HOVER,
+            font=ctk.CTkFont(size=15, weight="bold"), text_color="#ffffff",
+        )
+        self.play_btn.grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
-        ttk.Label(options, text="Geschwindigkeit:").grid(
-            row=1, column=0, sticky="w", padx=8, pady=8)
-        self.speed_var = tk.DoubleVar(value=1.0)
-        speed_row = ttk.Frame(options)
-        speed_row.grid(row=1, column=1, sticky="ew", padx=8)
-        speed_row.columnconfigure(0, weight=1)
-        self.speed_lbl_var = tk.StringVar(value="1.00×")
-        scale = ttk.Scale(speed_row, from_=0.25, to=4.0,
-                          variable=self.speed_var, orient="horizontal",
-                          command=self._on_speed_change)
-        scale.grid(row=0, column=0, sticky="ew")
-        ttk.Label(speed_row, textvariable=self.speed_lbl_var,
-                  width=6).grid(row=0, column=1, padx=(6, 0))
+        # --- Einstellungen ---
+        settings = ctk.CTkFrame(wrap, fg_color=CARD, corner_radius=14)
+        settings.pack(fill="x", pady=(16, 0))
+        pad = ctk.CTkFrame(settings, fg_color="transparent")
+        pad.pack(fill="x", padx=18, pady=16)
+        pad.columnconfigure(0, weight=1)
 
-        self.moves_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options, text="Mausbewegungen aufnehmen",
-                        variable=self.moves_var).grid(
-            row=2, column=0, columnspan=2, sticky="w", padx=8, pady=(4, 8))
+        # Wiederholungen
+        rep_row = ctk.CTkFrame(pad, fg_color="transparent")
+        rep_row.pack(fill="x")
+        rep_row.columnconfigure(0, weight=1)
+        ctk.CTkLabel(rep_row, text="Wiederholungen",
+                     font=ctk.CTkFont(size=14), text_color=TEXT,
+                     anchor="w").grid(row=0, column=0, sticky="w")
+        self.repeat_entry = ctk.CTkEntry(
+            rep_row, width=72, height=34, justify="center",
+            corner_radius=8, fg_color=FIELD, border_color=BORDER,
+            border_width=1, font=ctk.CTkFont(size=14))
+        self.repeat_entry.insert(0, "1")
+        self.repeat_entry.grid(row=0, column=1, sticky="e")
+        ctk.CTkLabel(pad, text="0 = endlos wiederholen",
+                     font=ctk.CTkFont(size=11), text_color=MUTED,
+                     anchor="w").pack(anchor="w", pady=(4, 0))
 
-        # Dateien
-        files = ttk.Frame(self.root)
-        files.pack(pady=12)
-        ttk.Button(files, text="💾  Speichern", width=16,
-                   command=self.save).grid(row=0, column=0, padx=6)
-        ttk.Button(files, text="📂  Laden", width=16,
-                   command=self.load).grid(row=0, column=1, padx=6)
+        _sep(pad)
 
-        ttk.Label(self.root,
-                  text="Tipp: ESC beendet Aufnahme und Wiedergabe.",
-                  foreground="#888").pack(side="bottom", pady=12)
+        # Geschwindigkeit
+        speed_head = ctk.CTkFrame(pad, fg_color="transparent")
+        speed_head.pack(fill="x")
+        speed_head.columnconfigure(0, weight=1)
+        ctk.CTkLabel(speed_head, text="Geschwindigkeit",
+                     font=ctk.CTkFont(size=14), text_color=TEXT,
+                     anchor="w").grid(row=0, column=0, sticky="w")
+        self.speed_lbl_var = ctk.StringVar(value="1.00×")
+        ctk.CTkLabel(speed_head, textvariable=self.speed_lbl_var,
+                     font=ctk.CTkFont(size=14, weight="bold"),
+                     text_color=TEXT).grid(row=0, column=1, sticky="e")
+        self.speed_var = ctk.DoubleVar(value=1.0)
+        ctk.CTkSlider(pad, from_=0.25, to=4.0, variable=self.speed_var,
+                      command=self._on_speed_change,
+                      height=18, progress_color=GREEN).pack(
+            fill="x", pady=(10, 0))
+
+        _sep(pad)
+
+        # Mausbewegungen
+        move_row = ctk.CTkFrame(pad, fg_color="transparent")
+        move_row.pack(fill="x")
+        move_row.columnconfigure(0, weight=1)
+        ctk.CTkLabel(move_row, text="Mausbewegungen aufnehmen",
+                     font=ctk.CTkFont(size=14), text_color=TEXT,
+                     anchor="w").grid(row=0, column=0, sticky="w")
+        self.moves_switch = ctk.CTkSwitch(
+            move_row, text="", width=44, progress_color=GREEN,
+            command=None)
+        self.moves_switch.select()
+        self.moves_switch.grid(row=0, column=1, sticky="e")
+
+        # --- Datei-Buttons ---
+        files = ctk.CTkFrame(wrap, fg_color="transparent")
+        files.pack(fill="x", pady=(16, 0))
+        files.columnconfigure(0, weight=1)
+        files.columnconfigure(1, weight=1)
+        self.save_btn = ctk.CTkButton(
+            files, text="Speichern", command=self.save, height=42,
+            corner_radius=10, fg_color="transparent", hover_color=GHOST_HOVER,
+            border_width=1, border_color=BORDER, text_color=TEXT,
+            font=ctk.CTkFont(size=13))
+        self.save_btn.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        self.load_btn = ctk.CTkButton(
+            files, text="Laden", command=self.load, height=42,
+            corner_radius=10, fg_color="transparent", hover_color=GHOST_HOVER,
+            border_width=1, border_color=BORDER, text_color=TEXT,
+            font=ctk.CTkFont(size=13))
+        self.load_btn.grid(row=0, column=1, sticky="ew", padx=(6, 0))
+
+        # --- Fußzeile ---
+        ctk.CTkLabel(
+            wrap, text="ESC  beendet Aufnahme und Wiedergabe",
+            font=ctk.CTkFont(size=12), text_color=MUTED,
+        ).pack(side="bottom", pady=(18, 0))
 
     def _on_speed_change(self, value):
         self.speed_lbl_var.set(f"{float(value):.2f}×")
@@ -122,19 +200,18 @@ class MacroApp:
             return
         if self.player.playing:
             return
-        self.recorder.record_moves = self.moves_var.get()
+        self.recorder.record_moves = bool(self.moves_switch.get())
         self.events = []
         self.recorder.start(on_stop=self._on_record_stop)
-        self._set_status("Aufnahme läuft…  (ESC zum Beenden)", ACCENT_BUSY)
+        self._set_status("Aufnahme läuft …  (ESC beendet)", STATUS_BUSY)
         self._update_state()
 
     def _on_record_stop(self):
-        # Läuft im Listener-Thread -> in den UI-Thread verschieben.
         self._ui_queue.put(self._after_record_stop)
 
     def _after_record_stop(self):
         self.events = list(self.recorder.events)
-        self._set_status("Aufnahme beendet.", ACCENT_OK)
+        self._set_status("Aufnahme beendet", STATUS_IDLE)
         self._update_state()
 
     # ------------------------------------------------------------ Wiedergabe
@@ -153,12 +230,18 @@ class MacroApp:
         self.player.play(
             self.events,
             speed=self.speed_var.get(),
-            repeat=self.repeat_var.get(),
+            repeat=self._repeat_value(),
             on_progress=self._on_progress,
             on_finish=self._on_play_finish,
         )
-        self._set_status("Wiedergabe läuft…  (ESC zum Stoppen)", ACCENT_BUSY)
+        self._set_status("Wiedergabe läuft …  (ESC stoppt)", STATUS_BUSY)
         self._update_state()
+
+    def _repeat_value(self):
+        try:
+            return max(0, int(self.repeat_entry.get()))
+        except (ValueError, TypeError):
+            return 1
 
     def _on_progress(self, loop, index, total):
         self._progress = (loop, index, total)
@@ -169,11 +252,10 @@ class MacroApp:
     def _after_play_finish(self):
         self._stop_abort_listener()
         self._progress = None
-        self._set_status("Wiedergabe beendet.", ACCENT_OK)
+        self._set_status("Wiedergabe beendet", STATUS_IDLE)
         self._update_state()
 
     def _start_abort_listener(self):
-        """Globaler ESC-Listener als Not-Aus während der Wiedergabe."""
         def on_press(key):
             if key == keyboard.Key.esc:
                 self.player.stop()
@@ -203,7 +285,7 @@ class MacroApp:
         name = os.path.splitext(os.path.basename(path))[0]
         save_macro(path, self.events, name=name)
         self.current_name = name
-        self._set_status(f"Gespeichert: {name}", ACCENT_OK)
+        self._set_status(f"Gespeichert: {name}", STATUS_IDLE)
 
     def load(self):
         path = filedialog.askopenfilename(
@@ -220,30 +302,36 @@ class MacroApp:
         self.current_name = data.get("name", os.path.basename(path))
         self._update_state()
         self._set_status(
-            f"Geladen: {self.current_name}  ({len(self.events)} Ereignisse)",
-            ACCENT_OK)
+            f"Geladen: {self.current_name}  ·  {len(self.events)} Ereignisse",
+            STATUS_IDLE)
 
     # -------------------------------------------------------------- Zustand
     def _update_state(self):
         recording = self.recorder.recording
         playing = self.player.playing
         if recording:
-            self.record_btn.config(text="■  Stopp", state="normal")
-            self.play_btn.config(state="disabled")
+            self.record_btn.configure(text="Stopp", state="normal")
+            self.play_btn.configure(state="disabled")
         elif playing:
-            self.play_btn.config(text="■  Stopp", state="normal")
-            self.record_btn.config(state="disabled")
+            self.play_btn.configure(text="Stopp", state="normal")
+            self.record_btn.configure(state="disabled")
         else:
-            self.record_btn.config(text="●  Aufnehmen", state="normal")
-            self.play_btn.config(
-                text="▶  Abspielen",
+            self.record_btn.configure(text="Aufnehmen", state="normal")
+            self.play_btn.configure(
+                text="Abspielen",
                 state=("normal" if self.events else "disabled"))
+        self._toggle_files(not (recording or playing))
         if not playing:
             self.count_var.set(f"{len(self.events)} Ereignisse")
 
-    def _set_status(self, text, color=ACCENT_OK):
+    def _toggle_files(self, enabled):
+        state = "normal" if enabled else "disabled"
+        self.save_btn.configure(state=state)
+        self.load_btn.configure(state=state)
+
+    def _set_status(self, text, color=STATUS_IDLE):
         self.status_var.set(text)
-        self.status_lbl.config(foreground=color)
+        self.dot.configure(text_color=color)
 
     def _poll_queue(self):
         try:
@@ -254,7 +342,7 @@ class MacroApp:
         if self.player.playing and self._progress is not None:
             loop, index, total = self._progress
             self.count_var.set(
-                f"Wiedergabe – Durchlauf {loop}, Ereignis {index}/{total}")
+                f"Durchlauf {loop} · Ereignis {index}/{total}")
         self.root.after(50, self._poll_queue)
 
     def on_close(self):
@@ -264,8 +352,14 @@ class MacroApp:
         self.root.destroy()
 
 
+def _sep(parent):
+    """Dünne Trennlinie zwischen Einstellungs-Zeilen."""
+    ctk.CTkFrame(parent, height=1, fg_color=BORDER).pack(
+        fill="x", pady=14)
+
+
 def main():
-    root = tk.Tk()
+    root = ctk.CTk()
     app = MacroApp(root)
     root.protocol("WM_DELETE_WINDOW", app.on_close)
     root.mainloop()
