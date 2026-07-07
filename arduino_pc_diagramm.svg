@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 500" font-family="Segoe UI, Arial, sans-serif">
+  <rect width="900" height="500" fill="#f4f8fb"/>
+
+  <!-- Titel -->
+  <text x="450" y="45" text-anchor="middle" font-size="30" font-weight="700" fill="#0f3d5e">Serielle Kommunikation</text>
+  <text x="450" y="72" text-anchor="middle" font-size="16" fill="#5a7184">PC schickt Daten &#8594; Arduino gibt sie zur&#252;ck</text>
+
+  <!-- ===== PC / Laptop ===== -->
+  <text x="170" y="120" text-anchor="middle" font-size="20" font-weight="700" fill="#0f3d5e">PC</text>
+  <!-- Bildschirm -->
+  <rect x="60" y="140" width="220" height="140" rx="8" fill="#1e2a35" stroke="#0f3d5e" stroke-width="3"/>
+  <rect x="72" y="152" width="196" height="116" rx="4" fill="#0b1016"/>
+  <!-- Terminal-Text -->
+  <text x="84" y="178" font-size="13" fill="#7fdb7f" font-family="Consolas, monospace">Du: Hallo Arduino</text>
+  <text x="84" y="200" font-size="12" fill="#8fb7ff" font-family="Consolas, monospace">senden.py</text>
+  <text x="84" y="240" font-size="12" fill="#5a6b7a" font-family="Consolas, monospace">_</text>
+  <!-- Laptop-Fu&#223; -->
+  <polygon points="45,280 295,280 315,305 25,305" fill="#c3d0da" stroke="#0f3d5e" stroke-width="2"/>
+
+  <!-- ===== USB-Kabel ===== -->
+  <line x1="300" y1="215" x2="600" y2="215" stroke="#374b5a" stroke-width="8" stroke-linecap="round"/>
+  <text x="450" y="200" text-anchor="middle" font-size="17" font-weight="700" fill="#0f3d5e">USB-Kabel</text>
+  <!-- Pfeil hin -->
+  <g fill="#2f9e44">
+    <polygon points="360,225 385,225 385,220 400,232 385,244 385,239 360,239"/>
+  </g>
+  <text x="380" y="270" text-anchor="middle" font-size="12" fill="#2f9e44">Daten senden</text>
+  <!-- Pfeil zur&#252;ck -->
+  <g fill="#e8590c">
+    <polygon points="540,225 515,225 515,220 500,232 515,244 515,239 540,239"/>
+  </g>
+  <text x="520" y="270" text-anchor="middle" font-size="12" fill="#e8590c">Antwort</text>
+
+  <!-- ===== Arduino ===== -->
+  <text x="730" y="120" text-anchor="middle" font-size="20" font-weight="700" fill="#0f3d5e">Arduino</text>
+  <!-- Board -->
+  <rect x="610" y="150" width="240" height="150" rx="10" fill="#12897f" stroke="#0b5b54" stroke-width="3"/>
+  <!-- Chip -->
+  <rect x="660" y="200" width="70" height="55" rx="4" fill="#0b3a36"/>
+  <text x="695" y="233" text-anchor="middle" font-size="11" fill="#8fe3d9">CPU</text>
+  <!-- USB-Buchse -->
+  <rect x="600" y="190" width="24" height="34" rx="3" fill="#b8c2c9" stroke="#0b5b54" stroke-width="2"/>
+  <!-- Pins -->
+  <g fill="#0b3a36">
+    <rect x="620" y="160" width="8" height="10"/><rect x="636" y="160" width="8" height="10"/>
+    <rect x="652" y="160" width="8" height="10"/><rect x="668" y="160" width="8" height="10"/>
+    <rect x="684" y="160" width="8" height="10"/><rect x="700" y="160" width="8" height="10"/>
+    <rect x="716" y="160" width="8" height="10"/><rect x="732" y="160" width="8" height="10"/>
+  </g>
+  <!-- LED -->
+  <circle cx="800" cy="230" r="12" fill="#ffe066" stroke="#f08c00" stroke-width="2"/>
+  <circle cx="800" cy="230" r="20" fill="none" stroke="#ffd43b" stroke-width="2" opacity="0.6"/>
+  <text x="800" y="270" text-anchor="middle" font-size="11" fill="#f8f9fa">LED blinkt</text>
+
+  <!-- Sprechblase Antwort -->
+  <g>
+    <rect x="590" y="330" width="280" height="70" rx="12" fill="#fff4e6" stroke="#e8590c" stroke-width="2"/>
+    <polygon points="720,330 740,330 725,312" fill="#fff4e6" stroke="#e8590c" stroke-width="2"/>
+    <text x="730" y="362" text-anchor="middle" font-size="14" font-weight="700" fill="#e8590c">Du hast gesendet:</text>
+    <text x="730" y="384" text-anchor="middle" font-size="15" fill="#0f3d5e">"Hallo Arduino"</text>
+  </g>
+
+  <!-- Hinweis Baudrate -->
+  <text x="450" y="455" text-anchor="middle" font-size="14" fill="#5a7184">Wichtig: gleiche Baudrate auf beiden Seiten &#8594; 9600</text>
+</svg>
