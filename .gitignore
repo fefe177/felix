@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+build/
+dist/
+.DS_Store
+
+# Aufgenommene Makros
+*.json
+!examples/*.json
