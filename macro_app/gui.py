@@ -1,49 +1,54 @@
-"""Glas-Oberfläche (Frosted Glass / Apple-Look) für den Makro Recorder.
+"""Oberfläche im Apple-Design (helle, cleane iOS/macOS-Anmutung).
 
-Die Optik wird als Bild komponiert (siehe :mod:`macro_app.glass`) und auf
-einem Canvas gezeichnet, sodass Text und Bedienelemente wirklich durch das
-Glas scheinen. Aufnahme-/Wiedergabe-Logik liegt unverändert in
+Die Optik wird als Bild komponiert (siehe :mod:`macro_app.render`) und auf
+einem Canvas gezeichnet – weiße Karten, weiche Schatten, Apple-Systemfarben
+und SF-typische Typografie. Aufnahme-/Wiedergabe-Logik liegt unverändert in
 :mod:`recorder` und :mod:`player`.
 """
 
 import os
-import platform
 import queue
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, font as tkfont, messagebox
 
 from PIL import ImageTk
 from pynput import keyboard
 
-from . import glass
+from . import render
 from .player import MacroPlayer
 from .recorder import MacroRecorder
 from .storage import load_macro, save_macro
 
 W, H = 460, 660
-FONT = "Segoe UI" if platform.system() == "Windows" else "DejaVu Sans"
 
-TEXT = "#f4f4f8"
-MUTED = "#a6a6b4"
-DISABLED = "#7d7d8a"
+# Apple-Systemfarben (helles Erscheinungsbild)
+BG_FALLBACK = "#f2f2f7"
+LABEL = "#1c1c1e"
+SECONDARY = "#8e8e93"
+SEP = "#e5e5ea"
+BLUE = (0, 122, 255)
+BLUE_DARK = (0, 105, 224)
+BLUE_HEX = "#007aff"
+RED = (255, 59, 48)
+RED_DARK = (214, 47, 39)
+GREEN = "#34c759"
+GRAY_FILL = (199, 199, 204)
+WHITE = (255, 255, 255)
+CARD_BORDER = (0, 0, 0, 18)
 
-RED = (232, 70, 78)
-GREEN = (46, 178, 120)
-GREEN_HEX = "#2eb278"
-STATUS_IDLE = "#54e39a"
-STATUS_BUSY = "#ff7a7a"
+STATUS_IDLE = "#34c759"
+STATUS_BUSY = "#ff9500"
 
-# Layout (feste Fenstergröße für exakte Glas-Kompositionen)
-STATUS_BOX = (24, 96, 436, 176)
-REC_BOX = (24, 196, 224, 252)
-PLAY_BOX = (236, 196, 436, 252)
-SET_BOX = (24, 272, 436, 500)
-SAVE_BOX = (24, 520, 224, 566)
-LOAD_BOX = (236, 520, 436, 566)
+# Layout
+STATUS_BOX = (24, 100, 436, 176)
+REC_BOX = (24, 196, 224, 250)
+PLAY_BOX = (236, 196, 436, 250)
+SET_BOX = (24, 274, 436, 498)
+SAVE_BOX = (24, 522, 224, 568)
+LOAD_BOX = (236, 522, 436, 568)
 
-MINUS_BOX = (300, 289, 330, 319)
-PLUS_BOX = (382, 289, 412, 319)
-SLIDER_Y = 412
+STEP_BOX = (318, 289, 412, 319)
+SLIDER_Y = 410
 SLIDER_X1, SLIDER_X2 = 48, 412
 
 
@@ -51,14 +56,26 @@ def _center(box):
     return (box[0] + box[2]) // 2, (box[1] + box[3]) // 2
 
 
-class GButton:
-    """Ein anklickbarer Glas-Button (Bild + Beschriftung) auf dem Canvas."""
+def _pick_font(root):
+    """Wählt die beste verfügbare Apple-/System-Schrift."""
+    available = set(tkfont.families(root))
+    for name in ("SF Pro Text", "SF Pro Display", ".AppleSystemUIFont",
+                 "Helvetica Neue", "Segoe UI", "Arial"):
+        if name in available:
+            return name
+    return "Helvetica"
 
-    def __init__(self, canvas, box, images, label, command,
-                 font, text_color=TEXT):
+
+class GButton:
+    """Anklickbarer Button (Bild + Beschriftung) auf dem Canvas."""
+
+    def __init__(self, canvas, box, images, label, command, font,
+                 text_color=LABEL, disabled_color=SECONDARY):
         self.canvas = canvas
         self.images = images
         self.command = command
+        self.text_color = text_color
+        self.disabled_color = disabled_color
         self.enabled = True
         self.cx, self.cy = _center(box)
         self.tag = f"btn-{id(self)}"
@@ -89,10 +106,10 @@ class GButton:
 
     def set_enabled(self, enabled):
         self.enabled = enabled
-        key = "normal" if enabled else self.images.get("dim") and "dim"
-        self.canvas.itemconfig(self.img, image=self.images[key or "normal"])
-        self.canvas.itemconfig(self.text,
-                               fill=TEXT if enabled else DISABLED)
+        self.canvas.itemconfig(
+            self.img, image=self.images["normal" if enabled else "dim"])
+        self.canvas.itemconfig(
+            self.text, fill=self.text_color if enabled else self.disabled_color)
 
 
 class MacroApp:
@@ -101,7 +118,9 @@ class MacroApp:
         self.root.title("Makro Recorder")
         self.root.geometry(f"{W}x{H}")
         self.root.resizable(False, False)
+        self.root.configure(bg=BG_FALLBACK)
 
+        self.font = _pick_font(root)
         self.recorder = MacroRecorder()
         self.player = MacroPlayer()
         self.events = []
@@ -113,7 +132,7 @@ class MacroApp:
         self._ui_queue = queue.Queue()
         self._progress = None
         self._abort_listener = None
-        self._imgs = []  # Referenzen halten (sonst Garbage Collection)
+        self._imgs = []
 
         self._build_ui()
         self._poll_queue()
@@ -125,85 +144,82 @@ class MacroApp:
         self._imgs.append(img)
         return img
 
+    def _f(self, size, weight="normal"):
+        return (self.font, size, weight)
+
     def _build_ui(self):
         canvas = tk.Canvas(self.root, width=W, height=H,
                            highlightthickness=0, bd=0)
         canvas.pack(fill="both", expand=True)
         self.canvas = canvas
 
-        # Hintergrund + Glas-Karten komponieren
-        wall = glass.make_wallpaper(W, H)
-        status_card = glass.glass_tile(wall, STATUS_BOX, radius=18,
-                                       tint_alpha=26, gloss=60, blur=16)
-        settings_card = glass.glass_tile(wall, SET_BOX, radius=22,
-                                         tint_alpha=26, gloss=55, blur=16)
-        final = wall.convert("RGBA")
-        final.alpha_composite(status_card, (STATUS_BOX[0], STATUS_BOX[1]))
-        final.alpha_composite(settings_card, (SET_BOX[0], SET_BOX[1]))
-
-        self.bg_img = self._tk(final.convert("RGB"))
+        # Hintergrund + weiße Karten
+        bg = render.make_background(W, H)
+        self._paste_card(bg, STATUS_BOX, 18)
+        self._paste_card(bg, SET_BOX, 18)
+        self.bg_img = self._tk(bg)
         canvas.create_image(0, 0, image=self.bg_img, anchor="nw")
 
         # Kopfzeile
-        canvas.create_text(24, 40, text="Makro Recorder", anchor="w",
-                           fill=TEXT, font=(FONT, 26, "bold"))
-        canvas.create_text(24, 70, text="Maus & Tastatur aufnehmen "
-                           "und abspielen", anchor="w", fill=MUTED,
-                           font=(FONT, 13))
+        canvas.create_text(24, 44, text="Makro Recorder", anchor="w",
+                           fill=LABEL, font=self._f(28, "bold"))
+        canvas.create_text(24, 76, text="Maus & Tastatur aufnehmen "
+                           "und abspielen", anchor="w", fill=SECONDARY,
+                           font=self._f(13))
 
         # Status-Karte
-        self.dot = canvas.create_oval(46, 130, 58, 142, fill=STATUS_IDLE,
+        self.dot = canvas.create_oval(46, 132, 58, 144, fill=STATUS_IDLE,
                                       outline="")
         self.status_id = canvas.create_text(
-            72, 128, text="Bereit", anchor="w", fill=TEXT,
-            font=(FONT, 15, "bold"))
+            72, 130, text="Bereit", anchor="w", fill=LABEL,
+            font=self._f(15, "bold"))
         self.count_id = canvas.create_text(
-            72, 150, text="0 Ereignisse", anchor="w", fill=MUTED,
-            font=(FONT, 12))
+            72, 152, text="0 Ereignisse", anchor="w", fill=SECONDARY,
+            font=self._f(12))
 
         # Haupt-Buttons
         self.record_btn = GButton(
-            canvas, REC_BOX,
-            self._button_imgs(final, REC_BOX, RED, 16, 150),
-            "Aufnehmen", self.toggle_record, (FONT, 15, "bold"))
+            canvas, REC_BOX, self._btn_imgs(REC_BOX, RED, RED_DARK, 14),
+            "Aufnehmen", self.toggle_record, self._f(15, "bold"),
+            text_color="#ffffff", disabled_color="#f3f3f3")
         self.play_btn = GButton(
-            canvas, PLAY_BOX,
-            self._button_imgs(final, PLAY_BOX, GREEN, 16, 150),
-            "Abspielen", self.toggle_play, (FONT, 15, "bold"))
+            canvas, PLAY_BOX, self._btn_imgs(PLAY_BOX, BLUE, BLUE_DARK, 14),
+            "Abspielen", self.toggle_play, self._f(15, "bold"),
+            text_color="#ffffff", disabled_color="#f3f3f3")
 
-        # Einstellungen – Beschriftungen
+        # Einstellungen – Zeilenbeschriftungen
         canvas.create_text(48, 304, text="Wiederholungen", anchor="w",
-                           fill=TEXT, font=(FONT, 14))
-        canvas.create_text(48, 332, text="0 = endlos", anchor="w",
-                           fill=MUTED, font=(FONT, 11))
-        self._separator(356)
-        canvas.create_text(48, 380, text="Geschwindigkeit", anchor="w",
-                           fill=TEXT, font=(FONT, 14))
-        self.speed_id = canvas.create_text(412, 380, text="1.00×", anchor="e",
-                                           fill=TEXT, font=(FONT, 14, "bold"))
-        self._separator(444)
-        canvas.create_text(48, 470, text="Mausbewegungen aufnehmen",
-                           anchor="w", fill=TEXT, font=(FONT, 14))
+                           fill=LABEL, font=self._f(14))
+        self._separator(348)
+        canvas.create_text(48, 372, text="Geschwindigkeit", anchor="w",
+                           fill=LABEL, font=self._f(14))
+        self.speed_id = canvas.create_text(412, 372, text="1.00×", anchor="e",
+                                           fill=SECONDARY, font=self._f(14))
+        self._separator(442)
+        canvas.create_text(48, 468, text="Mausbewegungen aufnehmen",
+                           anchor="w", fill=LABEL, font=self._f(14))
 
-        # Stepper (Wiederholungen)
-        step_imgs = self._button_imgs(final, MINUS_BOX, (255, 255, 255),
-                                      9, 34, gloss=40, hover_add=26)
-        plus_imgs = self._button_imgs(final, PLUS_BOX, (255, 255, 255),
-                                      9, 34, gloss=40, hover_add=26)
-        GButton(canvas, MINUS_BOX, step_imgs, "−",
-                self._dec_repeat, (FONT, 18, "bold"))
-        GButton(canvas, PLUS_BOX, plus_imgs, "+",
-                self._inc_repeat, (FONT, 18, "bold"))
-        self.repeat_id = canvas.create_text(356, 304, text="1", fill=TEXT,
-                                            font=(FONT, 15, "bold"))
+        # Stepper
+        self.step_img = self._tk(render.stepper_bg())
+        cx, cy = _center(STEP_BOX)
+        sid = canvas.create_image(cx, cy, image=self.step_img)
+        canvas.create_text(cx - 23, cy, text="−", fill=BLUE_HEX,
+                           font=self._f(20))
+        canvas.create_text(cx + 23, cy, text="+", fill=BLUE_HEX,
+                           font=self._f(20))
+        canvas.tag_bind(sid, "<Button-1>", self._stepper_click)
+        canvas.tag_bind(sid, "<Enter>", lambda e: canvas.config(cursor="hand2"))
+        canvas.tag_bind(sid, "<Leave>", lambda e: canvas.config(cursor=""))
+        self.repeat_id = canvas.create_text(300, 304, text="1", anchor="e",
+                                            fill=SECONDARY, font=self._f(14))
 
-        # Geschwindigkeits-Slider
+        # Slider
         self._build_slider()
 
-        # Umschalter Mausbewegungen
-        self.switch_on = self._tk(glass.switch_img(True))
-        self.switch_off = self._tk(glass.switch_img(False))
-        self.switch_id = canvas.create_image(412, 470, image=self.switch_on,
+        # Umschalter
+        self.switch_on = self._tk(render.apple_switch(True))
+        self.switch_off = self._tk(render.apple_switch(False))
+        self.switch_id = canvas.create_image(412, 468, image=self.switch_on,
                                              anchor="e")
         canvas.tag_bind(self.switch_id, "<Button-1>", self._toggle_moves)
         canvas.tag_bind(self.switch_id, "<Enter>",
@@ -211,52 +227,51 @@ class MacroApp:
         canvas.tag_bind(self.switch_id, "<Leave>",
                         lambda e: canvas.config(cursor=""))
 
-        # Datei-Buttons
+        # Datei-Buttons (weiß, dezenter Rand)
         self.save_btn = GButton(
-            canvas, SAVE_BOX,
-            self._button_imgs(final, SAVE_BOX, (255, 255, 255), 14, 24,
-                              gloss=40, hover_add=22),
-            "Speichern", self.save, (FONT, 13))
+            canvas, SAVE_BOX, self._btn_imgs(SAVE_BOX, WHITE, (242, 242, 247),
+                                             12, border=CARD_BORDER),
+            "Speichern", self.save, self._f(14), text_color=BLUE_HEX)
         self.load_btn = GButton(
-            canvas, LOAD_BOX,
-            self._button_imgs(final, LOAD_BOX, (255, 255, 255), 14, 24,
-                              gloss=40, hover_add=22),
-            "Laden", self.load, (FONT, 13))
+            canvas, LOAD_BOX, self._btn_imgs(LOAD_BOX, WHITE, (242, 242, 247),
+                                             12, border=CARD_BORDER),
+            "Laden", self.load, self._f(14), text_color=BLUE_HEX)
 
         # Fußzeile
         canvas.create_text(W // 2, 616,
                            text="ESC  beendet Aufnahme und Wiedergabe",
-                           fill=MUTED, font=(FONT, 12))
+                           fill=SECONDARY, font=self._f(12))
 
-    def _button_imgs(self, source, box, tint, radius, alpha,
-                     gloss=90, hover_add=40):
-        normal = glass.glass_tile(source, box, radius=radius, tint=tint,
-                                  tint_alpha=alpha, gloss=gloss, blur=12)
-        hover = glass.glass_tile(source, box, radius=radius, tint=tint,
-                                 tint_alpha=min(alpha + hover_add, 255),
-                                 gloss=min(gloss + 20, 130), blur=12)
-        dim = glass.glass_tile(source, box, radius=radius, tint=(20, 20, 26),
-                               tint_alpha=150, gloss=20, border=40, blur=12)
+    def _paste_card(self, bg, box, radius):
+        w, h = box[2] - box[0], box[3] - box[1]
+        tile, pad = render.make_pill(w, h, radius, WHITE, border=CARD_BORDER)
+        bg.paste(tile, (box[0] - pad, box[1] - pad), tile)
+
+    def _btn_imgs(self, box, fill, fill_hover, radius, border=None):
+        w, h = box[2] - box[0], box[3] - box[1]
+        normal, _ = render.make_pill(w, h, radius, fill, border=border)
+        hover, _ = render.make_pill(w, h, radius, fill_hover, border=border)
+        dim, _ = render.make_pill(w, h, radius, GRAY_FILL, border=border)
         return {"normal": self._tk(normal), "hover": self._tk(hover),
                 "dim": self._tk(dim)}
 
     def _separator(self, y):
-        self.canvas.create_line(48, y, 412, y, fill="#5a5a68", width=1)
+        self.canvas.create_line(48, y, 412, y, fill=SEP, width=1)
 
     def _build_slider(self):
         c = self.canvas
         c.create_line(SLIDER_X1, SLIDER_Y, SLIDER_X2, SLIDER_Y,
-                      fill="#4a4a58", width=6, capstyle="round")
+                      fill=SEP, width=4, capstyle="round")
         kx = self._speed_to_x(self.speed)
         self.prog = c.create_line(SLIDER_X1, SLIDER_Y, kx, SLIDER_Y,
-                                  fill=GREEN_HEX, width=6, capstyle="round")
-        self.knob = c.create_oval(kx - 11, SLIDER_Y - 11, kx + 11,
-                                  SLIDER_Y + 11, fill="#ffffff",
-                                  outline=GREEN_HEX, width=2)
-        for target in (self.knob,):
-            c.tag_bind(target, "<Enter>",
-                       lambda e: c.config(cursor="hand2"))
-            c.tag_bind(target, "<Leave>", lambda e: c.config(cursor=""))
+                                  fill=BLUE_HEX, width=4, capstyle="round")
+        knob, kpad = render.make_pill(24, 24, 12, WHITE, pad=8,
+                                      shadow_alpha=55, shadow_blur=6,
+                                      shadow_dy=1, border=(0, 0, 0, 25))
+        self.knob_img = self._tk(knob)
+        self.knob = c.create_image(kx, SLIDER_Y, image=self.knob_img)
+        c.tag_bind(self.knob, "<Enter>", lambda e: c.config(cursor="hand2"))
+        c.tag_bind(self.knob, "<Leave>", lambda e: c.config(cursor=""))
         c.tag_bind(self.knob, "<B1-Motion>", self._slider_drag)
         c.tag_bind(self.knob, "<Button-1>", self._slider_drag)
 
@@ -268,21 +283,16 @@ class MacroApp:
         x = max(SLIDER_X1, min(SLIDER_X2, event.x))
         t = (x - SLIDER_X1) / (SLIDER_X2 - SLIDER_X1)
         self.speed = round(0.25 + t * (4.0 - 0.25), 2)
-        self.canvas.coords(self.knob, x - 11, SLIDER_Y - 11, x + 11,
-                           SLIDER_Y + 11)
+        self.canvas.coords(self.knob, x, SLIDER_Y)
         self.canvas.coords(self.prog, SLIDER_X1, SLIDER_Y, x, SLIDER_Y)
         self.canvas.itemconfig(self.speed_id, text=f"{self.speed:.2f}×")
 
     # ---------------------------------------------------------- Stepper etc.
-    def _inc_repeat(self):
-        self.repeat += 1
-        self._refresh_repeat()
-
-    def _dec_repeat(self):
-        self.repeat = max(0, self.repeat - 1)
-        self._refresh_repeat()
-
-    def _refresh_repeat(self):
+    def _stepper_click(self, event):
+        if event.x < _center(STEP_BOX)[0]:
+            self.repeat = max(0, self.repeat - 1)
+        else:
+            self.repeat += 1
         text = "∞" if self.repeat == 0 else str(self.repeat)
         self.canvas.itemconfig(self.repeat_id, text=text)
 

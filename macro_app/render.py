@@ -1,0 +1,100 @@
+"""Rendering-Helfer im Apple-Design (helle, cleane Oberfläche).
+
+Erzeugt weiche Schatten, weiße Karten mit abgerundeten Ecken, gefüllte
+Buttons und iOS-typische Bedienelemente – der klare, ruhige Apple-Look.
+"""
+
+from PIL import Image, ImageDraw, ImageFilter
+
+_SS = 4  # Supersampling für glatte Rundungen
+
+
+def rounded_mask(w, h, radius):
+    mask = Image.new("L", (w * _SS, h * _SS), 0)
+    ImageDraw.Draw(mask).rounded_rectangle(
+        [0, 0, w * _SS - 1, h * _SS - 1], radius=radius * _SS, fill=255)
+    return mask.resize((w, h), Image.LANCZOS)
+
+
+def make_background(w, h):
+    """Sehr dezenter heller Verlauf (iOS-Systemhintergrund)."""
+    top = (247, 247, 250)
+    bottom = (236, 236, 241)
+    col = Image.new("RGB", (1, h))
+    pix = col.load()
+    for y in range(h):
+        t = y / (h - 1)
+        pix[0, y] = tuple(int(top[i] + (bottom[i] - top[i]) * t)
+                          for i in range(3))
+    return col.resize((w, h))
+
+
+def make_pill(w, h, radius, fill, pad=16, shadow_alpha=38, shadow_blur=9,
+              shadow_dy=4, border=None):
+    """Abgerundetes Rechteck mit weichem Schatten (Karte oder Button).
+
+    Rückgabe: (RGBA-Kachel, pad) – die Kachel ist ringsum um ``pad`` größer
+    als der Inhalt (Platz für den Schatten). Über ``pad`` positioniert der
+    Aufrufer die Kachel passend zur Zielbox.
+    """
+    tw, th = w + 2 * pad, h + 2 * pad
+    tile = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+
+    if shadow_alpha > 0:
+        shadow = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+        ImageDraw.Draw(shadow).rounded_rectangle(
+            [pad, pad + shadow_dy, pad + w - 1, pad + shadow_dy + h - 1],
+            radius=radius, fill=(0, 0, 0, shadow_alpha))
+        tile = Image.alpha_composite(tile, shadow.filter(
+            ImageFilter.GaussianBlur(shadow_blur)))
+
+    if len(fill) == 3:
+        fill = fill + (255,)
+    card = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
+    card.paste(Image.new("RGBA", (w, h), fill), (pad, pad),
+               rounded_mask(w, h, radius))
+    tile = Image.alpha_composite(tile, card)
+
+    if border is not None:
+        layer = Image.new("RGBA", (tw * _SS, th * _SS), (0, 0, 0, 0))
+        ImageDraw.Draw(layer).rounded_rectangle(
+            [pad * _SS, pad * _SS, (pad + w) * _SS - 1, (pad + h) * _SS - 1],
+            radius=radius * _SS, outline=border, width=_SS)
+        tile = Image.alpha_composite(tile, layer.resize((tw, th),
+                                                        Image.LANCZOS))
+    return tile, pad
+
+
+def stepper_bg(w=94, h=30, radius=8, fill=(233, 233, 236),
+               divider=(198, 198, 204)):
+    """iOS-Stepper: graues, abgerundetes Feld mit Trennlinie in der Mitte."""
+    img = Image.new("RGBA", (w * _SS, h * _SS), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.rounded_rectangle([0, 0, w * _SS - 1, h * _SS - 1],
+                           radius=radius * _SS, fill=fill + (255,))
+    cx = w * _SS // 2
+    draw.line([cx, int(h * _SS * 0.24), cx, int(h * _SS * 0.76)],
+              fill=divider + (255,), width=_SS)
+    return img.resize((w, h), Image.LANCZOS)
+
+
+def apple_switch(on, w=51, h=31):
+    """iOS-Umschalter: grün wenn aktiv, hellgrau wenn aus; weißer Knopf."""
+    img = Image.new("RGBA", (w * _SS, h * _SS), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    r = h * _SS // 2
+    track = (52, 199, 89, 255) if on else (229, 229, 234, 255)
+    draw.rounded_rectangle([0, 0, w * _SS - 1, h * _SS - 1], radius=r,
+                           fill=track)
+    pad = 2 * _SS
+    kd = h * _SS - 2 * pad
+    kx = (w * _SS - pad - kd) if on else pad
+    # weicher Knopfschatten
+    shadow = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).ellipse(
+        [kx, pad + _SS, kx + kd, pad + kd + _SS], fill=(0, 0, 0, 60))
+    img = Image.alpha_composite(img, shadow.filter(
+        ImageFilter.GaussianBlur(3 * _SS)))
+    ImageDraw.Draw(img).ellipse([kx, pad, kx + kd, pad + kd],
+                                fill=(255, 255, 255, 255))
+    return img.resize((w, h), Image.LANCZOS)

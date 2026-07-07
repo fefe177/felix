@@ -72,7 +72,8 @@ macro_app/
 ├── recorder.py   # Aufnahme von Maus & Tastatur
 ├── player.py     # Wiedergabe der Makros
 ├── storage.py    # Speichern & Laden als JSON
-└── gui.py        # tkinter-Oberfläche
+├── render.py     # Rendering der Oberfläche (Apple-Design, via Pillow)
+└── gui.py        # Oberfläche (tkinter-Canvas im Apple-Design)
 run.py            # Startpunkt
 ```
 
