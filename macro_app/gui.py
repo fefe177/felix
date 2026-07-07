@@ -1,197 +1,296 @@
-"""Moderne, cleane Oberfläche (CustomTkinter) für den Makro Recorder."""
+"""Glas-Oberfläche (Frosted Glass / Apple-Look) für den Makro Recorder.
+
+Die Optik wird als Bild komponiert (siehe :mod:`macro_app.glass`) und auf
+einem Canvas gezeichnet, sodass Text und Bedienelemente wirklich durch das
+Glas scheinen. Aufnahme-/Wiedergabe-Logik liegt unverändert in
+:mod:`recorder` und :mod:`player`.
+"""
 
 import os
+import platform
 import queue
+import tkinter as tk
 from tkinter import filedialog, messagebox
 
-import customtkinter as ctk
+from PIL import ImageTk
 from pynput import keyboard
 
+from . import glass
 from .player import MacroPlayer
 from .recorder import MacroRecorder
 from .storage import load_macro, save_macro
 
-# ----------------------------------------------------------------- Farben
-BG = "#141416"
-CARD = "#1d1d21"
-FIELD = "#27272e"
-TEXT = "#f2f2f5"
-MUTED = "#8c8c96"
-BORDER = "#33333c"
+W, H = 460, 660
+FONT = "Segoe UI" if platform.system() == "Windows" else "DejaVu Sans"
 
-RED = "#e5484d"
-RED_HOVER = "#d13840"
-GREEN = "#2fa572"
-GREEN_HOVER = "#26895f"
-GHOST_HOVER = "#27272e"
+TEXT = "#f4f4f8"
+MUTED = "#a6a6b4"
+DISABLED = "#7d7d8a"
 
-STATUS_IDLE = "#4dd08a"
-STATUS_BUSY = "#ff6b6b"
+RED = (232, 70, 78)
+GREEN = (46, 178, 120)
+GREEN_HEX = "#2eb278"
+STATUS_IDLE = "#54e39a"
+STATUS_BUSY = "#ff7a7a"
 
-ctk.set_appearance_mode("dark")
+# Layout (feste Fenstergröße für exakte Glas-Kompositionen)
+STATUS_BOX = (24, 96, 436, 176)
+REC_BOX = (24, 196, 224, 252)
+PLAY_BOX = (236, 196, 436, 252)
+SET_BOX = (24, 272, 436, 500)
+SAVE_BOX = (24, 520, 224, 566)
+LOAD_BOX = (236, 520, 436, 566)
+
+MINUS_BOX = (300, 289, 330, 319)
+PLUS_BOX = (382, 289, 412, 319)
+SLIDER_Y = 412
+SLIDER_X1, SLIDER_X2 = 48, 412
+
+
+def _center(box):
+    return (box[0] + box[2]) // 2, (box[1] + box[3]) // 2
+
+
+class GButton:
+    """Ein anklickbarer Glas-Button (Bild + Beschriftung) auf dem Canvas."""
+
+    def __init__(self, canvas, box, images, label, command,
+                 font, text_color=TEXT):
+        self.canvas = canvas
+        self.images = images
+        self.command = command
+        self.enabled = True
+        self.cx, self.cy = _center(box)
+        self.tag = f"btn-{id(self)}"
+        self.img = canvas.create_image(self.cx, self.cy,
+                                       image=images["normal"], tags=self.tag)
+        self.text = canvas.create_text(self.cx, self.cy, text=label,
+                                       fill=text_color, font=font,
+                                       tags=self.tag)
+        canvas.tag_bind(self.tag, "<Button-1>", self._click)
+        canvas.tag_bind(self.tag, "<Enter>", self._enter)
+        canvas.tag_bind(self.tag, "<Leave>", self._leave)
+
+    def _click(self, _event):
+        if self.enabled:
+            self.command()
+
+    def _enter(self, _event):
+        if self.enabled:
+            self.canvas.itemconfig(self.img, image=self.images["hover"])
+            self.canvas.config(cursor="hand2")
+
+    def _leave(self, _event):
+        self.canvas.itemconfig(self.img, image=self.images["normal"])
+        self.canvas.config(cursor="")
+
+    def set_label(self, text):
+        self.canvas.itemconfig(self.text, text=text)
+
+    def set_enabled(self, enabled):
+        self.enabled = enabled
+        key = "normal" if enabled else self.images.get("dim") and "dim"
+        self.canvas.itemconfig(self.img, image=self.images[key or "normal"])
+        self.canvas.itemconfig(self.text,
+                               fill=TEXT if enabled else DISABLED)
 
 
 class MacroApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Makro Recorder")
-        self.root.geometry("440x660")
-        self.root.minsize(420, 620)
-        self.root.configure(fg_color=BG)
+        self.root.geometry(f"{W}x{H}")
+        self.root.resizable(False, False)
 
         self.recorder = MacroRecorder()
         self.player = MacroPlayer()
         self.events = []
         self.current_name = "Unbenannt"
+        self.repeat = 1
+        self.speed = 1.0
+        self.record_moves = True
 
         self._ui_queue = queue.Queue()
         self._progress = None
         self._abort_listener = None
+        self._imgs = []  # Referenzen halten (sonst Garbage Collection)
 
         self._build_ui()
         self._poll_queue()
         self._update_state()
 
     # ------------------------------------------------------------------ UI
+    def _tk(self, pil_image):
+        img = ImageTk.PhotoImage(pil_image)
+        self._imgs.append(img)
+        return img
+
     def _build_ui(self):
-        wrap = ctk.CTkFrame(self.root, fg_color="transparent")
-        wrap.pack(fill="both", expand=True, padx=22, pady=22)
+        canvas = tk.Canvas(self.root, width=W, height=H,
+                           highlightthickness=0, bd=0)
+        canvas.pack(fill="both", expand=True)
+        self.canvas = canvas
 
-        # --- Kopf ---
-        ctk.CTkLabel(
-            wrap, text="Makro Recorder",
-            font=ctk.CTkFont(size=24, weight="bold"), text_color=TEXT,
-        ).pack(anchor="w")
-        ctk.CTkLabel(
-            wrap, text="Maus & Tastatur aufnehmen und abspielen",
-            font=ctk.CTkFont(size=13), text_color=MUTED,
-        ).pack(anchor="w", pady=(2, 0))
+        # Hintergrund + Glas-Karten komponieren
+        wall = glass.make_wallpaper(W, H)
+        status_card = glass.glass_tile(wall, STATUS_BOX, radius=18,
+                                       tint_alpha=26, gloss=60, blur=16)
+        settings_card = glass.glass_tile(wall, SET_BOX, radius=22,
+                                         tint_alpha=26, gloss=55, blur=16)
+        final = wall.convert("RGBA")
+        final.alpha_composite(status_card, (STATUS_BOX[0], STATUS_BOX[1]))
+        final.alpha_composite(settings_card, (SET_BOX[0], SET_BOX[1]))
 
-        # --- Status-Karte ---
-        status = ctk.CTkFrame(wrap, fg_color=CARD, corner_radius=14)
-        status.pack(fill="x", pady=(18, 0))
-        inner = ctk.CTkFrame(status, fg_color="transparent")
-        inner.pack(fill="x", padx=18, pady=16)
+        self.bg_img = self._tk(final.convert("RGB"))
+        canvas.create_image(0, 0, image=self.bg_img, anchor="nw")
 
-        self.dot = ctk.CTkLabel(inner, text="●", font=ctk.CTkFont(size=16),
-                                text_color=STATUS_IDLE, width=16)
-        self.dot.pack(side="left")
-        text_col = ctk.CTkFrame(inner, fg_color="transparent")
-        text_col.pack(side="left", padx=(10, 0), fill="x", expand=True)
-        self.status_var = ctk.StringVar(value="Bereit")
-        ctk.CTkLabel(text_col, textvariable=self.status_var, anchor="w",
-                     font=ctk.CTkFont(size=15, weight="bold"),
-                     text_color=TEXT).pack(anchor="w", fill="x")
-        self.count_var = ctk.StringVar(value="0 Ereignisse")
-        ctk.CTkLabel(text_col, textvariable=self.count_var, anchor="w",
-                     font=ctk.CTkFont(size=12),
-                     text_color=MUTED).pack(anchor="w", fill="x")
+        # Kopfzeile
+        canvas.create_text(24, 40, text="Makro Recorder", anchor="w",
+                           fill=TEXT, font=(FONT, 26, "bold"))
+        canvas.create_text(24, 70, text="Maus & Tastatur aufnehmen "
+                           "und abspielen", anchor="w", fill=MUTED,
+                           font=(FONT, 13))
 
-        # --- Haupt-Buttons ---
-        buttons = ctk.CTkFrame(wrap, fg_color="transparent")
-        buttons.pack(fill="x", pady=(16, 0))
-        buttons.columnconfigure(0, weight=1)
-        buttons.columnconfigure(1, weight=1)
+        # Status-Karte
+        self.dot = canvas.create_oval(46, 130, 58, 142, fill=STATUS_IDLE,
+                                      outline="")
+        self.status_id = canvas.create_text(
+            72, 128, text="Bereit", anchor="w", fill=TEXT,
+            font=(FONT, 15, "bold"))
+        self.count_id = canvas.create_text(
+            72, 150, text="0 Ereignisse", anchor="w", fill=MUTED,
+            font=(FONT, 12))
 
-        self.record_btn = ctk.CTkButton(
-            buttons, text="Aufnehmen", command=self.toggle_record,
-            height=50, corner_radius=12, fg_color=RED, hover_color=RED_HOVER,
-            font=ctk.CTkFont(size=15, weight="bold"), text_color="#ffffff",
-        )
-        self.record_btn.grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        # Haupt-Buttons
+        self.record_btn = GButton(
+            canvas, REC_BOX,
+            self._button_imgs(final, REC_BOX, RED, 16, 150),
+            "Aufnehmen", self.toggle_record, (FONT, 15, "bold"))
+        self.play_btn = GButton(
+            canvas, PLAY_BOX,
+            self._button_imgs(final, PLAY_BOX, GREEN, 16, 150),
+            "Abspielen", self.toggle_play, (FONT, 15, "bold"))
 
-        self.play_btn = ctk.CTkButton(
-            buttons, text="Abspielen", command=self.toggle_play,
-            height=50, corner_radius=12, fg_color=GREEN,
-            hover_color=GREEN_HOVER,
-            font=ctk.CTkFont(size=15, weight="bold"), text_color="#ffffff",
-        )
-        self.play_btn.grid(row=0, column=1, sticky="ew", padx=(6, 0))
+        # Einstellungen – Beschriftungen
+        canvas.create_text(48, 304, text="Wiederholungen", anchor="w",
+                           fill=TEXT, font=(FONT, 14))
+        canvas.create_text(48, 332, text="0 = endlos", anchor="w",
+                           fill=MUTED, font=(FONT, 11))
+        self._separator(356)
+        canvas.create_text(48, 380, text="Geschwindigkeit", anchor="w",
+                           fill=TEXT, font=(FONT, 14))
+        self.speed_id = canvas.create_text(412, 380, text="1.00×", anchor="e",
+                                           fill=TEXT, font=(FONT, 14, "bold"))
+        self._separator(444)
+        canvas.create_text(48, 470, text="Mausbewegungen aufnehmen",
+                           anchor="w", fill=TEXT, font=(FONT, 14))
 
-        # --- Einstellungen ---
-        settings = ctk.CTkFrame(wrap, fg_color=CARD, corner_radius=14)
-        settings.pack(fill="x", pady=(16, 0))
-        pad = ctk.CTkFrame(settings, fg_color="transparent")
-        pad.pack(fill="x", padx=18, pady=16)
-        pad.columnconfigure(0, weight=1)
+        # Stepper (Wiederholungen)
+        step_imgs = self._button_imgs(final, MINUS_BOX, (255, 255, 255),
+                                      9, 34, gloss=40, hover_add=26)
+        plus_imgs = self._button_imgs(final, PLUS_BOX, (255, 255, 255),
+                                      9, 34, gloss=40, hover_add=26)
+        GButton(canvas, MINUS_BOX, step_imgs, "−",
+                self._dec_repeat, (FONT, 18, "bold"))
+        GButton(canvas, PLUS_BOX, plus_imgs, "+",
+                self._inc_repeat, (FONT, 18, "bold"))
+        self.repeat_id = canvas.create_text(356, 304, text="1", fill=TEXT,
+                                            font=(FONT, 15, "bold"))
 
-        # Wiederholungen
-        rep_row = ctk.CTkFrame(pad, fg_color="transparent")
-        rep_row.pack(fill="x")
-        rep_row.columnconfigure(0, weight=1)
-        ctk.CTkLabel(rep_row, text="Wiederholungen",
-                     font=ctk.CTkFont(size=14), text_color=TEXT,
-                     anchor="w").grid(row=0, column=0, sticky="w")
-        self.repeat_entry = ctk.CTkEntry(
-            rep_row, width=72, height=34, justify="center",
-            corner_radius=8, fg_color=FIELD, border_color=BORDER,
-            border_width=1, font=ctk.CTkFont(size=14))
-        self.repeat_entry.insert(0, "1")
-        self.repeat_entry.grid(row=0, column=1, sticky="e")
-        ctk.CTkLabel(pad, text="0 = endlos wiederholen",
-                     font=ctk.CTkFont(size=11), text_color=MUTED,
-                     anchor="w").pack(anchor="w", pady=(4, 0))
+        # Geschwindigkeits-Slider
+        self._build_slider()
 
-        _sep(pad)
+        # Umschalter Mausbewegungen
+        self.switch_on = self._tk(glass.switch_img(True))
+        self.switch_off = self._tk(glass.switch_img(False))
+        self.switch_id = canvas.create_image(412, 470, image=self.switch_on,
+                                             anchor="e")
+        canvas.tag_bind(self.switch_id, "<Button-1>", self._toggle_moves)
+        canvas.tag_bind(self.switch_id, "<Enter>",
+                        lambda e: canvas.config(cursor="hand2"))
+        canvas.tag_bind(self.switch_id, "<Leave>",
+                        lambda e: canvas.config(cursor=""))
 
-        # Geschwindigkeit
-        speed_head = ctk.CTkFrame(pad, fg_color="transparent")
-        speed_head.pack(fill="x")
-        speed_head.columnconfigure(0, weight=1)
-        ctk.CTkLabel(speed_head, text="Geschwindigkeit",
-                     font=ctk.CTkFont(size=14), text_color=TEXT,
-                     anchor="w").grid(row=0, column=0, sticky="w")
-        self.speed_lbl_var = ctk.StringVar(value="1.00×")
-        ctk.CTkLabel(speed_head, textvariable=self.speed_lbl_var,
-                     font=ctk.CTkFont(size=14, weight="bold"),
-                     text_color=TEXT).grid(row=0, column=1, sticky="e")
-        self.speed_var = ctk.DoubleVar(value=1.0)
-        ctk.CTkSlider(pad, from_=0.25, to=4.0, variable=self.speed_var,
-                      command=self._on_speed_change,
-                      height=18, progress_color=GREEN).pack(
-            fill="x", pady=(10, 0))
+        # Datei-Buttons
+        self.save_btn = GButton(
+            canvas, SAVE_BOX,
+            self._button_imgs(final, SAVE_BOX, (255, 255, 255), 14, 24,
+                              gloss=40, hover_add=22),
+            "Speichern", self.save, (FONT, 13))
+        self.load_btn = GButton(
+            canvas, LOAD_BOX,
+            self._button_imgs(final, LOAD_BOX, (255, 255, 255), 14, 24,
+                              gloss=40, hover_add=22),
+            "Laden", self.load, (FONT, 13))
 
-        _sep(pad)
+        # Fußzeile
+        canvas.create_text(W // 2, 616,
+                           text="ESC  beendet Aufnahme und Wiedergabe",
+                           fill=MUTED, font=(FONT, 12))
 
-        # Mausbewegungen
-        move_row = ctk.CTkFrame(pad, fg_color="transparent")
-        move_row.pack(fill="x")
-        move_row.columnconfigure(0, weight=1)
-        ctk.CTkLabel(move_row, text="Mausbewegungen aufnehmen",
-                     font=ctk.CTkFont(size=14), text_color=TEXT,
-                     anchor="w").grid(row=0, column=0, sticky="w")
-        self.moves_switch = ctk.CTkSwitch(
-            move_row, text="", width=44, progress_color=GREEN,
-            command=None)
-        self.moves_switch.select()
-        self.moves_switch.grid(row=0, column=1, sticky="e")
+    def _button_imgs(self, source, box, tint, radius, alpha,
+                     gloss=90, hover_add=40):
+        normal = glass.glass_tile(source, box, radius=radius, tint=tint,
+                                  tint_alpha=alpha, gloss=gloss, blur=12)
+        hover = glass.glass_tile(source, box, radius=radius, tint=tint,
+                                 tint_alpha=min(alpha + hover_add, 255),
+                                 gloss=min(gloss + 20, 130), blur=12)
+        dim = glass.glass_tile(source, box, radius=radius, tint=(20, 20, 26),
+                               tint_alpha=150, gloss=20, border=40, blur=12)
+        return {"normal": self._tk(normal), "hover": self._tk(hover),
+                "dim": self._tk(dim)}
 
-        # --- Datei-Buttons ---
-        files = ctk.CTkFrame(wrap, fg_color="transparent")
-        files.pack(fill="x", pady=(16, 0))
-        files.columnconfigure(0, weight=1)
-        files.columnconfigure(1, weight=1)
-        self.save_btn = ctk.CTkButton(
-            files, text="Speichern", command=self.save, height=42,
-            corner_radius=10, fg_color="transparent", hover_color=GHOST_HOVER,
-            border_width=1, border_color=BORDER, text_color=TEXT,
-            font=ctk.CTkFont(size=13))
-        self.save_btn.grid(row=0, column=0, sticky="ew", padx=(0, 6))
-        self.load_btn = ctk.CTkButton(
-            files, text="Laden", command=self.load, height=42,
-            corner_radius=10, fg_color="transparent", hover_color=GHOST_HOVER,
-            border_width=1, border_color=BORDER, text_color=TEXT,
-            font=ctk.CTkFont(size=13))
-        self.load_btn.grid(row=0, column=1, sticky="ew", padx=(6, 0))
+    def _separator(self, y):
+        self.canvas.create_line(48, y, 412, y, fill="#5a5a68", width=1)
 
-        # --- Fußzeile ---
-        ctk.CTkLabel(
-            wrap, text="ESC  beendet Aufnahme und Wiedergabe",
-            font=ctk.CTkFont(size=12), text_color=MUTED,
-        ).pack(side="bottom", pady=(18, 0))
+    def _build_slider(self):
+        c = self.canvas
+        c.create_line(SLIDER_X1, SLIDER_Y, SLIDER_X2, SLIDER_Y,
+                      fill="#4a4a58", width=6, capstyle="round")
+        kx = self._speed_to_x(self.speed)
+        self.prog = c.create_line(SLIDER_X1, SLIDER_Y, kx, SLIDER_Y,
+                                  fill=GREEN_HEX, width=6, capstyle="round")
+        self.knob = c.create_oval(kx - 11, SLIDER_Y - 11, kx + 11,
+                                  SLIDER_Y + 11, fill="#ffffff",
+                                  outline=GREEN_HEX, width=2)
+        for target in (self.knob,):
+            c.tag_bind(target, "<Enter>",
+                       lambda e: c.config(cursor="hand2"))
+            c.tag_bind(target, "<Leave>", lambda e: c.config(cursor=""))
+        c.tag_bind(self.knob, "<B1-Motion>", self._slider_drag)
+        c.tag_bind(self.knob, "<Button-1>", self._slider_drag)
 
-    def _on_speed_change(self, value):
-        self.speed_lbl_var.set(f"{float(value):.2f}×")
+    def _speed_to_x(self, speed):
+        t = (speed - 0.25) / (4.0 - 0.25)
+        return int(SLIDER_X1 + t * (SLIDER_X2 - SLIDER_X1))
+
+    def _slider_drag(self, event):
+        x = max(SLIDER_X1, min(SLIDER_X2, event.x))
+        t = (x - SLIDER_X1) / (SLIDER_X2 - SLIDER_X1)
+        self.speed = round(0.25 + t * (4.0 - 0.25), 2)
+        self.canvas.coords(self.knob, x - 11, SLIDER_Y - 11, x + 11,
+                           SLIDER_Y + 11)
+        self.canvas.coords(self.prog, SLIDER_X1, SLIDER_Y, x, SLIDER_Y)
+        self.canvas.itemconfig(self.speed_id, text=f"{self.speed:.2f}×")
+
+    # ---------------------------------------------------------- Stepper etc.
+    def _inc_repeat(self):
+        self.repeat += 1
+        self._refresh_repeat()
+
+    def _dec_repeat(self):
+        self.repeat = max(0, self.repeat - 1)
+        self._refresh_repeat()
+
+    def _refresh_repeat(self):
+        text = "∞" if self.repeat == 0 else str(self.repeat)
+        self.canvas.itemconfig(self.repeat_id, text=text)
+
+    def _toggle_moves(self, _event):
+        self.record_moves = not self.record_moves
+        self.canvas.itemconfig(
+            self.switch_id,
+            image=self.switch_on if self.record_moves else self.switch_off)
 
     # -------------------------------------------------------------- Aufnahme
     def toggle_record(self):
@@ -200,7 +299,7 @@ class MacroApp:
             return
         if self.player.playing:
             return
-        self.recorder.record_moves = bool(self.moves_switch.get())
+        self.recorder.record_moves = self.record_moves
         self.events = []
         self.recorder.start(on_stop=self._on_record_stop)
         self._set_status("Aufnahme läuft …  (ESC beendet)", STATUS_BUSY)
@@ -228,20 +327,10 @@ class MacroApp:
             return
         self._start_abort_listener()
         self.player.play(
-            self.events,
-            speed=self.speed_var.get(),
-            repeat=self._repeat_value(),
-            on_progress=self._on_progress,
-            on_finish=self._on_play_finish,
-        )
+            self.events, speed=self.speed, repeat=self.repeat,
+            on_progress=self._on_progress, on_finish=self._on_play_finish)
         self._set_status("Wiedergabe läuft …  (ESC stoppt)", STATUS_BUSY)
         self._update_state()
-
-    def _repeat_value(self):
-        try:
-            return max(0, int(self.repeat_entry.get()))
-        except (ValueError, TypeError):
-            return 1
 
     def _on_progress(self, loop, index, total):
         self._progress = (loop, index, total)
@@ -278,8 +367,7 @@ class MacroApp:
         path = filedialog.asksaveasfilename(
             defaultextension=".json",
             filetypes=[("Makro-Dateien", "*.json"), ("Alle Dateien", "*.*")],
-            initialfile="makro.json",
-        )
+            initialfile="makro.json")
         if not path:
             return
         name = os.path.splitext(os.path.basename(path))[0]
@@ -310,28 +398,28 @@ class MacroApp:
         recording = self.recorder.recording
         playing = self.player.playing
         if recording:
-            self.record_btn.configure(text="Stopp", state="normal")
-            self.play_btn.configure(state="disabled")
+            self.record_btn.set_label("Stopp")
+            self.record_btn.set_enabled(True)
+            self.play_btn.set_enabled(False)
         elif playing:
-            self.play_btn.configure(text="Stopp", state="normal")
-            self.record_btn.configure(state="disabled")
+            self.play_btn.set_label("Stopp")
+            self.play_btn.set_enabled(True)
+            self.record_btn.set_enabled(False)
         else:
-            self.record_btn.configure(text="Aufnehmen", state="normal")
-            self.play_btn.configure(
-                text="Abspielen",
-                state=("normal" if self.events else "disabled"))
-        self._toggle_files(not (recording or playing))
+            self.record_btn.set_label("Aufnehmen")
+            self.play_btn.set_label("Abspielen")
+            self.record_btn.set_enabled(True)
+            self.play_btn.set_enabled(bool(self.events))
+        busy = recording or playing
+        self.save_btn.set_enabled(not busy)
+        self.load_btn.set_enabled(not busy)
         if not playing:
-            self.count_var.set(f"{len(self.events)} Ereignisse")
-
-    def _toggle_files(self, enabled):
-        state = "normal" if enabled else "disabled"
-        self.save_btn.configure(state=state)
-        self.load_btn.configure(state=state)
+            self.canvas.itemconfig(self.count_id,
+                                   text=f"{len(self.events)} Ereignisse")
 
     def _set_status(self, text, color=STATUS_IDLE):
-        self.status_var.set(text)
-        self.dot.configure(text_color=color)
+        self.canvas.itemconfig(self.status_id, text=text)
+        self.canvas.itemconfig(self.dot, fill=color)
 
     def _poll_queue(self):
         try:
@@ -341,8 +429,9 @@ class MacroApp:
             pass
         if self.player.playing and self._progress is not None:
             loop, index, total = self._progress
-            self.count_var.set(
-                f"Durchlauf {loop} · Ereignis {index}/{total}")
+            self.canvas.itemconfig(
+                self.count_id,
+                text=f"Durchlauf {loop} · Ereignis {index}/{total}")
         self.root.after(50, self._poll_queue)
 
     def on_close(self):
@@ -352,14 +441,8 @@ class MacroApp:
         self.root.destroy()
 
 
-def _sep(parent):
-    """Dünne Trennlinie zwischen Einstellungs-Zeilen."""
-    ctk.CTkFrame(parent, height=1, fg_color=BORDER).pack(
-        fill="x", pady=14)
-
-
 def main():
-    root = ctk.CTk()
+    root = tk.Tk()
     app = MacroApp(root)
     root.protocol("WM_DELETE_WINDOW", app.on_close)
     root.mainloop()
