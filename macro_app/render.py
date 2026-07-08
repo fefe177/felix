@@ -18,8 +18,8 @@ def rounded_mask(w, h, radius):
 
 def make_background(w, h):
     """Sehr dezenter heller Verlauf (iOS-Systemhintergrund)."""
-    top = (247, 247, 250)
-    bottom = (236, 236, 241)
+    top = (244, 246, 251)
+    bottom = (232, 236, 246)
     col = Image.new("RGB", (1, h))
     pix = col.load()
     for y in range(h):

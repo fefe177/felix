@@ -22,22 +22,25 @@ from .storage import load_macro, save_macro
 W, H = 460, 732
 COUNTDOWN_SECONDS = 3
 
-# Apple-Systemfarben (helles Erscheinungsbild)
-BG_FALLBACK = "#f2f2f7"
-LABEL = "#1c1c1e"
-SECONDARY = "#8e8e93"
-SEP = "#e5e5ea"
-BLUE = (0, 122, 255)
-BLUE_DARK = (0, 105, 224)
-BLUE_HEX = "#007aff"
+# Flux-Farbpalette (helles Erscheinungsbild)
+BG_FALLBACK = "#eef1f8"
+LABEL = "#0c1220"
+SECONDARY = "#8a93a6"
+SEP = "#e4e9f3"
+BLUE = (61, 99, 255)          # Brand-Azur
+BLUE_DARK = (46, 78, 235)
+BLUE_HEX = "#3d63ff"
+CYAN = (18, 184, 222)
+CORAL = (255, 107, 87)
+CORAL_DARK = (236, 86, 66)
 RED = (255, 59, 48)
 RED_DARK = (214, 47, 39)
 GRAY_FILL = (199, 199, 204)
 WHITE = (255, 255, 255)
-CARD_BORDER = (0, 0, 0, 18)
+CARD_BORDER = (0, 0, 0, 16)
 
-STATUS_IDLE = "#34c759"
-STATUS_BUSY = "#ff9500"
+STATUS_IDLE = "#12b886"
+STATUS_BUSY = "#f5a623"
 
 # Layout
 HERO_BOX = (24, 24, 436, 176)
@@ -188,16 +191,16 @@ class MacroApp:
         # Haupt-Buttons (mit Verlauf und Symbol)
         self.record_btn = GButton(
             canvas, REC_BOX,
-            self._btn_imgs(REC_BOX, RED, RED_DARK, 14,
-                           grad=((255, 94, 89), (255, 49, 45)),
-                           grad_hover=((235, 74, 69), (223, 39, 35))),
+            self._btn_imgs(REC_BOX, CORAL, CORAL_DARK, 14,
+                           grad=((255, 138, 92), (255, 107, 87)),
+                           grad_hover=((240, 120, 78), (236, 86, 66))),
             "●  Aufnehmen", self.toggle_record, self._f(15, "bold"),
             text_color="#ffffff", disabled_color="#f3f3f3")
         self.play_btn = GButton(
             canvas, PLAY_BOX,
             self._btn_imgs(PLAY_BOX, BLUE, BLUE_DARK, 14,
-                           grad=((40, 142, 255), (0, 110, 255)),
-                           grad_hover=((24, 122, 235), (0, 95, 216))),
+                           grad=((61, 99, 255), (20, 178, 222)),
+                           grad_hover=((48, 84, 235), (16, 158, 200))),
             "▶  Abspielen", self.toggle_play, self._f(15, "bold"),
             text_color="#ffffff", disabled_color="#f3f3f3")
 
@@ -270,7 +273,7 @@ class MacroApp:
         box = HERO_BOX
         w, h = box[2] - box[0], box[3] - box[1]
         hero, pad = render.make_pill(w, h, 26,
-                                     gradient=((10, 126, 255), (94, 90, 224)),
+                                     gradient=((61, 99, 255), (20, 184, 222)),
                                      shadow_alpha=55, shadow_blur=14,
                                      shadow_dy=7)
         bg.paste(hero, (box[0] - pad, box[1] - pad), hero)
