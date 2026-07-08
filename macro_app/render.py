@@ -100,6 +100,33 @@ def app_icon(size=52, radius=15):
     return Image.alpha_composite(tile, glyph), pad
 
 
+def frosted_rect(w, h, radius, alpha=235, border_alpha=90):
+    """Milchglas-Fläche: halbtransparentes Weiß mit feinem hellen Rand."""
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    img.paste(Image.new("RGBA", (w, h), (255, 255, 255, alpha)), (0, 0),
+              rounded_mask(w, h, radius))
+    layer = Image.new("RGBA", (w * _SS, h * _SS), (0, 0, 0, 0))
+    ImageDraw.Draw(layer).rounded_rectangle(
+        [0, 0, w * _SS - 1, h * _SS - 1], radius=radius * _SS,
+        outline=(255, 255, 255, border_alpha), width=_SS)
+    return Image.alpha_composite(img, layer.resize((w, h), Image.LANCZOS))
+
+
+def glass_icon(size=46, radius=13):
+    """Gläserne App-Kachel (für die Hero-Karte): weiß-transluzent mit Symbol."""
+    base = frosted_rect(size, size, radius, alpha=48, border_alpha=120)
+    glyph = Image.new("RGBA", (size * _SS, size * _SS), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(glyph)
+    c = size * _SS / 2
+    ring = size * 0.30 * _SS
+    draw.ellipse([c - ring, c - ring, c + ring, c + ring],
+                 outline=(255, 255, 255, 255), width=int(size * 0.09 * _SS))
+    dot = size * 0.12 * _SS
+    draw.ellipse([c - dot, c - dot, c + dot, c + dot],
+                 fill=(255, 255, 255, 255))
+    return Image.alpha_composite(base, glyph.resize(base.size, Image.LANCZOS))
+
+
 def stepper_bg(w=94, h=30, radius=8, fill=(233, 233, 236),
                divider=(198, 198, 204)):
     """iOS-Stepper: graues, abgerundetes Feld mit Trennlinie in der Mitte."""

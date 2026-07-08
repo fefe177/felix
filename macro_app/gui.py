@@ -40,7 +40,7 @@ STATUS_IDLE = "#34c759"
 STATUS_BUSY = "#ff9500"
 
 # Layout
-STATUS_BOX = (24, 100, 436, 176)
+HERO_BOX = (24, 24, 436, 176)
 REC_BOX = (24, 196, 224, 250)
 PLAY_BOX = (236, 196, 436, 250)
 SET_BOX = (24, 274, 436, 588)
@@ -160,33 +160,30 @@ class MacroApp:
         self.canvas = canvas
 
         bg = render.make_background(W, H)
-        self._paste_card(bg, STATUS_BOX, 18)
+        self._paste_hero(bg)
         self._paste_card(bg, SET_BOX, 18)
         self.bg_img = self._tk(bg)
         canvas.create_image(0, 0, image=self.bg_img, anchor="nw")
 
-        # Kopfzeile mit App-Icon
-        icon, _ = render.app_icon(52, 15)
-        self.icon_img = self._tk(icon)
-        canvas.create_image(50, 52, image=self.icon_img)
-        canvas.create_text(92, 42, text="Makro Recorder", anchor="w",
-                           fill=LABEL, font=self._f(26, "bold"))
-        canvas.create_text(92, 68, text="Maus & Tastatur aufnehmen "
-                           "und abspielen", anchor="w", fill=SECONDARY,
-                           font=self._f(13))
+        # Hero-Titel (weiß auf Verlauf)
+        canvas.create_text(104, 60, text="Makro Recorder", anchor="w",
+                           fill="#ffffff", font=self._f(22, "bold"))
+        canvas.create_text(104, 84, text="Maus & Tastatur aufnehmen "
+                           "und abspielen", anchor="w", fill="#e6ebff",
+                           font=self._f(12))
 
-        # Status-Karte mit Badge
-        self.badge = canvas.create_oval(40, 124, 68, 152, fill="#e7f8ee",
+        # Status-Leiste (Milchglas, dunkler Text)
+        self.badge = canvas.create_oval(56, 124, 80, 148, fill="#e7f8ee",
                                         outline="")
-        self.badge_glyph = canvas.create_text(54, 137, text="✓",
+        self.badge_glyph = canvas.create_text(68, 135, text="✓",
                                               fill=STATUS_IDLE,
-                                              font=self._f(15, "bold"))
+                                              font=self._f(14, "bold"))
         self.status_id = canvas.create_text(
-            84, 130, text="Bereit", anchor="w", fill=LABEL,
-            font=self._f(15, "bold"))
+            92, 127, text="Bereit", anchor="w", fill=LABEL,
+            font=self._f(14, "bold"))
         self.count_id = canvas.create_text(
-            84, 152, text="0 Ereignisse", anchor="w", fill=SECONDARY,
-            font=self._f(12))
+            92, 146, text="0 Ereignisse", anchor="w", fill=SECONDARY,
+            font=self._f(11))
 
         # Haupt-Buttons (mit Verlauf und Symbol)
         self.record_btn = GButton(
@@ -268,6 +265,19 @@ class MacroApp:
         w, h = box[2] - box[0], box[3] - box[1]
         tile, pad = render.make_pill(w, h, radius, WHITE, border=CARD_BORDER)
         bg.paste(tile, (box[0] - pad, box[1] - pad), tile)
+
+    def _paste_hero(self, bg):
+        box = HERO_BOX
+        w, h = box[2] - box[0], box[3] - box[1]
+        hero, pad = render.make_pill(w, h, 26,
+                                     gradient=((10, 126, 255), (94, 90, 224)),
+                                     shadow_alpha=55, shadow_blur=14,
+                                     shadow_dy=7)
+        bg.paste(hero, (box[0] - pad, box[1] - pad), hero)
+        icon = render.glass_icon(46, 13)
+        bg.paste(icon, (44, 44), icon)
+        pill = render.frosted_rect(372, 52, 15, alpha=235)
+        bg.paste(pill, (44, 110), pill)
 
     def _btn_imgs(self, box, fill, fill_hover, radius, border=None,
                   grad=None, grad_hover=None):
