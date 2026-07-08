@@ -158,17 +158,37 @@ Ein **Uno / Nano / Mega** kann das **nicht** ohne Weiteres.
 automatisch, wenn du mit gedrückter Maustaste ziehst. **Scrollen** und
 **Doppelklicks** werden ebenfalls automatisch mit übertragen.
 
-### Empfindlichkeit / Geschwindigkeit einstellen
+### Einstellungen in `maus_senden.py`
 
-In `pc_programm/maus_senden.py` oben gibt es die Einstellung:
+Oben in der Datei kannst du anpassen:
 
 ```python
-EMPFINDLICHKEIT = 1.0
+EMPFINDLICHKEIT = 1.0        # Geschwindigkeit der Maus
+GLAETTUNG = 0.0             # Bewegungs-Glättung
+TASTATUR_WEITERLEITEN = True # Tastatur mit übertragen?
 ```
 
-- `1.0` = gleich schnell wie auf deinem PC
-- `2.0` = doppelt so schnell (empfindlicher)
-- `0.5` = halb so schnell (präziser/langsamer)
+- **EMPFINDLICHKEIT:** `1.0` = wie dein PC, `2.0` = doppelt so schnell,
+  `0.5` = langsamer/präziser.
+- **GLAETTUNG:** `0.0` = aus (1:1, direkt – meist am besten). Werte bis
+  `0.9` machen ruckelige Bewegungen weicher, dafür etwas träger.
+- **TASTATUR_WEITERLEITEN:** `True` = Tastendrücke werden mitgeschickt.
+
+### Tastatur
+
+Wenn `TASTATUR_WEITERLEITEN = True` ist, gibt der Arduino auch Tastendrücke
+aus. Befehle, die der Arduino dafür versteht:
+
+- `KD,c` → Taste mit Code `c` **drücken** (z. B. `KD,97` = `a`, `KD,176` = Enter)
+- `KU,c` → Taste **loslassen**
+- `KX`   → **alle** Tasten/Maustasten loslassen (Sicherheit; wird beim
+  Beenden automatisch gesendet)
+
+> ⚠️ **US-Layout:** Der Arduino nutzt intern das US-Tastaturlayout. Auf einem
+> deutschen Ziel-PC können `z`/`y` vertauscht und Sonderzeichen (`@`, `ä ö ü`)
+> falsch sein. Buchstaben, Zahlen, Enter, Pfeile usw. funktionieren normal.
+> Unter macOS braucht das Mitlesen der Tastatur die Berechtigung
+> „Bedienungshilfen".
 
 ### Verzögerung
 

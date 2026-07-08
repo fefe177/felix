@@ -30,6 +30,16 @@
     "PM"    -> mittlere Taste gedrueckt halten
     "RM"    -> mittlere Taste loslassen
 
+  Tastatur:
+    "KD,c"  -> Taste mit Code c DRUECKEN   (z. B. "KD,97" = Taste 'a')
+    "KU,c"  -> Taste mit Code c LOSLASSEN
+    "KX"    -> ALLE Tasten und Maustasten loslassen (Sicherheit)
+
+  Die Zahl c ist entweder ein normales Zeichen (ASCII, z. B. 97 = 'a')
+  oder ein Sondertasten-Code der Keyboard-Bibliothek (z. B. 176 = Enter).
+  Hinweis: Der Arduino nutzt das US-Layout, daher koennen auf einem
+  deutschen Ziel-PC z/y vertauscht und Umlaute falsch sein.
+
   Ziehen (Drag) besteht also aus: PL  ->  mehrere "x,y"  ->  RL
 
   Hochladen:
@@ -38,7 +48,8 @@
   3. Richtigen Port waehlen, dann Hochladen.
 */
 
-#include <Mouse.h>   // Bibliothek, um die Maus zu steuern (ist schon dabei)
+#include <Mouse.h>      // um die Maus zu steuern (ist schon dabei)
+#include <Keyboard.h>   // um die Tastatur zu steuern (ist schon dabei)
 
 String befehl = "";  // hier sammeln wir die empfangene Zeile
 
@@ -47,8 +58,9 @@ void setup() {
   // Am PC muss die gleiche Baudrate (115200) eingestellt sein!
   Serial.begin(115200);
 
-  // Maus-Funktion starten. Ab jetzt ist der Arduino eine USB-Maus.
+  // Maus und Tastatur starten. Ab jetzt ist der Arduino Maus + Tastatur.
   Mouse.begin();
+  Keyboard.begin();
 }
 
 void loop() {
@@ -98,6 +110,23 @@ void befehlAusfuehren(String zeile) {
   if (zeile == "RR") { Mouse.release(MOUSE_RIGHT);  return; }
   if (zeile == "PM") { Mouse.press(MOUSE_MIDDLE);   return; }
   if (zeile == "RM") { Mouse.release(MOUSE_MIDDLE); return; }
+
+  // ----- Tastatur -----
+  if (zeile == "KX") {                 // Sicherheit: alles loslassen
+    Keyboard.releaseAll();
+    Mouse.release(MOUSE_LEFT);
+    Mouse.release(MOUSE_RIGHT);
+    Mouse.release(MOUSE_MIDDLE);
+    return;
+  }
+  if (zeile.startsWith("KD,")) {        // Taste druecken
+    Keyboard.press((uint8_t) zeile.substring(3).toInt());
+    return;
+  }
+  if (zeile.startsWith("KU,")) {        // Taste loslassen
+    Keyboard.release((uint8_t) zeile.substring(3).toInt());
+    return;
+  }
 
   // ----- Scrollen: "S,n" -----
   if (zeile.startsWith("S,")) {
