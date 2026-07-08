@@ -61,7 +61,11 @@ void loop() {
       befehl = "";               // fuer die naechste Zeile leeren
     }
     else if (zeichen != '\r') {
-      befehl += zeichen;         // Zeichen anhaengen
+      // Schutz: bei Stoerungen ohne Zeilenende darf der Text nicht
+      // endlos wachsen. Gueltige Befehle sind kurz (unter 40 Zeichen).
+      if (befehl.length() < 40) {
+        befehl += zeichen;       // Zeichen anhaengen
+      }
     }
   }
 }

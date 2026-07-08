@@ -116,6 +116,11 @@ Sich als USB-Maus auszugeben, geht **nur** mit diesen Boards
 
 Ein **Uno / Nano / Mega** kann das **nicht** ohne Weiteres.
 
+> ⚠️ **Zwei PCs verwenden!** Steckt der Arduino im **selben** PC, auf dem
+> `maus_senden.py` läuft, entsteht eine Endlosschleife: Der Arduino bewegt
+> den Zeiger → das Programm sieht die Bewegung → schickt sie erneut → die
+> Maus „rast" davon. Nutze den Arduino also an einem **zweiten** PC.
+
 ### So funktioniert es
 
 1. Sketch `arduino_maus/arduino_maus.ino` hochladen

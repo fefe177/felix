@@ -10,6 +10,13 @@ Ablauf:
 Damit kannst du z. B. die Mausbewegung von einem PC auf einen zweiten
 PC uebertragen, an dem der Arduino als Maus angesteckt ist.
 
+!!! WICHTIG: ZWEI PCs verwenden !!!
+Wenn der Arduino im SELBEN PC steckt, auf dem dieses Programm laeuft,
+entsteht eine Endlosschleife: Der Arduino bewegt den Zeiger -> das
+Programm sieht die Bewegung -> schickt sie erneut -> usw. Die Maus
+"rast" dann davon. Nutze also einen zweiten PC fuer den Arduino, oder
+teste zuerst mit kleiner EMPFINDLICHKEIT und der Hand am Stecker.
+
 Vorbereitung (einmalig):
     pip install pyserial pynput
 
@@ -22,8 +29,10 @@ Beenden:
     Strg + C
 """
 
-import serial
+import threading
 import time
+
+import serial
 from pynput import mouse   # zum Mitlesen der Mausbewegung
 
 # ----------------------------------------------------------------------
@@ -54,8 +63,28 @@ def main():
     time.sleep(2)
     print("Verbunden. Bewege die Maus. Beenden mit Strg + C.")
 
+    # Die Callbacks laufen in einem eigenen Thread. Damit das Senden dort
+    # sauber und ohne Absturz laeuft, sichern wir es mit einem Schloss ab
+    # und einem "laeuft"-Schalter, der beim Beenden auf False geht.
+    sende_sperre = threading.Lock()
+    laeuft = True
+
+    def sende(daten: bytes):
+        # Nach dem Beenden nichts mehr schreiben (Port kann zu sein).
+        if not laeuft:
+            return
+        try:
+            with sende_sperre:
+                arduino.write(daten)
+        except serial.SerialException:
+            pass  # z. B. wenn der Port gerade geschlossen wird
+
     # Letzte bekannte Mausposition, um die Bewegung (Delta) zu berechnen.
     letzte_position = {"x": None, "y": None}
+
+    # Uebrig gebliebene Nachkommastellen der Empfindlichkeit merken,
+    # damit langsame Bewegungen nicht verloren gehen (kein Drift).
+    rest = {"x": 0.0, "y": 0.0}
 
     def bei_bewegung(x, y):
         # Beim allerersten Aufruf nur Startposition merken.
@@ -70,29 +99,35 @@ def main():
         letzte_position["x"] = x
         letzte_position["y"] = y
 
-        # Bewegung mit der Empfindlichkeit multiplizieren.
-        dx = int(round(dx * EMPFINDLICHKEIT))
-        dy = int(round(dy * EMPFINDLICHKEIT))
+        # Mit der Empfindlichkeit skalieren und den Rest von vorhin dazu.
+        gesamt_x = dx * EMPFINDLICHKEIT + rest["x"]
+        gesamt_y = dy * EMPFINDLICHKEIT + rest["y"]
 
-        # Nur senden, wenn nach dem Runden noch etwas uebrig ist.
-        if dx != 0 or dy != 0:
-            arduino.write(f"{dx},{dy}\n".encode())
+        # Ganzzahligen Anteil senden, Nachkommastellen fuer spaeter merken.
+        schritt_x = int(gesamt_x)   # schneidet Richtung Null ab
+        schritt_y = int(gesamt_y)
+        rest["x"] = gesamt_x - schritt_x
+        rest["y"] = gesamt_y - schritt_y
+
+        if schritt_x != 0 or schritt_y != 0:
+            sende(f"{schritt_x},{schritt_y}\n".encode())
 
     def bei_klick(x, y, taste, gedrueckt):
         # Druecken UND Loslassen getrennt senden.
         # Dadurch klappt der normale Klick, der Doppelklick (zwei Klicks
         # hintereinander) UND das Ziehen (Halten + Bewegen + Loslassen).
         if taste == mouse.Button.left:
-            arduino.write(b"PL\n" if gedrueckt else b"RL\n")
+            sende(b"PL\n" if gedrueckt else b"RL\n")
         elif taste == mouse.Button.right:
-            arduino.write(b"PR\n" if gedrueckt else b"RR\n")
+            sende(b"PR\n" if gedrueckt else b"RR\n")
         elif taste == mouse.Button.middle:
-            arduino.write(b"PM\n" if gedrueckt else b"RM\n")
+            sende(b"PM\n" if gedrueckt else b"RM\n")
 
     def bei_scrollen(x, y, dx, dy):
         # dy: positiv = hoch, negativ = runter. An den Arduino als "S,n".
-        if dy != 0:
-            arduino.write(f"S,{int(dy)}\n".encode())
+        n = int(round(dy))
+        if n != 0:
+            sende(f"S,{n}\n".encode())
 
     # Maus-"Lauscher" starten und laufen lassen, bis Strg + C.
     listener = mouse.Listener(
@@ -108,8 +143,10 @@ def main():
     except KeyboardInterrupt:
         print("\nBeendet.")
     finally:
+        laeuft = False        # ab jetzt sendet kein Callback mehr
         listener.stop()
-        arduino.close()
+        with sende_sperre:    # warten, bis ein evtl. laufendes Senden fertig ist
+            arduino.close()
         print("Verbindung geschlossen.")
 
 
