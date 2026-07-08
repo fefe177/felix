@@ -29,13 +29,24 @@ def make_background(w, h):
     return col.resize((w, h))
 
 
-def make_pill(w, h, radius, fill, pad=16, shadow_alpha=38, shadow_blur=9,
-              shadow_dy=4, border=None):
+def _vgradient(w, h, top, bottom):
+    """Vertikaler Farbverlauf als RGBA-Bild."""
+    col = Image.new("RGB", (1, h))
+    pix = col.load()
+    for y in range(h):
+        t = y / max(1, h - 1)
+        pix[0, y] = tuple(int(top[i] + (bottom[i] - top[i]) * t)
+                          for i in range(3))
+    return col.resize((w, h)).convert("RGBA")
+
+
+def make_pill(w, h, radius, fill=None, pad=16, shadow_alpha=38, shadow_blur=9,
+              shadow_dy=4, border=None, gradient=None):
     """Abgerundetes Rechteck mit weichem Schatten (Karte oder Button).
 
-    Rückgabe: (RGBA-Kachel, pad) – die Kachel ist ringsum um ``pad`` größer
-    als der Inhalt (Platz für den Schatten). Über ``pad`` positioniert der
-    Aufrufer die Kachel passend zur Zielbox.
+    ``fill`` ist eine Farbe, alternativ ``gradient=(oben, unten)`` für einen
+    vertikalen Verlauf. Rückgabe: (RGBA-Kachel, pad) – die Kachel ist ringsum
+    um ``pad`` größer (Platz für den Schatten).
     """
     tw, th = w + 2 * pad, h + 2 * pad
     tile = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
@@ -48,11 +59,14 @@ def make_pill(w, h, radius, fill, pad=16, shadow_alpha=38, shadow_blur=9,
         tile = Image.alpha_composite(tile, shadow.filter(
             ImageFilter.GaussianBlur(shadow_blur)))
 
-    if len(fill) == 3:
-        fill = fill + (255,)
+    if gradient is not None:
+        fill_img = _vgradient(w, h, gradient[0], gradient[1])
+    else:
+        if len(fill) == 3:
+            fill = fill + (255,)
+        fill_img = Image.new("RGBA", (w, h), fill)
     card = Image.new("RGBA", (tw, th), (0, 0, 0, 0))
-    card.paste(Image.new("RGBA", (w, h), fill), (pad, pad),
-               rounded_mask(w, h, radius))
+    card.paste(fill_img, (pad, pad), rounded_mask(w, h, radius))
     tile = Image.alpha_composite(tile, card)
 
     if border is not None:
@@ -63,6 +77,27 @@ def make_pill(w, h, radius, fill, pad=16, shadow_alpha=38, shadow_blur=9,
         tile = Image.alpha_composite(tile, layer.resize((tw, th),
                                                         Image.LANCZOS))
     return tile, pad
+
+
+def app_icon(size=52, radius=15):
+    """App-Kachel im Squircle-Stil: blauer Verlauf mit weißem Aufnahme-Symbol."""
+    tile, pad = make_pill(size, size, radius, gradient=((92, 152, 255),
+                          (58, 78, 240)), shadow_alpha=55, shadow_blur=11,
+                          shadow_dy=5)
+    ss = _SS
+    glyph = Image.new("RGBA", (tile.width * ss, tile.height * ss),
+                      (0, 0, 0, 0))
+    draw = ImageDraw.Draw(glyph)
+    cx = (pad + size / 2) * ss
+    cy = (pad + size / 2) * ss
+    ring = size * 0.30 * ss
+    draw.ellipse([cx - ring, cy - ring, cx + ring, cy + ring],
+                 outline=(255, 255, 255, 235), width=int(size * 0.085 * ss))
+    dot = size * 0.12 * ss
+    draw.ellipse([cx - dot, cy - dot, cx + dot, cy + dot],
+                 fill=(255, 255, 255, 255))
+    glyph = glyph.resize(tile.size, Image.LANCZOS)
+    return Image.alpha_composite(tile, glyph), pad
 
 
 def stepper_bg(w=94, h=30, radius=8, fill=(233, 233, 236),

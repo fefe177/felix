@@ -165,32 +165,48 @@ class MacroApp:
         self.bg_img = self._tk(bg)
         canvas.create_image(0, 0, image=self.bg_img, anchor="nw")
 
-        # Kopfzeile
-        canvas.create_text(24, 44, text="Makro Recorder", anchor="w",
-                           fill=LABEL, font=self._f(28, "bold"))
-        canvas.create_text(24, 76, text="Maus & Tastatur aufnehmen "
+        # Kopfzeile mit App-Icon
+        icon, _ = render.app_icon(52, 15)
+        self.icon_img = self._tk(icon)
+        canvas.create_image(50, 52, image=self.icon_img)
+        canvas.create_text(92, 42, text="Makro Recorder", anchor="w",
+                           fill=LABEL, font=self._f(26, "bold"))
+        canvas.create_text(92, 68, text="Maus & Tastatur aufnehmen "
                            "und abspielen", anchor="w", fill=SECONDARY,
                            font=self._f(13))
 
-        # Status-Karte
-        self.dot = canvas.create_oval(46, 132, 58, 144, fill=STATUS_IDLE,
-                                      outline="")
+        # Status-Karte mit Badge
+        self.badge = canvas.create_oval(40, 124, 68, 152, fill="#e7f8ee",
+                                        outline="")
+        self.badge_glyph = canvas.create_text(54, 137, text="✓",
+                                              fill=STATUS_IDLE,
+                                              font=self._f(15, "bold"))
         self.status_id = canvas.create_text(
-            72, 130, text="Bereit", anchor="w", fill=LABEL,
+            84, 130, text="Bereit", anchor="w", fill=LABEL,
             font=self._f(15, "bold"))
         self.count_id = canvas.create_text(
-            72, 152, text="0 Ereignisse", anchor="w", fill=SECONDARY,
+            84, 152, text="0 Ereignisse", anchor="w", fill=SECONDARY,
             font=self._f(12))
 
-        # Haupt-Buttons
+        # Haupt-Buttons (mit Verlauf und Symbol)
         self.record_btn = GButton(
-            canvas, REC_BOX, self._btn_imgs(REC_BOX, RED, RED_DARK, 14),
-            "Aufnehmen", self.toggle_record, self._f(15, "bold"),
+            canvas, REC_BOX,
+            self._btn_imgs(REC_BOX, RED, RED_DARK, 14,
+                           grad=((255, 94, 89), (255, 49, 45)),
+                           grad_hover=((235, 74, 69), (223, 39, 35))),
+            "●  Aufnehmen", self.toggle_record, self._f(15, "bold"),
             text_color="#ffffff", disabled_color="#f3f3f3")
         self.play_btn = GButton(
-            canvas, PLAY_BOX, self._btn_imgs(PLAY_BOX, BLUE, BLUE_DARK, 14),
-            "Abspielen", self.toggle_play, self._f(15, "bold"),
+            canvas, PLAY_BOX,
+            self._btn_imgs(PLAY_BOX, BLUE, BLUE_DARK, 14,
+                           grad=((40, 142, 255), (0, 110, 255)),
+                           grad_hover=((24, 122, 235), (0, 95, 216))),
+            "▶  Abspielen", self.toggle_play, self._f(15, "bold"),
             text_color="#ffffff", disabled_color="#f3f3f3")
+
+        # Sektions-Header
+        canvas.create_text(40, 262, text="EINSTELLUNGEN", anchor="w",
+                           fill=SECONDARY, font=self._f(11, "bold"))
 
         # Einstellungen – Beschriftungen
         canvas.create_text(48, 304, text="Wiederholungen", anchor="w",
@@ -253,10 +269,13 @@ class MacroApp:
         tile, pad = render.make_pill(w, h, radius, WHITE, border=CARD_BORDER)
         bg.paste(tile, (box[0] - pad, box[1] - pad), tile)
 
-    def _btn_imgs(self, box, fill, fill_hover, radius, border=None):
+    def _btn_imgs(self, box, fill, fill_hover, radius, border=None,
+                  grad=None, grad_hover=None):
         w, h = box[2] - box[0], box[3] - box[1]
-        normal, _ = render.make_pill(w, h, radius, fill, border=border)
-        hover, _ = render.make_pill(w, h, radius, fill_hover, border=border)
+        normal, _ = render.make_pill(w, h, radius, fill, border=border,
+                                     gradient=grad)
+        hover, _ = render.make_pill(w, h, radius, fill_hover, border=border,
+                                    gradient=grad_hover)
         dim, _ = render.make_pill(w, h, radius, GRAY_FILL, border=border)
         return {"normal": self._tk(normal), "hover": self._tk(hover),
                 "dim": self._tk(dim)}
@@ -362,7 +381,7 @@ class MacroApp:
         self.recorder.record_moves = self.record_moves
         self.events = []
         self.recorder.start(on_stop=self._on_record_stop)
-        self._set_status("Aufnahme läuft …  (F9 / ESC beendet)", STATUS_BUSY)
+        self._set_status("Aufnahme läuft …  (F9 / ESC beendet)", busy=True)
         self._update_state()
 
     def _on_record_stop(self):
@@ -370,7 +389,7 @@ class MacroApp:
 
     def _after_record_stop(self):
         self.events = list(self.recorder.events)
-        self._set_status("Aufnahme beendet", STATUS_IDLE)
+        self._set_status("Aufnahme beendet")
         self._update_state()
 
     # ------------------------------------------------------------ Wiedergabe
@@ -395,7 +414,7 @@ class MacroApp:
 
     def _begin_countdown(self, seconds):
         self._counting = True
-        self._set_status(f"Wiedergabe startet in {seconds} …", STATUS_BUSY)
+        self._set_status(f"Wiedergabe startet in {seconds} …", busy=True)
         self._update_state()
         self._count_after = self.root.after(
             1000, lambda: self._tick(seconds - 1))
@@ -407,7 +426,7 @@ class MacroApp:
             self._counting = False
             self._start_playback()
             return
-        self._set_status(f"Wiedergabe startet in {seconds} …", STATUS_BUSY)
+        self._set_status(f"Wiedergabe startet in {seconds} …", busy=True)
         self._count_after = self.root.after(
             1000, lambda: self._tick(seconds - 1))
 
@@ -416,7 +435,7 @@ class MacroApp:
         if self._count_after is not None:
             self.root.after_cancel(self._count_after)
             self._count_after = None
-        self._set_status("Bereit", STATUS_IDLE)
+        self._set_status("Bereit")
         self._update_state()
 
     def _start_playback(self):
@@ -425,7 +444,7 @@ class MacroApp:
             self.events, speed=self.speed, repeat=self.repeat,
             repeat_delay=self.pause_seconds, on_progress=self._on_progress,
             on_finish=self._on_play_finish)
-        self._set_status("Wiedergabe läuft …  (ESC stoppt)", STATUS_BUSY)
+        self._set_status("Wiedergabe läuft …  (ESC stoppt)", busy=True)
         self._update_state()
 
     def _on_progress(self, loop, index, total):
@@ -437,7 +456,7 @@ class MacroApp:
     def _after_play_finish(self):
         self._stop_abort_listener()
         self._progress = None
-        self._set_status("Wiedergabe beendet", STATUS_IDLE)
+        self._set_status("Wiedergabe beendet")
         self._update_state()
 
     def _start_abort_listener(self):
@@ -469,7 +488,7 @@ class MacroApp:
         name = os.path.splitext(os.path.basename(path))[0]
         save_macro(path, self.events, name=name)
         self.current_name = name
-        self._set_status(f"Gespeichert: {name}", STATUS_IDLE)
+        self._set_status(f"Gespeichert: {name}")
 
     def load(self):
         path = filedialog.askopenfilename(
@@ -485,7 +504,7 @@ class MacroApp:
         self.events = data.get("events", [])
         self.current_name = data.get("name", os.path.basename(path))
         self._update_state()
-        self._set_status(f"Geladen: {self.current_name}", STATUS_IDLE)
+        self._set_status(f"Geladen: {self.current_name}")
 
     # -------------------------------------------------------------- Zustand
     def _events_summary(self):
@@ -513,20 +532,20 @@ class MacroApp:
         playing = self.player.playing
         counting = self._counting
         if recording:
-            self.record_btn.set_label("Stopp")
+            self.record_btn.set_label("■  Stopp")
             self.record_btn.set_enabled(True)
             self.play_btn.set_enabled(False)
         elif playing:
-            self.play_btn.set_label("Stopp")
+            self.play_btn.set_label("■  Stopp")
             self.play_btn.set_enabled(True)
             self.record_btn.set_enabled(False)
         elif counting:
-            self.play_btn.set_label("Abbrechen")
+            self.play_btn.set_label("■  Abbrechen")
             self.play_btn.set_enabled(True)
             self.record_btn.set_enabled(False)
         else:
-            self.record_btn.set_label("Aufnehmen")
-            self.play_btn.set_label("Abspielen")
+            self.record_btn.set_label("●  Aufnehmen")
+            self.play_btn.set_label("▶  Abspielen")
             self.record_btn.set_enabled(True)
             self.play_btn.set_enabled(bool(self.events))
         busy = recording or playing or counting
@@ -535,9 +554,16 @@ class MacroApp:
         if not playing:
             self.canvas.itemconfig(self.count_id, text=self._events_summary())
 
-    def _set_status(self, text, color=STATUS_IDLE):
+    def _set_status(self, text, busy=False):
         self.canvas.itemconfig(self.status_id, text=text)
-        self.canvas.itemconfig(self.dot, fill=color)
+        if busy:
+            self.canvas.itemconfig(self.badge, fill="#fff2e0")
+            self.canvas.itemconfig(self.badge_glyph, text="●",
+                                   fill=STATUS_BUSY)
+        else:
+            self.canvas.itemconfig(self.badge, fill="#e7f8ee")
+            self.canvas.itemconfig(self.badge_glyph, text="✓",
+                                   fill=STATUS_IDLE)
 
     def _poll_queue(self):
         try:
