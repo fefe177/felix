@@ -1,8 +1,8 @@
 /*
   Arduino als USB-Maus: Mausbewegungen vom PC empfangen und ausfuehren
 
-  Der PC schickt ueber die serielle Schnittstelle Bewegungsbefehle,
-  und der Arduino bewegt damit den echten Mauszeiger.
+  Der PC schickt ueber die serielle Schnittstelle Befehle,
+  und der Arduino steuert damit den echten Mauszeiger.
 
   ================== WICHTIG: PASSENDES BOARD ==================
   Das funktioniert NUR mit Boards, die sich als USB-Maus ausgeben koennen:
@@ -15,19 +15,23 @@
   =============================================================
 
   Befehls-Format (jede Zeile ein Befehl, mit Enter '\n' abgeschlossen):
-    "x,y"   -> Maus um x nach rechts und y nach unten bewegen
+    "x,y"   -> Maus bewegen (x nach rechts, y nach unten)
                Beispiel:  "10,-5"  = 10 nach rechts, 5 nach oben
-    "L"     -> Linksklick
-    "R"     -> Rechtsklick
+    "S,n"   -> Scrollen um n (positiv = hoch, negativ = runter)
+               Beispiel:  "S,-3"   = 3 nach unten scrollen
+    "L"     -> kurzer Linksklick
+    "R"     -> kurzer Rechtsklick
+    "PL"    -> linke Taste GEDRUECKT halten (Start vom Ziehen/Drag)
+    "RL"    -> linke Taste LOSLASSEN        (Ende vom Ziehen/Drag)
+    "PR"    -> rechte Taste gedrueckt halten
+    "RR"    -> rechte Taste loslassen
+
+  Ziehen (Drag) besteht also aus: PL  ->  mehrere "x,y"  ->  RL
 
   Hochladen:
   1. Arduino IDE oeffnen.
   2. Unter "Werkzeuge -> Board" z. B. "Arduino Leonardo" waehlen.
   3. Richtigen Port waehlen, dann Hochladen.
-
-  Achtung: Sobald der Sketch laeuft, kann der Arduino deinen Mauszeiger
-  steuern. Zum Neu-Hochladen ggf. den Reset-Knopf druecken, falls die
-  Maus "verrueckt" spielt.
 */
 
 #include <Mouse.h>   // Bibliothek, um die Maus zu steuern (ist schon dabei)
@@ -66,24 +70,28 @@ void befehlAusfuehren(String zeile) {
     return;  // leere Zeile ignorieren
   }
 
-  // Klick-Befehle
-  if (zeile == "L") {
-    Mouse.click(MOUSE_LEFT);
-    return;
-  }
-  if (zeile == "R") {
-    Mouse.click(MOUSE_RIGHT);
+  // ----- Klicks (kurz) -----
+  if (zeile == "L") { Mouse.click(MOUSE_LEFT);  return; }
+  if (zeile == "R") { Mouse.click(MOUSE_RIGHT); return; }
+
+  // ----- Taste halten / loslassen (fuers Ziehen) -----
+  if (zeile == "PL") { Mouse.press(MOUSE_LEFT);    return; }
+  if (zeile == "RL") { Mouse.release(MOUSE_LEFT);  return; }
+  if (zeile == "PR") { Mouse.press(MOUSE_RIGHT);   return; }
+  if (zeile == "RR") { Mouse.release(MOUSE_RIGHT); return; }
+
+  // ----- Scrollen: "S,n" -----
+  if (zeile.startsWith("S,")) {
+    int n = zeile.substring(2).toInt();
+    scrollen(n);
     return;
   }
 
-  // Bewegungs-Befehl im Format "x,y"
+  // ----- Bewegung: "x,y" -----
   int komma = zeile.indexOf(',');
   if (komma > 0) {
     int x = zeile.substring(0, komma).toInt();
     int y = zeile.substring(komma + 1).toInt();
-
-    // Mouse.move nimmt nur Werte von -127 bis 127 pro Schritt.
-    // Groessere Bewegungen teilen wir in kleine Schritte auf.
     mausBewegen(x, y);
   }
 }
@@ -93,8 +101,17 @@ void mausBewegen(int x, int y) {
   while (x != 0 || y != 0) {
     int schrittX = constrain(x, -127, 127);
     int schrittY = constrain(y, -127, 127);
-    Mouse.move(schrittX, schrittY);
+    Mouse.move(schrittX, schrittY, 0);
     x -= schrittX;
     y -= schrittY;
+  }
+}
+
+// Scrollt um n (auch grosse Werte werden in Schritten <= 127 gemacht).
+void scrollen(int n) {
+  while (n != 0) {
+    int schritt = constrain(n, -127, 127);
+    Mouse.move(0, 0, schritt);   // dritter Wert = Mausrad
+    n -= schritt;
   }
 }

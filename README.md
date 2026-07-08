@@ -140,8 +140,15 @@ Ein **Uno / Nano / Mega** kann das **nicht** ohne Weiteres.
 ### Befehls-Format (was der Arduino versteht)
 
 - `x,y`  → Bewegung (z. B. `10,-5` = 10 nach rechts, 5 nach oben)
-- `L`    → Linksklick
-- `R`    → Rechtsklick
+- `S,n`  → Scrollen (z. B. `S,-3` = 3 nach unten scrollen)
+- `L`    → kurzer Linksklick
+- `R`    → kurzer Rechtsklick
+- `PL` / `RL` → linke Taste **halten** / **loslassen** (fürs Ziehen)
+- `PR` / `RR` → rechte Taste halten / loslassen
+
+**Ziehen (Drag)** = `PL` → mehrere `x,y` → `RL`. Das PC-Programm macht das
+automatisch, wenn du mit gedrückter Maustaste ziehst. **Scrollen** wird
+ebenfalls automatisch mit übertragen.
 
 ### Verzögerung
 

@@ -69,15 +69,25 @@ def main():
             arduino.write(f"{dx},{dy}\n".encode())
 
     def bei_klick(x, y, taste, gedrueckt):
-        # Nur beim Loslassen senden (ein Klick = einmal).
-        if not gedrueckt:
-            if taste == mouse.Button.left:
-                arduino.write(b"L\n")
-            elif taste == mouse.Button.right:
-                arduino.write(b"R\n")
+        # Druecken UND Loslassen getrennt senden.
+        # Dadurch klappt sowohl der normale Klick als auch das
+        # Ziehen (Halten + Bewegen + Loslassen).
+        if taste == mouse.Button.left:
+            arduino.write(b"PL\n" if gedrueckt else b"RL\n")
+        elif taste == mouse.Button.right:
+            arduino.write(b"PR\n" if gedrueckt else b"RR\n")
+
+    def bei_scrollen(x, y, dx, dy):
+        # dy: positiv = hoch, negativ = runter. An den Arduino als "S,n".
+        if dy != 0:
+            arduino.write(f"S,{int(dy)}\n".encode())
 
     # Maus-"Lauscher" starten und laufen lassen, bis Strg + C.
-    listener = mouse.Listener(on_move=bei_bewegung, on_click=bei_klick)
+    listener = mouse.Listener(
+        on_move=bei_bewegung,
+        on_click=bei_klick,
+        on_scroll=bei_scrollen,
+    )
     listener.start()
 
     try:
