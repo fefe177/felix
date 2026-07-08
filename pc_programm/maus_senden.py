@@ -31,6 +31,12 @@ from pynput import mouse   # zum Mitlesen der Mausbewegung
 # ----------------------------------------------------------------------
 PORT = "COM3"        # <-- deinen Port eintragen (Arduino IDE -> Werkzeuge -> Port)
 BAUDRATE = 115200    # muss mit Serial.begin(115200) im Sketch uebereinstimmen
+
+# Empfindlichkeit / Geschwindigkeit der Maus:
+#   1.0 = gleich schnell wie auf dem PC
+#   2.0 = doppelt so schnell (empfindlicher)
+#   0.5 = halb so schnell (praeziser/langsamer)
+EMPFINDLICHKEIT = 1.0
 # ----------------------------------------------------------------------
 
 
@@ -64,18 +70,24 @@ def main():
         letzte_position["x"] = x
         letzte_position["y"] = y
 
-        # Nur senden, wenn sich wirklich etwas bewegt hat.
+        # Bewegung mit der Empfindlichkeit multiplizieren.
+        dx = int(round(dx * EMPFINDLICHKEIT))
+        dy = int(round(dy * EMPFINDLICHKEIT))
+
+        # Nur senden, wenn nach dem Runden noch etwas uebrig ist.
         if dx != 0 or dy != 0:
             arduino.write(f"{dx},{dy}\n".encode())
 
     def bei_klick(x, y, taste, gedrueckt):
         # Druecken UND Loslassen getrennt senden.
-        # Dadurch klappt sowohl der normale Klick als auch das
-        # Ziehen (Halten + Bewegen + Loslassen).
+        # Dadurch klappt der normale Klick, der Doppelklick (zwei Klicks
+        # hintereinander) UND das Ziehen (Halten + Bewegen + Loslassen).
         if taste == mouse.Button.left:
             arduino.write(b"PL\n" if gedrueckt else b"RL\n")
         elif taste == mouse.Button.right:
             arduino.write(b"PR\n" if gedrueckt else b"RR\n")
+        elif taste == mouse.Button.middle:
+            arduino.write(b"PM\n" if gedrueckt else b"RM\n")
 
     def bei_scrollen(x, y, dx, dy):
         # dy: positiv = hoch, negativ = runter. An den Arduino als "S,n".

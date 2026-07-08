@@ -143,12 +143,27 @@ Ein **Uno / Nano / Mega** kann das **nicht** ohne Weiteres.
 - `S,n`  → Scrollen (z. B. `S,-3` = 3 nach unten scrollen)
 - `L`    → kurzer Linksklick
 - `R`    → kurzer Rechtsklick
+- `M`    → kurzer Klick mittlere Taste (Mausrad-Klick)
+- `DL`   → Doppelklick links
 - `PL` / `RL` → linke Taste **halten** / **loslassen** (fürs Ziehen)
 - `PR` / `RR` → rechte Taste halten / loslassen
+- `PM` / `RM` → mittlere Taste halten / loslassen
 
 **Ziehen (Drag)** = `PL` → mehrere `x,y` → `RL`. Das PC-Programm macht das
-automatisch, wenn du mit gedrückter Maustaste ziehst. **Scrollen** wird
-ebenfalls automatisch mit übertragen.
+automatisch, wenn du mit gedrückter Maustaste ziehst. **Scrollen** und
+**Doppelklicks** werden ebenfalls automatisch mit übertragen.
+
+### Empfindlichkeit / Geschwindigkeit einstellen
+
+In `pc_programm/maus_senden.py` oben gibt es die Einstellung:
+
+```python
+EMPFINDLICHKEIT = 1.0
+```
+
+- `1.0` = gleich schnell wie auf deinem PC
+- `2.0` = doppelt so schnell (empfindlicher)
+- `0.5` = halb so schnell (präziser/langsamer)
 
 ### Verzögerung
 

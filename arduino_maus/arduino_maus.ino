@@ -21,10 +21,14 @@
                Beispiel:  "S,-3"   = 3 nach unten scrollen
     "L"     -> kurzer Linksklick
     "R"     -> kurzer Rechtsklick
+    "M"     -> kurzer Klick mittlere Taste (Mausrad-Klick)
+    "DL"    -> Doppelklick links
     "PL"    -> linke Taste GEDRUECKT halten (Start vom Ziehen/Drag)
     "RL"    -> linke Taste LOSLASSEN        (Ende vom Ziehen/Drag)
     "PR"    -> rechte Taste gedrueckt halten
     "RR"    -> rechte Taste loslassen
+    "PM"    -> mittlere Taste gedrueckt halten
+    "RM"    -> mittlere Taste loslassen
 
   Ziehen (Drag) besteht also aus: PL  ->  mehrere "x,y"  ->  RL
 
@@ -71,14 +75,25 @@ void befehlAusfuehren(String zeile) {
   }
 
   // ----- Klicks (kurz) -----
-  if (zeile == "L") { Mouse.click(MOUSE_LEFT);  return; }
-  if (zeile == "R") { Mouse.click(MOUSE_RIGHT); return; }
+  if (zeile == "L") { Mouse.click(MOUSE_LEFT);   return; }
+  if (zeile == "R") { Mouse.click(MOUSE_RIGHT);  return; }
+  if (zeile == "M") { Mouse.click(MOUSE_MIDDLE); return; }
+
+  // ----- Doppelklick links -----
+  if (zeile == "DL") {
+    Mouse.click(MOUSE_LEFT);
+    delay(40);              // kurze Pause, damit es als Doppelklick zaehlt
+    Mouse.click(MOUSE_LEFT);
+    return;
+  }
 
   // ----- Taste halten / loslassen (fuers Ziehen) -----
-  if (zeile == "PL") { Mouse.press(MOUSE_LEFT);    return; }
-  if (zeile == "RL") { Mouse.release(MOUSE_LEFT);  return; }
-  if (zeile == "PR") { Mouse.press(MOUSE_RIGHT);   return; }
-  if (zeile == "RR") { Mouse.release(MOUSE_RIGHT); return; }
+  if (zeile == "PL") { Mouse.press(MOUSE_LEFT);     return; }
+  if (zeile == "RL") { Mouse.release(MOUSE_LEFT);   return; }
+  if (zeile == "PR") { Mouse.press(MOUSE_RIGHT);    return; }
+  if (zeile == "RR") { Mouse.release(MOUSE_RIGHT);  return; }
+  if (zeile == "PM") { Mouse.press(MOUSE_MIDDLE);   return; }
+  if (zeile == "RM") { Mouse.release(MOUSE_MIDDLE); return; }
 
   // ----- Scrollen: "S,n" -----
   if (zeile.startsWith("S,")) {
