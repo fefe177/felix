@@ -16,10 +16,8 @@ def rounded_mask(w, h, radius):
     return mask.resize((w, h), Image.LANCZOS)
 
 
-def make_background(w, h):
-    """Sehr dezenter heller Verlauf (iOS-Systemhintergrund)."""
-    top = (244, 246, 251)
-    bottom = (232, 236, 246)
+def make_background(w, h, top=(244, 246, 251), bottom=(232, 236, 246)):
+    """Sehr dezenter Verlauf als Systemhintergrund (Light oder Dark)."""
     col = Image.new("RGB", (1, h))
     pix = col.load()
     for y in range(h):
@@ -140,12 +138,14 @@ def stepper_bg(w=94, h=30, radius=8, fill=(233, 233, 236),
     return img.resize((w, h), Image.LANCZOS)
 
 
-def apple_switch(on, w=51, h=31):
-    """iOS-Umschalter: grün wenn aktiv, hellgrau wenn aus; weißer Knopf."""
+def apple_switch(on, w=51, h=31, off_color=(229, 229, 234)):
+    """iOS-Umschalter: grün wenn aktiv, sonst ``off_color``; weißer Knopf."""
     img = Image.new("RGBA", (w * _SS, h * _SS), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     r = h * _SS // 2
-    track = (52, 199, 89, 255) if on else (229, 229, 234, 255)
+    if len(off_color) == 3:
+        off_color = off_color + (255,)
+    track = (52, 199, 89, 255) if on else off_color
     draw.rounded_rectangle([0, 0, w * _SS - 1, h * _SS - 1], radius=r,
                            fill=track)
     pad = 2 * _SS

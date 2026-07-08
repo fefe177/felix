@@ -21,7 +21,7 @@ Timing auf, speichert sie als JSON-Datei und spielt sie beliebig oft wieder ab.
   - **F10** – Wiedergabe starten/stoppen
   - **ESC** – alles sofort stoppen
 - 💾 Makros als **JSON speichern und laden**
-- 🍎 Cleanes **Apple-Design** (helle Oberfläche, Systemfarben)
+- 🎨 Modernes **Flux-Design** mit **Light- und Dark-Mode** (Umschalter ☾/☀ oben rechts)
 
 ## Installation
 
