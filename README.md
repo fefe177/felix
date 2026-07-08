@@ -13,9 +13,15 @@ Timing auf, speichert sie als JSON-Datei und spielt sie beliebig oft wieder ab.
 - 🖱️ **Maus** aufnehmen: Klicks, Bewegungen und Scrollen
 - ⏱️ Original-**Timing** wird beibehalten
 - 🔁 **Wiederholungen** einstellbar (auch endlos)
+- ⏸️ **Pause zwischen den Durchläufen** einstellbar
 - ⚡ **Geschwindigkeit** von 0,25× bis 4× regelbar
+- ⏳ **Countdown** vor der Wiedergabe (Zeit zum Fensterwechsel)
+- ⌨️ **Globale Hotkeys** – funktionieren auch in anderen Programmen:
+  - **F9** – Aufnahme starten/stoppen
+  - **F10** – Wiedergabe starten/stoppen
+  - **ESC** – alles sofort stoppen
 - 💾 Makros als **JSON speichern und laden**
-- 🛑 **ESC** als Not-Aus – beendet Aufnahme und Wiedergabe jederzeit
+- 🍎 Cleanes **Apple-Design** (helle Oberfläche, Systemfarben)
 
 ## Installation
 
@@ -43,12 +49,18 @@ python -m macro_app
 
 ## Bedienung
 
-1. **Aufnehmen** klicken → alle Maus-/Tastatureingaben werden mitgeschnitten.
-2. Aufnahme mit der **ESC-Taste** oder erneutem Klick auf **Stopp** beenden.
-3. Ggf. **Wiederholungen** und **Geschwindigkeit** einstellen.
-4. **Abspielen** klicken → das Makro wird ausgeführt.
-5. Wiedergabe jederzeit mit **ESC** abbrechen.
+1. **Aufnehmen** klicken (oder **F9**) → alle Maus-/Tastatureingaben werden
+   mitgeschnitten.
+2. Aufnahme mit **F9**, der **ESC-Taste** oder **Stopp** beenden.
+3. Ggf. **Wiederholungen**, **Pause**, **Geschwindigkeit** und **Countdown**
+   einstellen.
+4. **Abspielen** klicken (oder **F10**) → das Makro wird ausgeführt.
+5. Wiedergabe jederzeit mit **ESC** oder **F10** abbrechen.
 6. Über **Speichern/Laden** Makros als Datei sichern und erneut verwenden.
+
+> Die Hotkeys **F9 / F10 / ESC** wirken systemweit – du kannst also ein
+> anderes Programm im Vordergrund haben und trotzdem Aufnahme/Wiedergabe
+> starten.
 
 ## Wichtige Hinweise zu Berechtigungen
 

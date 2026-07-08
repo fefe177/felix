@@ -22,12 +22,13 @@ class MacroPlayer:
         self._mouse = mouse.Controller()
         self._keyboard = keyboard.Controller()
 
-    def play(self, events, speed=1.0, repeat=1,
+    def play(self, events, speed=1.0, repeat=1, repeat_delay=0.0,
              on_progress=None, on_finish=None):
         """Startet die Wiedergabe.
 
-        :param speed:  Geschwindigkeitsfaktor (>1 schneller, <1 langsamer).
-        :param repeat: Anzahl Durchläufe, 0 bedeutet endlos.
+        :param speed:        Geschwindigkeitsfaktor (>1 schneller).
+        :param repeat:       Anzahl Durchläufe, 0 bedeutet endlos.
+        :param repeat_delay: Pause in Sekunden zwischen den Durchläufen.
         """
         if self.playing:
             return
@@ -35,7 +36,8 @@ class MacroPlayer:
         self.playing = True
         self._thread = threading.Thread(
             target=self._run,
-            args=(list(events), speed, repeat, on_progress, on_finish),
+            args=(list(events), speed, repeat, repeat_delay,
+                  on_progress, on_finish),
             daemon=True,
         )
         self._thread.start()
@@ -53,11 +55,16 @@ class MacroPlayer:
                 return
             time.sleep(min(remaining, 0.02))
 
-    def _run(self, events, speed, repeat, on_progress, on_finish):
+    def _run(self, events, speed, repeat, repeat_delay, on_progress,
+             on_finish):
         try:
             speed = max(float(speed), 0.01)
             loop = 0
             while not self._stop.is_set() and (repeat == 0 or loop < repeat):
+                if loop > 0 and repeat_delay > 0:
+                    self._sleep(repeat_delay)
+                    if self._stop.is_set():
+                        break
                 prev_t = 0.0
                 for index, event in enumerate(events):
                     if self._stop.is_set():

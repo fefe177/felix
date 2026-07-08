@@ -15,12 +15,15 @@ class MacroRecorder:
     """
 
     def __init__(self, record_moves=True, move_interval=0.03,
-                 stop_key=keyboard.Key.esc):
+                 stop_key=keyboard.Key.esc, ignore_keys=None):
         self.record_moves = record_moves
         # Mausbewegungen werden gedrosselt, um nicht Tausende Ereignisse
         # pro Sekunde zu erzeugen.
         self.move_interval = move_interval
         self.stop_key = stop_key
+        # Steuer-Tasten (Hotkeys) werden nicht mitgeschnitten.
+        self.ignore_keys = ignore_keys if ignore_keys is not None else {
+            keyboard.Key.esc, keyboard.Key.f9, keyboard.Key.f10}
 
         self.events = []
         self.recording = False
@@ -112,6 +115,8 @@ class MacroRecorder:
             # Aufnahme beenden – die Stopp-Taste selbst nicht mitschneiden.
             self.stop()
             return False
+        if key in self.ignore_keys:
+            return
         self.events.append({
             "t": self._t(),
             "type": "key_press",
@@ -119,8 +124,8 @@ class MacroRecorder:
         })
 
     def _on_release(self, key):
-        if key == self.stop_key:
-            return False
+        if key == self.stop_key or key in self.ignore_keys:
+            return False if key == self.stop_key else None
         self.events.append({
             "t": self._t(),
             "type": "key_release",
