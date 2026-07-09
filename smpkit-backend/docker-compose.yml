@@ -1,0 +1,18 @@
+services:
+  smpkit-trust:
+    build: .
+    image: smpkit-trust:1.0
+    container_name: smpkit-trust
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - smpkit-data:/data          # SQLite-DB überlebt Neustarts/Updates
+    environment:
+      SMPKIT_PORT: "8080"
+      SMPKIT_DB: "/data/trust.db"
+      # Optionaler gemeinsamer API-Key – dann im Client: /smpkit setkey <key>
+      # SMPKIT_API_KEY: "bitte-aendern"
+
+volumes:
+  smpkit-data:

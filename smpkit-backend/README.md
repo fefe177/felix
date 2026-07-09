@@ -16,7 +16,8 @@ Danach im Spiel: `/smpkit seturl http://DEINE-IP:8080` (und ggf. `/smpkit setkey
 ## Test
 
 ```bash
-./test_api.sh            # startet Server, prüft Reports/Vouches/Blacklist, räumt auf
+./test_api.sh            # HTTP-End-to-End: Reports/Vouches/Blacklist, räumt auf
+python3 test_algorithm.py  # Unit-Tests: Zeitverfall + Melder-Reputation
 ```
 
 ## Endpunkte
@@ -47,6 +48,19 @@ trust% = 100 * (vouches + k) / (vouches + W*reports + 2k)
 - **Blacklist-Flag**, wenn `reports ≥ 5` **und** `trust < 30 %` (beide Schwellen oben im Code
   konfigurierbar: `FLAG_THRESHOLD`, `FLAG_TRUST_BELOW`).
 
+Dabei sind `reports`/`vouches` in der Formel **gewichtete** Summen (`effReports`/`effVouches`
+in der Antwort), nicht bloße Zählungen:
+
+- **Zeitverfall** (`DECAY_ENABLED`, `HALFLIFE_DAYS=45`): Eine Meldung wiegt nach 45 Tagen nur
+  noch halb, nach 90 Tagen ein Viertel. Alte Vorfälle verblassen, verschwinden aber nie ganz.
+- **Melder-Reputation** (`CREDIBILITY_ENABLED`): Die Meldung eines selbst gut bewerteten
+  Spielers zählt mehr (bis ×1.4), die eines schlecht bewerteten weniger (bis ×0.3); unbewertete
+  Melder zählen neutral (×1.0). So bringt es einem Scammer wenig, mit Zweitaccounts massenhaft
+  Unschuldige zu melden – solche Melder haben selbst kaum Gewicht.
+
+Die harte Flag-Schwelle (`reports ≥ 5`) nutzt weiterhin die **rohe** Zahl unterschiedlicher
+Melder, damit Gewichtung ein Flag nie ganz verhindert.
+
 ## Anti-Missbrauch
 
 - Dedup pro (Melder, Ziel) – Massen-Spam durch eine Person bringt nichts.
@@ -59,8 +73,20 @@ gelieferten UUID. Für einen echten öffentlichen Dienst sollte die Identität s
 verifiziert werden (z. B. Mojang-Session-Token oder ein pro-Spieler ausgegebenes Token),
 damit UUIDs nicht gefälscht werden können.
 
-## Deployment-Hinweis
+## Deployment
 
-Für Dauerbetrieb hinter einen Reverse-Proxy (nginx/Caddy) mit HTTPS setzen und als
-systemd-Service oder im Container laufen lassen. SQLite reicht für kleine bis mittlere
-Communities problemlos.
+Für Dauerbetrieb hinter einen Reverse-Proxy (nginx/Caddy) mit HTTPS setzen. SQLite reicht für
+kleine bis mittlere Communities problemlos. Zwei fertige Varianten liegen bei:
+
+**Docker (empfohlen):**
+```bash
+docker compose up -d --build      # lauscht auf :8080, DB im Volume smpkit-data
+```
+Konfiguration über Environment-Variablen (`SMPKIT_PORT`, `SMPKIT_DB`, `SMPKIT_API_KEY`) in
+`docker-compose.yml`. Enthält Healthcheck und läuft als Nicht-Root-User.
+
+**systemd (ohne Docker):** siehe Kopf von `smpkit-trust.service` – kopiert `trust_server.py`
+nach `/opt/smpkit`, legt die DB in `/var/lib/smpkit` und startet als eigener User mit
+Härtungs-Optionen.
+
+Alle drei Startwege lesen dieselben Env-Variablen (CLI-Argument schlägt Env schlägt Standard).

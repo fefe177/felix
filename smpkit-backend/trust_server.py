@@ -49,6 +49,17 @@ REPORT_WEIGHT = 3.0      # wie stark ein Report gegenüber einem Vouch zählt
 SMOOTH_K = 1.0           # Glättung/Prior -> unbekannter Spieler startet neutral bei 50%
 FLAG_THRESHOLD = 5       # ab so vielen unterschiedlichen Meldern kommt Flag in Frage
 FLAG_TRUST_BELOW = 30    # ... UND Trust unter diesem Wert -> Blacklist
+
+# --- Zeitverfall: alte Meldungen wiegen weniger -----------------------------
+DECAY_ENABLED = True
+HALFLIFE_DAYS = 45.0     # nach so vielen Tagen zählt eine Meldung nur noch halb
+
+# --- Gewichtung nach Melder-Reputation --------------------------------------
+# Eine Meldung eines vertrauenswürdigen Spielers zählt mehr, die eines selbst
+# schlecht bewerteten weniger. Multiplikator wird auf [MIN, MAX] begrenzt.
+CREDIBILITY_ENABLED = True
+CRED_MIN = 0.3
+CRED_MAX = 1.4
 VALID_CATEGORIES = {
     "scam_tptrade",      # betrogen beim TP-Trade
     "tp_kill",           # beim Hinteleportieren getötet/gefallen gelassen
@@ -158,6 +169,26 @@ class Store:
             ).fetchone()["n"]
             return r, v
 
+    def report_rows(self, target):
+        """(reporter_uuid, reporter_name, ts) je Report auf das Ziel."""
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT reporter_uuid, reporter_name, ts FROM reports "
+                "WHERE target_name=? COLLATE NOCASE",
+                (target,),
+            ).fetchall()
+            return [(r["reporter_uuid"], r["reporter_name"], r["ts"]) for r in rows]
+
+    def vouch_rows(self, target):
+        """(voucher_uuid, voucher_name, ts) je Vouch auf das Ziel."""
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT voucher_uuid, voucher_name, ts FROM vouches "
+                "WHERE target_name=? COLLATE NOCASE",
+                (target,),
+            ).fetchall()
+            return [(r["voucher_uuid"], r["voucher_name"], r["ts"]) for r in rows]
+
     def category_breakdown(self, target):
         with self.lock:
             rows = self.db.execute(
@@ -183,21 +214,65 @@ class Store:
         return result
 
 
-def compute_trust(store: Store, name: str) -> dict:
+def _score(reports: float, vouches: float) -> int:
+    """Beta-artige Glättung: unbekannt -> 50 %, Reports senken, Vouches heben."""
+    s = (vouches + SMOOTH_K) / (vouches + REPORT_WEIGHT * reports + 2 * SMOOTH_K)
+    return round(100 * s)
+
+
+def _decay(ts: float) -> float:
+    """Gewicht einer Meldung nach Alter (Halbwertszeit HALFLIFE_DAYS)."""
+    if not DECAY_ENABLED:
+        return 1.0
+    age_days = max(0.0, (time.time() - ts) / 86400.0)
+    return 0.5 ** (age_days / HALFLIFE_DAYS)
+
+
+def base_trust_raw(store: Store, name: str) -> dict:
+    """Einfacher, nicht-rekursiver Trust nur aus Roh-Zählungen – Basis für die
+    Melder-Reputation (verhindert unendliche Rekursion)."""
     reports, vouches = store.counts(name)
-    # Beta-artige Glättung: unbekannt -> 50 %, Reports senken stark, Vouches heben.
-    score = (vouches + SMOOTH_K) / (vouches + REPORT_WEIGHT * reports + 2 * SMOOTH_K)
-    trust = round(100 * score)
-    rated = (reports + vouches) > 0
-    flagged = reports >= FLAG_THRESHOLD and trust < FLAG_TRUST_BELOW
+    return {"trust": _score(reports, vouches), "rated": (reports + vouches) > 0}
+
+
+def credibility(store: Store, name: str) -> float:
+    """Multiplikator für die Meldung eines Spielers, abgeleitet aus seiner
+    eigenen Reputation. Unbewertete Melder zählen neutral (1.0)."""
+    if not CREDIBILITY_ENABLED or not name:
+        return 1.0
+    bt = base_trust_raw(store, name)
+    if not bt["rated"]:
+        return 1.0
+    # Trust 50 -> 1.0, Trust 100 -> 2.0 (gekappt), Trust 0 -> 0.0 (gekappt).
+    mult = bt["trust"] / 50.0
+    return max(CRED_MIN, min(CRED_MAX, mult))
+
+
+def compute_trust(store: Store, name: str) -> dict:
+    # Rohzählung unterschiedlicher Melder/Empfehler – dient als harte Flag-Schwelle.
+    raw_reports, raw_vouches = store.counts(name)
+
+    # Effektive, gewichtete Summen (Zeitverfall * Melder-Reputation).
+    eff_reports = 0.0
+    for _uuid, rname, ts in store.report_rows(name):
+        eff_reports += _decay(ts) * credibility(store, rname)
+    eff_vouches = 0.0
+    for _uuid, vname, ts in store.vouch_rows(name):
+        eff_vouches += _decay(ts) * credibility(store, vname)
+
+    trust = _score(eff_reports, eff_vouches)
+    rated = (raw_reports + raw_vouches) > 0
+    flagged = raw_reports >= FLAG_THRESHOLD and trust < FLAG_TRUST_BELOW
     return {
         "name": name,
         "trust": trust,
-        "reports": reports,
-        "vouches": vouches,
+        "reports": raw_reports,
+        "vouches": raw_vouches,
+        "effReports": round(eff_reports, 2),
+        "effVouches": round(eff_vouches, 2),
         "rated": rated,
         "flagged": flagged,
-        "categories": store.category_breakdown(name) if reports else {},
+        "categories": store.category_breakdown(name) if raw_reports else {},
     }
 
 
@@ -321,11 +396,14 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
+    import os
     ap = argparse.ArgumentParser(description="SMP-Kit Trust Backend")
-    ap.add_argument("--port", type=int, default=8080)
-    ap.add_argument("--host", default="0.0.0.0")
-    ap.add_argument("--db", default="trust.db")
-    ap.add_argument("--api-key", default=None, help="optionaler gemeinsamer API-Key (X-Api-Key)")
+    # Reihenfolge: CLI-Argument > Umgebungsvariable > Standard.
+    ap.add_argument("--port", type=int, default=int(os.environ.get("SMPKIT_PORT", "8080")))
+    ap.add_argument("--host", default=os.environ.get("SMPKIT_HOST", "0.0.0.0"))
+    ap.add_argument("--db", default=os.environ.get("SMPKIT_DB", "trust.db"))
+    ap.add_argument("--api-key", default=os.environ.get("SMPKIT_API_KEY") or None,
+                    help="optionaler gemeinsamer API-Key (X-Api-Key)")
     args = ap.parse_args()
 
     Handler.store = Store(args.db)

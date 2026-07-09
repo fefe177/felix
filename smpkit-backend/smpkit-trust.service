@@ -1,0 +1,39 @@
+# systemd-Unit für das SMP-Kit Trust Backend (ohne Docker).
+#
+# Installation:
+#   sudo useradd -r -s /usr/sbin/nologin smpkit
+#   sudo mkdir -p /opt/smpkit /var/lib/smpkit
+#   sudo cp trust_server.py /opt/smpkit/
+#   sudo chown -R smpkit:smpkit /var/lib/smpkit
+#   sudo cp smpkit-trust.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now smpkit-trust
+#
+# Danach hinter nginx/Caddy mit HTTPS betreiben.
+
+[Unit]
+Description=SMP-Kit Trust Backend
+After=network.target
+
+[Service]
+Type=simple
+User=smpkit
+Group=smpkit
+WorkingDirectory=/opt/smpkit
+Environment=SMPKIT_HOST=127.0.0.1
+Environment=SMPKIT_PORT=8080
+Environment=SMPKIT_DB=/var/lib/smpkit/trust.db
+# Optionaler API-Key:
+# Environment=SMPKIT_API_KEY=bitte-aendern
+ExecStart=/usr/bin/python3 /opt/smpkit/trust_server.py
+Restart=on-failure
+RestartSec=3
+
+# Härtung
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/smpkit
+
+[Install]
+WantedBy=multi-user.target
