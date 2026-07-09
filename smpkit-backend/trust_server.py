@@ -408,13 +408,9 @@ class Handler(BaseHTTPRequestHandler):
 
     # -- Website & Bezahlung --
     def _serve_landing(self):
-        dev_banner = ""
-        if not licensing.stripe_enabled():
-            dev_banner = ('<div class="dev">⚙️ Dev-Modus: Stripe ist nicht konfiguriert – '
-                          'der Kauf wird simuliert (keine echte Zahlung).</div>')
         html = self._template("index.html", {
             "PRICE": licensing.price_display(),
-            "DEV_BANNER": dev_banner,
+            "DEV": "1" if not licensing.stripe_enabled() else "0",
         })
         return self._send_html(200, html)
 
