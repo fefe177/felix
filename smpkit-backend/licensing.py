@@ -43,6 +43,13 @@ def price_display() -> str:
 
 # --- Lizenzspeicher ---------------------------------------------------------
 class LicenseStore:
+    """
+    Ein Kauf erzeugt einen **einmaligen Einlöse-Schlüssel** (SMPK-…). Der Spieler
+    löst ihn genau einmal ein (redeem); dabei wird er an dessen UUID gebunden und
+    ist danach dauerhaft verbraucht. Für den laufenden Zugriff bekommt der Spieler
+    ein persönliches **Token**, das die Mod bei jeder Anfrage mitschickt.
+    """
+
     def __init__(self, path: str):
         self.db = sqlite3.connect(path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
@@ -51,24 +58,43 @@ class LicenseStore:
             self.db.execute(
                 """
                 CREATE TABLE IF NOT EXISTS licenses (
-                    license_key TEXT PRIMARY KEY,
-                    email       TEXT,
-                    session_id  TEXT UNIQUE,
-                    created_at  REAL NOT NULL,
-                    active      INTEGER NOT NULL DEFAULT 1
+                    license_key      TEXT PRIMARY KEY,
+                    email            TEXT,
+                    session_id       TEXT UNIQUE,
+                    created_at       REAL NOT NULL,
+                    redeemed         INTEGER NOT NULL DEFAULT 0,
+                    redeemed_by_uuid TEXT,
+                    redeemed_at      REAL,
+                    token            TEXT
                 )
                 """
             )
+            # Migration für ältere DBs: fehlende Spalten ergänzen.
+            existing = {r["name"] for r in self.db.execute("PRAGMA table_info(licenses)")}
+            for col, ddl in (("redeemed", "INTEGER NOT NULL DEFAULT 0"),
+                             ("redeemed_by_uuid", "TEXT"),
+                             ("redeemed_at", "REAL"),
+                             ("token", "TEXT")):
+                if col not in existing:
+                    self.db.execute(f"ALTER TABLE licenses ADD COLUMN {col} {ddl}")
+            self.db.execute("CREATE INDEX IF NOT EXISTS idx_licenses_token ON licenses(token)")
             self.db.commit()
 
     @staticmethod
     def _gen_key() -> str:
+        # Kryptografisch sicher (secrets = CSPRNG). 16 Zeichen aus 31er-Alphabet
+        # ~= 79 Bit Entropie -> praktisch nicht erratbar/vorhersagbar.
         alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # ohne 0/O/1/I
         groups = ["".join(secrets.choice(alphabet) for _ in range(4)) for _ in range(4)]
         return "SMPK-" + "-".join(groups)
 
+    @staticmethod
+    def _gen_token() -> str:
+        # Persönliches Zugriffs-Token, ~256 Bit, URL-sicher.
+        return "smpt_" + secrets.token_urlsafe(32)
+
     def issue_for_session(self, session_id: str, email: str | None) -> str:
-        """Idempotent: dieselbe Session ergibt immer denselben Schlüssel."""
+        """Idempotent: dieselbe Zahlungs-Session ergibt immer denselben Schlüssel."""
         with self.lock:
             row = self.db.execute(
                 "SELECT license_key FROM licenses WHERE session_id=?", (session_id,)
@@ -77,21 +103,45 @@ class LicenseStore:
                 return row["license_key"]
             key = self._gen_key()
             self.db.execute(
-                "INSERT INTO licenses(license_key, email, session_id, created_at, active) "
-                "VALUES(?,?,?,?,1)",
+                "INSERT INTO licenses(license_key, email, session_id, created_at) VALUES(?,?,?,?)",
                 (key, email, session_id, time.time()),
             )
             self.db.commit()
             return key
 
-    def is_valid(self, key: str) -> bool:
+    def redeem(self, key: str, uuid: str) -> tuple[str, str | None]:
+        """Einmalige Einlösung. Rückgabe: (status, token).
+        status ∈ {"ok", "not_found", "already_used"}."""
+        key = (key or "").strip()
         if not key:
+            return ("not_found", None)
+        with self.lock:
+            row = self.db.execute(
+                "SELECT redeemed FROM licenses WHERE license_key=?", (key,)
+            ).fetchone()
+            if row is None:
+                return ("not_found", None)
+            if row["redeemed"] == 1:
+                return ("already_used", None)
+            token = self._gen_token()
+            self.db.execute(
+                "UPDATE licenses SET redeemed=1, redeemed_by_uuid=?, redeemed_at=?, token=? "
+                "WHERE license_key=? AND redeemed=0",
+                (uuid, time.time(), token, key),
+            )
+            self.db.commit()
+            return ("ok", token)
+
+    def token_valid(self, token: str) -> bool:
+        """Prüft ein laufendes Zugriffs-Token (nach erfolgreicher Einlösung)."""
+        token = (token or "").strip()
+        if not token:
             return False
         with self.lock:
             row = self.db.execute(
-                "SELECT active FROM licenses WHERE license_key=?", (key.strip(),)
+                "SELECT 1 FROM licenses WHERE token=? AND redeemed=1", (token,)
             ).fetchone()
-            return bool(row and row["active"] == 1)
+            return row is not None
 
     def count(self) -> int:
         with self.lock:

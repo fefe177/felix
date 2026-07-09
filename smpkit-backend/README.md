@@ -25,10 +25,12 @@ python3 test_licensing.py  # Unit-Tests: Lizenzausstellung + Idempotenz
 
 Der Server bringt einen **eingebauten Shop** mit: unter `/` liegt eine Verkaufsseite, auf der
 Spieler für **4,99 €** einen dauerhaften Lizenzschlüssel kaufen. Ist `SMPKIT_LICENSE_REQUIRED=true`,
-funktioniert die Trust-API nur mit einem gültigen Schlüssel (`X-Api-Key`), den der Spieler im
-Client per `/smpkit setkey <schlüssel>` einträgt.
+funktioniert die Trust-API nur mit einem gültigen **Token**. Der Spieler löst seinen gekauften
+Schlüssel im Client **einmalig** per `/smpkit redeem <schlüssel>` ein; die Mod speichert das
+zurückgegebene Token automatisch und schickt es fortan als `X-Api-Key` mit.
 
-Ablauf: `/` (kaufen) → Stripe-Checkout → `/success` zeigt den Schlüssel `SMPK-XXXX-XXXX-XXXX-XXXX`.
+Ablauf: `/` (kaufen) → Stripe-Checkout → `/success` zeigt den Schlüssel `SMPK-XXXX-XXXX-XXXX-XXXX`
+→ im Spiel `/smpkit redeem SMPK-…` (einmalig) → Zugang aktiv.
 
 **Bezahlung** läuft über **Stripe** (direkt via REST-API, keine Zusatz-Abhängigkeit):
 
@@ -68,6 +70,8 @@ Ablauf: `/` (kaufen) → Stripe-Checkout → `/success` zeigt den Schlüssel `SM
 | POST | `/api/report` | `{reporterUuid, reporter, target, category, note}` |
 | POST | `/api/vouch` | `{voucherUuid, voucher, target}` |
 | POST | `/api/unreport` | `{reporterUuid, target}` |
+| POST | `/api/redeem` | `{key, uuid}` → einmalige Einlösung, liefert `{token}` |
+| GET  | `/api/license/verify?token=…` | prüft ein laufendes Zugriffs-Token |
 
 ## Trust-Berechnung
 
@@ -98,12 +102,21 @@ in der Antwort), nicht bloße Zählungen:
 Die harte Flag-Schwelle (`reports ≥ 5`) nutzt weiterhin die **rohe** Zahl unterschiedlicher
 Melder, damit Gewichtung ein Flag nie ganz verhindert.
 
-## Anti-Missbrauch
+## Anti-Missbrauch & Sicherheit
 
-- Dedup pro (Melder, Ziel) – Massen-Spam durch eine Person bringt nichts.
-- Rate-Limit pro Melder-UUID (20 Schreib-Aktionen/Minute).
-- Selbst-Report/-Vouch wird abgelehnt.
-- Optionaler API-Key.
+- **Kryptografisch sichere Schlüssel:** Einlöse-Schlüssel und Token werden mit `secrets`
+  (CSPRNG) erzeugt – ~79 Bit (Schlüssel) bzw. ~256 Bit (Token), nicht erratbar/vorhersagbar.
+- **Einmal-Einlösung:** Ein gekaufter Schlüssel wird über `/api/redeem` genau **einmal**
+  eingelöst, an die UUID gebunden und ist danach dauerhaft verbraucht (2. Versuch → 409).
+  Für den laufenden Zugriff dient das dabei ausgegebene **Token** – so lässt sich ein Schlüssel
+  nicht weiterverkaufen oder mehrfach nutzen.
+- **Brute-Force-Schutz:** `/api/redeem` und die Token-Prüfung sind pro IP limitiert
+  (max. 10 Versuche / 10 Min → 429).
+- **Bewertungssperre:** Dieselbe Person kann man nur alle **5 Stunden** neu bewerten
+  (pro Melder×Ziel). Bewertungen an *andere* Personen sind nicht betroffen – das verhindert
+  künstliches Hoch-/Runterbewerten einer einzelnen Person.
+- **Dedup** pro (Melder, Ziel) und **Rate-Limit** pro Melder-UUID (20 Schreib-Aktionen/Minute).
+- Selbst-Report/-Vouch wird abgelehnt. Optionaler Admin-Schlüssel.
 
 **Wichtig für den Produktivbetrieb:** Das Backend vertraut aktuell der vom Client
 gelieferten UUID. Für einen echten öffentlichen Dienst sollte die Identität serverseitig

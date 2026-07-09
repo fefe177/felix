@@ -156,16 +156,50 @@ public final class TrustApi {
         return postJson("/api/unreport", b);
     }
 
+    /**
+     * Einmalige Einlösung eines gekauften Schlüssels. Bei Erfolg liefert das
+     * Backend ein persönliches Token, das anschließend als Zugangsschlüssel dient.
+     */
+    public static CompletableFuture<ApiResult> redeem(String key, String uuid, String username) {
+        JsonObject b = new JsonObject();
+        b.addProperty("key", key);
+        b.addProperty("uuid", uuid);
+        b.addProperty("username", username);
+        HttpRequest req = base("/api/redeem")
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(b.toString(), StandardCharsets.UTF_8))
+                .build();
+        return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+                .thenApply(r -> {
+                    if (r.statusCode() == 200) {
+                        try {
+                            JsonObject obj = GSON.fromJson(r.body(), JsonObject.class);
+                            String token = obj.has("token") ? obj.get("token").getAsString() : null;
+                            return ApiResult.token(token);
+                        } catch (RuntimeException e) {
+                            return ApiResult.error("Ungültige Antwort vom Server.");
+                        }
+                    }
+                    if (r.statusCode() == 409) return ApiResult.error("Dieser Schlüssel wurde bereits eingelöst.");
+                    if (r.statusCode() == 404) return ApiResult.error("Ungültiger Schlüssel.");
+                    if (r.statusCode() == 429) return ApiResult.error("Zu viele Versuche – bitte später erneut.");
+                    return ApiResult.error("Einlösung fehlgeschlagen (HTTP " + r.statusCode() + ").");
+                })
+                .exceptionally(e -> ApiResult.error("Backend nicht erreichbar: " + e.getMessage()));
+    }
+
     /** Ergebnis einer Schreib-Aktion. */
     public static final class ApiResult {
         public final boolean success;
         public final String error;
         public final PlayerTrust player;
+        public final String token;
 
-        private ApiResult(boolean s, String e, PlayerTrust p) {
-            this.success = s; this.error = e; this.player = p;
+        private ApiResult(boolean s, String e, PlayerTrust p, String t) {
+            this.success = s; this.error = e; this.player = p; this.token = t;
         }
-        static ApiResult ok(PlayerTrust p) { return new ApiResult(true, null, p); }
-        static ApiResult error(String e) { return new ApiResult(false, e, null); }
+        static ApiResult ok(PlayerTrust p) { return new ApiResult(true, null, p, null); }
+        static ApiResult error(String e) { return new ApiResult(false, e, null, null); }
+        static ApiResult token(String t) { return new ApiResult(true, null, null, t); }
     }
 }

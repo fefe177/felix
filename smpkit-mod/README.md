@@ -43,15 +43,20 @@ Alles rein client-seitig und ohne Kampf-/Radar-Vorteil (siehe „Regelkonformit�
 **Befehle** (`/smpkit …` oder `/smptrust …`):
 | Befehl | Wirkung |
 |---|---|
+| `redeem <schlüssel>` | gekauften Schlüssel **einmalig** einlösen → speichert dein Token automatisch |
 | `check <spieler>` | Trust-Wert abfragen |
 | `report <spieler>` | Report-GUI öffnen |
 | `vouch <spieler>` | Spieler empfehlen |
 | `unreport <spieler>` | eigenen Report zurückziehen |
 | `list` | Blacklist-GUI |
 | `seturl <url>` | Backend-URL setzen |
-| `setkey <key>` | API-Key setzen |
+| `setkey <token>` | Token manuell setzen (normalerweise nicht nötig) |
 | `hud ledger\|grind\|trust` | HUD-Anzeige an/aus |
 | `grindstart <name>` | neue Grind-Messung starten |
+
+> **Lizenz/Zugang:** Auf einem Server mit Lizenzpflicht zuerst `/smpkit redeem <schlüssel>`
+> ausführen. Der Schlüssel lässt sich nur **einmal** einlösen; dabei bekommst du ein
+> persönliches Token, das die Mod automatisch speichert und fortan mitschickt.
 
 **Konfiguration:** `config/smpkit.json` (Schwellen, Toggles, Backend-URL).
 

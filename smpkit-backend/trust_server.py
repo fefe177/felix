@@ -78,6 +78,15 @@ RATE_MAX = 20            # max. Schreib-Aktionen pro UUID pro Fenster
 _rate_lock = threading.Lock()
 _rate_hits: dict[str, list[float]] = {}
 
+# Brute-Force-Schutz für Schlüssel-Einlösung/-Prüfung: pro IP.
+IP_RATE_WINDOW_S = 600
+IP_RATE_MAX = 10        # max. Einlöse-/Prüf-Versuche pro IP pro 10 Minuten
+_ip_lock = threading.Lock()
+_ip_hits: dict[str, list[float]] = {}
+
+# Bewertungssperre: dieselbe Person kann man nur alle 5 Stunden neu bewerten.
+RATING_COOLDOWN_S = 5 * 3600
+
 NAME_RE = re.compile(r"^[A-Za-z0-9_]{1,16}$")
 
 
@@ -90,6 +99,19 @@ def rate_ok(uuid: str) -> bool:
             return False
         hits.append(now)
         _rate_hits[uuid] = hits
+        return True
+
+
+def ip_rate_ok(ip: str) -> bool:
+    """Zählt Einlöse-/Prüf-Versuche pro IP gegen Brute-Force."""
+    now = time.time()
+    with _ip_lock:
+        hits = [t for t in _ip_hits.get(ip, []) if now - t < IP_RATE_WINDOW_S]
+        if len(hits) >= IP_RATE_MAX:
+            _ip_hits[ip] = hits
+            return False
+        hits.append(now)
+        _ip_hits[ip] = hits
         return True
 
 
@@ -171,6 +193,24 @@ class Store:
                 (target,),
             ).fetchone()["n"]
             return r, v
+
+    def last_report_time(self, reporter_uuid, target):
+        """Zeitpunkt des letzten Reports dieses Melders auf dieses Ziel (oder None)."""
+        with self.lock:
+            row = self.db.execute(
+                "SELECT ts FROM reports WHERE reporter_uuid=? AND target_name=? COLLATE NOCASE",
+                (reporter_uuid, target),
+            ).fetchone()
+            return row["ts"] if row else None
+
+    def last_vouch_time(self, voucher_uuid, target):
+        """Zeitpunkt des letzten Vouches dieses Empfehlers auf dieses Ziel (oder None)."""
+        with self.lock:
+            row = self.db.execute(
+                "SELECT ts FROM vouches WHERE voucher_uuid=? AND target_name=? COLLATE NOCASE",
+                (voucher_uuid, target),
+            ).fetchone()
+            return row["ts"] if row else None
 
     def report_rows(self, target):
         """(reporter_uuid, reporter_name, ts) je Report auf das Ziel."""
@@ -326,7 +366,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.admin_key and key == self.admin_key:
             return True
         if self.license_required:
-            return self.licenses is not None and self.licenses.is_valid(key)
+            return self.licenses is not None and self.licenses.token_valid(key)
         # Ohne Lizenzpflicht: offen (Dev/Test). Admin-Key (falls gesetzt) wird oben geprüft.
         if self.admin_key:
             return key == self.admin_key
@@ -359,8 +399,11 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/success":
             return self._serve_success(q.get("session_id", [""])[0])
         if u.path == "/api/license/verify":
-            key = (q.get("key", [""])[0]).strip()
-            valid = self.licenses is not None and self.licenses.is_valid(key)
+            # Prüft ein laufendes Zugriffs-Token. Mit IP-Rate-Limit gegen Brute-Force.
+            if not ip_rate_ok(self.client_address[0]):
+                return self._send(429, {"error": "zu viele Versuche – bitte später erneut"})
+            token = (q.get("token", [q.get("key", [""])[0]])[0]).strip()
+            valid = self.licenses is not None and self.licenses.token_valid(token)
             return self._send(200, {"valid": valid})
 
         if not self._auth_ok():
@@ -386,11 +429,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         u = urlparse(self.path)
 
-        # --- Bezahl-Routen (offen) ---
+        # --- Bezahl-/Lizenz-Routen (offen) ---
         if u.path == "/api/checkout":
             return self._handle_checkout()
         if u.path == "/api/stripe-webhook":
             return self._handle_webhook()
+        if u.path == "/api/redeem":
+            return self._handle_redeem()
 
         if not self._auth_ok():
             return self._send(401, {"error": "unauthorized", "needLicense": self.license_required})
@@ -453,6 +498,24 @@ class Handler(BaseHTTPRequestHandler):
         })
         return self._send_html(200, html)
 
+    def _handle_redeem(self):
+        # Brute-Force-Schutz: pro IP begrenzt.
+        if not ip_rate_ok(self.client_address[0]):
+            return self._send(429, {"error": "Zu viele Einlöse-Versuche – bitte später erneut."})
+        data = self._read_json()
+        if data is None:
+            return self._send(400, {"error": "invalid json"})
+        key = str(data.get("key", "")).strip()
+        uuid = str(data.get("uuid", "")).strip()
+        if not key or not uuid:
+            return self._send(400, {"error": "key und uuid erforderlich"})
+        status, token = self.licenses.redeem(key, uuid)
+        if status == "ok":
+            return self._send(200, {"ok": True, "token": token})
+        if status == "already_used":
+            return self._send(409, {"error": "Dieser Schlüssel wurde bereits eingelöst."})
+        return self._send(404, {"error": "Ungültiger Schlüssel."})
+
     def _handle_webhook(self):
         length = int(self.headers.get("Content-Length", 0) or 0)
         payload = self.rfile.read(length) if length > 0 else b""
@@ -480,8 +543,22 @@ class Handler(BaseHTTPRequestHandler):
             category = "other"
         if not rate_ok(ru):
             return self._send(429, {"error": "rate limited"})
+        cd = self._cooldown_remaining(self.store.last_report_time(ru, target))
+        if cd is not None:
+            return self._send(429, {"error": f"Du kannst {target} erst in ~{cd} Min erneut "
+                                             f"bewerten.", "cooldown": True})
         self.store.add_report(ru, rn, target, category, note)
         return self._send(200, {"ok": True, "player": compute_trust(self.store, target)})
+
+    @staticmethod
+    def _cooldown_remaining(last_ts):
+        """Restminuten der 5h-Sperre, oder None wenn erlaubt."""
+        if last_ts is None:
+            return None
+        elapsed = time.time() - last_ts
+        if elapsed >= RATING_COOLDOWN_S:
+            return None
+        return max(1, int((RATING_COOLDOWN_S - elapsed) / 60))
 
     def _handle_vouch(self, d):
         vu = str(d.get("voucherUuid", "")).strip()
@@ -493,6 +570,10 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(400, {"error": "cannot vouch yourself"})
         if not rate_ok(vu):
             return self._send(429, {"error": "rate limited"})
+        cd = self._cooldown_remaining(self.store.last_vouch_time(vu, target))
+        if cd is not None:
+            return self._send(429, {"error": f"Du kannst {target} erst in ~{cd} Min erneut "
+                                             f"bewerten.", "cooldown": True})
         self.store.add_vouch(vu, vn, target)
         return self._send(200, {"ok": True, "player": compute_trust(self.store, target)})
 

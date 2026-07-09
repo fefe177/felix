@@ -152,6 +152,22 @@ public class SmpKitClient implements ClientModInitializer {
                                     });
                                     return 1;
                                 })))
+                .then(ClientCommandManager.literal("redeem")
+                        .then(ClientCommandManager.argument("key", StringArgumentType.greedyString())
+                                .executes(ctx -> {
+                                    String key = StringArgumentType.getString(ctx, "key").trim();
+                                    TrustApi.redeem(key, Identity.uuid(), Identity.username()).thenAccept(res -> {
+                                        if (res.success && res.token != null) {
+                                            SmpKitConfig cfg = SmpKitConfig.get();
+                                            cfg.apiKey = res.token;
+                                            cfg.save();
+                                            Msg.success("Lizenz aktiviert! Zugang ist jetzt freigeschaltet.");
+                                        } else {
+                                            Msg.error("Einlösung fehlgeschlagen: " + res.error);
+                                        }
+                                    });
+                                    return 1;
+                                })))
                 .then(ClientCommandManager.literal("unreport")
                         .then(ClientCommandManager.argument("player", StringArgumentType.word())
                                 .executes(ctx -> {
@@ -204,7 +220,8 @@ public class SmpKitClient implements ClientModInitializer {
                                 })))
                 .executes(ctx -> {
                     ctx.getSource().sendFeedback(Text.literal(
-                            "SMP-Kit: /smpkit check|report|vouch|unreport <spieler> · list · seturl <url> · setkey <key> · hud ledger|grind|trust")
+                            "SMP-Kit: /smpkit redeem <schlüssel> · check|report|vouch|unreport <spieler> · "
+                                    + "list · seturl <url> · hud ledger|grind|trust")
                             .formatted(Formatting.AQUA));
                     return 1;
                 });

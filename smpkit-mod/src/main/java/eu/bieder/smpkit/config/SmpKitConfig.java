@@ -21,7 +21,11 @@ public class SmpKitConfig {
     // --- Backend ---
     /** Basis-URL des Trust-Backends, ohne abschließenden Slash. */
     public String backendUrl = "http://localhost:8080";
-    /** Optionaler gemeinsamer API-Key (X-Api-Key). Leer = keiner. */
+    /**
+     * Zugangs-Token bzw. API-Key (X-Api-Key). Wird normalerweise automatisch von
+     * "/smpkit redeem &lt;schlüssel&gt;" gesetzt (persönliches Token nach Einlösung).
+     * Leer = keiner.
+     */
     public String apiKey = "";
 
     // --- Reputation / Trust ---
