@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "smpkit",
+  "version": "${version}",
+  "name": "SMP-Kit",
+  "description": "Community-Trust/Report-System plus Economy- und Grind-HUD für Economy-SMPs (Donut SMP, Hugo SMP). Rein client-seitig, ohne Kampf-/Radar-Vorteil.",
+  "authors": [ "bieder.eu" ],
+  "contact": {
+    "sources": "https://github.com/fefe177/felix"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [ "eu.bieder.smpkit.SmpKitClient" ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
