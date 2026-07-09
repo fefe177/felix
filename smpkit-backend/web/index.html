@@ -6,89 +6,174 @@
 <title>SMP-Kit – Zugang kaufen</title>
 <style>
   :root{
-    --bg:#0d1117; --card:#161b22; --border:#2b333d; --fg:#e6edf3; --muted:#9198a1;
-    --accent:#3fb950; --accent2:#2ea043; --chip:#1f6feb22; --chipfg:#6cb6ff;
+    --bg:#eef2ee; --panel:#ffffff; --panel2:#f5f8f4; --line:#d6ded6;
+    --ink:#131a15; --muted:#5c6b60; --faint:#8a988d;
+    --good:#1f9d57; --good-ink:#0c7a3f; --bad:#d23b3f; --bad-bg:#fdeceb;
+    --shadow:0 1px 2px rgba(20,40,25,.06),0 8px 30px rgba(20,40,25,.07);
   }
-  @media (prefers-color-scheme: light){
-    :root{ --bg:#f6f8fa; --card:#ffffff; --border:#d0d7de; --fg:#1f2328; --muted:#59636e;
-           --accent:#1a7f37; --accent2:#116329; --chip:#0969da14; --chipfg:#0969da; }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d120f; --panel:#151d18; --panel2:#101711; --line:#26302a;
+      --ink:#e9f0ea; --muted:#9fb0a4; --faint:#6f8175;
+      --good:#2fc46e; --good-ink:#57d98c; --bad:#f0575b; --bad-bg:#2a1414;
+      --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px rgba(0,0,0,.35);
+    }
   }
+  :root[data-theme="light"]{
+    --bg:#eef2ee; --panel:#ffffff; --panel2:#f5f8f4; --line:#d6ded6;
+    --ink:#131a15; --muted:#5c6b60; --faint:#8a988d;
+    --good:#1f9d57; --good-ink:#0c7a3f; --bad:#d23b3f; --bad-bg:#fdeceb;
+    --shadow:0 1px 2px rgba(20,40,25,.06),0 8px 30px rgba(20,40,25,.07);
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d120f; --panel:#151d18; --panel2:#101711; --line:#26302a;
+    --ink:#e9f0ea; --muted:#9fb0a4; --faint:#6f8175;
+    --good:#2fc46e; --good-ink:#57d98c; --bad:#f0575b; --bad-bg:#2a1414;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 12px 40px rgba(0,0,0,.35);
+  }
+
   *{box-sizing:border-box}
-  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
-       background:var(--bg);color:var(--fg);line-height:1.55}
-  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 64px}
-  .hero{text-align:center;padding:24px 0 8px}
-  .badge{display:inline-block;background:var(--chip);color:var(--chipfg);
-         font-size:13px;font-weight:600;padding:4px 12px;border-radius:999px;margin-bottom:16px}
-  h1{font-size:34px;margin:8px 0 6px;letter-spacing:-.02em}
-  .sub{color:var(--muted);font-size:17px;margin:0 auto;max-width:52ch}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;
-        padding:28px;margin-top:28px}
-  .price{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:4px 0 2px}
-  .price .amount{font-size:44px;font-weight:800}
-  .price .once{color:var(--muted);font-size:15px}
-  .lifetime{text-align:center;color:var(--muted);font-size:14px;margin-bottom:20px}
-  ul.features{list-style:none;padding:0;margin:20px 0 24px;display:grid;gap:12px}
-  ul.features li{display:flex;gap:12px;align-items:flex-start;font-size:15.5px}
-  ul.features li::before{content:"✓";color:var(--accent);font-weight:800;flex:0 0 auto}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+       line-height:1.6;-webkit-font-smoothing:antialiased}
+  .mono{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace}
+  .wrap{max-width:720px;margin:0 auto;padding:40px 20px 72px}
+  .eyebrow{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;
+           letter-spacing:.14em;text-transform:uppercase;color:var(--good-ink);
+           font-weight:600;margin-bottom:14px}
+  h1{font-size:clamp(30px,6vw,46px);line-height:1.05;letter-spacing:-.025em;
+     margin:0 0 14px;text-wrap:balance;font-weight:800}
+  .lede{font-size:18px;color:var(--muted);margin:0;max-width:56ch}
+
+  /* Hero-Mock: In-Game-Nametags mit Trust-% */
+  .stage{margin:30px 0 8px;background:
+           radial-gradient(120% 120% at 50% 0%, var(--panel2), var(--bg));
+         border:1px solid var(--line);border-radius:18px;padding:26px 20px;
+         display:flex;gap:14px;flex-wrap:wrap;justify-content:center;box-shadow:var(--shadow)}
+  .tag{display:flex;align-items:center;gap:10px;background:var(--panel);
+       border:1px solid var(--line);border-radius:12px;padding:9px 13px 9px 11px;
+       box-shadow:var(--shadow)}
+  .avatar{width:26px;height:26px;border-radius:5px;image-rendering:pixelated;flex:0 0 auto}
+  .who{font-weight:700;font-size:14.5px}
+  .badge{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;font-weight:700;
+         padding:3px 8px;border-radius:999px;white-space:nowrap}
+  .badge.good{color:#fff;background:var(--good)}
+  .badge.bad{color:#fff;background:var(--bad)}
+  .tag.bad{border-color:var(--bad);background:var(--bad-bg)}
+  .warnpulse{animation:pulse 2.4s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+  @media (prefers-reduced-motion: reduce){.warnpulse{animation:none}}
+  .stage-cap{text-align:center;color:var(--faint);font-size:12.5px;margin:14px 0 0}
+
+  /* Preiskarte */
+  .buycard{margin-top:34px;background:var(--panel);border:1px solid var(--line);
+           border-radius:18px;padding:28px;box-shadow:var(--shadow)}
+  .pricerow{display:flex;align-items:baseline;gap:12px}
+  .price{font-size:46px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .per{color:var(--muted);font-size:15px}
+  .tagline{color:var(--muted);font-size:14px;margin:2px 0 20px}
+  .feat{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:13px}
+  .feat li{display:flex;gap:12px;align-items:flex-start;font-size:15.5px}
+  .tick{flex:0 0 auto;width:20px;height:20px;border-radius:50%;background:var(--good);
+        color:#fff;display:grid;place-items:center;font-size:12px;margin-top:1px}
   .buy{display:block;width:100%;border:0;border-radius:12px;cursor:pointer;
-       background:var(--accent);color:#fff;font-size:18px;font-weight:700;padding:15px 20px;
-       transition:background .15s}
-  .buy:hover{background:var(--accent2)}
-  .buy:disabled{opacity:.6;cursor:progress}
-  .fine{color:var(--muted);font-size:13px;text-align:center;margin-top:14px}
-  .dev{background:#bb800922;border:1px solid #bb8009;color:#e3b341;border-radius:10px;
-       padding:10px 14px;font-size:13.5px;text-align:center;margin-top:20px}
-  .how{margin-top:34px}
-  .how h2{font-size:19px;margin-bottom:10px}
-  .how ol{padding-left:20px;color:var(--fg)}
-  .how code{background:var(--chip);color:var(--chipfg);padding:2px 7px;border-radius:6px;
-            font-size:13.5px}
-  a{color:var(--chipfg)}
-  .err{color:#f85149;text-align:center;font-size:14px;margin-top:12px;min-height:18px}
+       background:var(--good);color:#fff;font-size:17px;font-weight:700;padding:15px 20px;
+       transition:transform .06s ease, filter .15s ease;font-family:inherit}
+  .buy:hover{filter:brightness(1.06)}
+  .buy:active{transform:translateY(1px)}
+  .buy:disabled{opacity:.65;cursor:progress}
+  .buy:focus-visible{outline:3px solid var(--good-ink);outline-offset:2px}
+  .fine{color:var(--faint);font-size:12.5px;text-align:center;margin:13px 0 0}
+  .err{color:var(--bad);text-align:center;font-size:14px;margin-top:10px;min-height:18px}
+  .dev{background:var(--bad-bg);border:1px solid var(--bad);color:var(--bad);
+       border-radius:10px;padding:10px 14px;font-size:13px;text-align:center;margin-top:18px}
+
+  .how{margin-top:44px}
+  .how h2{font-size:14px;letter-spacing:.1em;text-transform:uppercase;
+          color:var(--faint);font-weight:700;margin:0 0 18px}
+  .steps{display:grid;gap:14px}
+  .step{display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start;
+        background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .num{font-family:ui-monospace,Menlo,monospace;font-weight:700;color:var(--good-ink);
+       background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+       width:30px;height:30px;display:grid;place-items:center;font-size:14px}
+  .step b{font-size:15px}
+  .step p{margin:3px 0 0;color:var(--muted);font-size:14px}
+  .cmd{font-family:ui-monospace,Menlo,monospace;background:var(--panel2);
+       border:1px solid var(--line);border-radius:6px;padding:1px 6px;font-size:13px;color:var(--ink)}
+  footer{margin-top:40px;text-align:center;color:var(--faint);font-size:12.5px;line-height:1.7}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="hero">
-    <span class="badge">für Donut SMP &amp; Hugo SMP</span>
-    <h1>SMP-Kit Zugang</h1>
-    <p class="sub">Das gemeinsame Trust- &amp; Scammer-Warnsystem. Melde Betrüger,
-      sieh zu jedem Spieler einen Vertrauenswert und werde vor bekannten Scammern gewarnt.</p>
-  </div>
+  <p class="eyebrow">Trust-System · Donut SMP &amp; Hugo SMP</p>
+  <h1>Nie wieder blind traden.</h1>
+  <p class="lede">Beim TP-Trade abgezogen? SMP-Kit zeigt dir zu jedem Spieler einen
+    Vertrauenswert, warnt vor bekannten Scammern und lässt dich Betrüger für alle melden.</p>
 
-  <div class="card">
-    <div class="price"><span class="amount">{{PRICE}}</span><span class="once">einmalig</span></div>
-    <div class="lifetime">Lifetime-Zugang · kein Abo · ein Schlüssel pro Kauf</div>
-    <ul class="features">
-      <li>Zugang zur geteilten Scammer-Blacklist aller Nutzer</li>
-      <li>Vertrauenswert (%) zu jedem Spieler, den du anschaust</li>
-      <li>Melden &amp; Empfehlen per GUI, Warnung bei Scammern in der Nähe</li>
-      <li>Deckt die Serverkosten – damit der Dienst dauerhaft läuft</li>
+  <div class="stage" role="img"
+       aria-label="Beispiel: ein Spieler mit 92 Prozent Vertrauen, ein Scammer mit 4 Prozent">
+    <div class="tag">
+      <svg class="avatar" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="8" height="8" fill="#7c5a3a"/><rect x="1" y="1" width="6" height="4" fill="#e0b088"/>
+        <rect x="2" y="2" width="1" height="1" fill="#26333a"/><rect x="5" y="2" width="1" height="1" fill="#26333a"/>
+        <rect x="1" y="5" width="6" height="3" fill="#3a7d4a"/>
+      </svg>
+      <span class="who">Notch_Trader</span>
+      <span class="badge good">Trust 92%</span>
+    </div>
+    <div class="tag bad">
+      <svg class="avatar" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <rect width="8" height="8" fill="#3a2b45"/><rect x="1" y="1" width="6" height="4" fill="#caa0d8"/>
+        <rect x="2" y="2" width="1" height="1" fill="#26333a"/><rect x="5" y="2" width="1" height="1" fill="#26333a"/>
+        <rect x="1" y="5" width="6" height="3" fill="#7a3b3b"/>
+      </svg>
+      <span class="who">xX_freemoney</span>
+      <span class="badge bad warnpulse">Trust 4% ⚠ SCAMMER</span>
+    </div>
+  </div>
+  <p class="stage-cap">So sieht's im Spiel aus – der Wert erscheint, sobald du jemanden anschaust.</p>
+
+  <div class="buycard">
+    <div class="pricerow"><span class="price">{{PRICE}}</span><span class="per">einmalig · Lifetime</span></div>
+    <p class="tagline">Kein Abo. Ein Schlüssel pro Kauf. Deckt die Serverkosten der Community.</p>
+    <ul class="feat">
+      <li><span class="tick">✓</span> Zugang zur geteilten Scammer-Blacklist aller Nutzer</li>
+      <li><span class="tick">✓</span> Vertrauenswert in % zu jedem Spieler, den du anschaust</li>
+      <li><span class="tick">✓</span> Melden &amp; Empfehlen per GUI, Warnung bei Scammern in der Nähe</li>
+      <li><span class="tick">✓</span> Sofort-Schlüssel nach dem Kauf, dauerhaft gültig</li>
     </ul>
-    <button class="buy" id="buy">Jetzt kaufen – {{PRICE}}</button>
-    <div class="err" id="err"></div>
-    <p class="fine">Sichere Zahlung über Stripe. Nach dem Kauf erhältst du sofort deinen
-      Lizenzschlüssel.</p>
+    <button class="buy" id="buy">Jetzt kaufen&nbsp;–&nbsp;{{PRICE}}</button>
+    <div class="err" id="err" role="alert"></div>
+    <p class="fine">Sichere Zahlung über Stripe · Kartendaten sieht nur Stripe, nie dieser Server.</p>
     {{DEV_BANNER}}
   </div>
 
   <div class="how">
-    <h2>So funktioniert's</h2>
-    <ol>
-      <li>Oben kaufen – du wirst zur sicheren Bezahlseite geleitet.</li>
-      <li>Nach der Zahlung bekommst du deinen Schlüssel <code>SMPK-XXXX-XXXX-XXXX-XXXX</code>.</li>
-      <li>Im Spiel eintragen: <code>/smpkit setkey DEIN-SCHLÜSSEL</code></li>
-      <li>Fertig – Trust-Anzeige, Blacklist und Warnungen sind aktiv.</li>
-    </ol>
-    <p class="fine">SMP-Kit ist ein unabhängiges Community-Tool und steht in keiner Verbindung
-      zu den genannten Servern oder zu Mojang.</p>
+    <h2>In 3 Schritten startklar</h2>
+    <div class="steps">
+      <div class="step"><div class="num">1</div>
+        <div><b>Kaufen</b><p>Oben klicken – du landest auf der sicheren Stripe-Bezahlseite.</p></div></div>
+      <div class="step"><div class="num">2</div>
+        <div><b>Schlüssel erhalten</b><p>Direkt danach bekommst du deinen Lizenzschlüssel
+          <span class="cmd">SMPK-XXXX-XXXX-XXXX-XXXX</span>.</p></div></div>
+      <div class="step"><div class="num">3</div>
+        <div><b>Im Spiel eintragen</b><p><span class="cmd">/smpkit setkey DEIN-SCHLÜSSEL</span>
+          – fertig, Trust-Anzeige und Warnungen sind aktiv.</p></div></div>
+    </div>
   </div>
+
+  <footer>
+    SMP-Kit ist ein unabhängiges Community-Tool und steht in keiner Verbindung zu den genannten
+    Servern oder zu Mojang.<br>Verkauft wird der Zugang zum Trust-Dienst, keine In-Game-Vorteile.
+  </footer>
 </div>
 
 <script>
   const btn = document.getElementById('buy');
   const err = document.getElementById('err');
+  const label = btn.innerHTML;
   btn.addEventListener('click', async () => {
     err.textContent = ''; btn.disabled = true; btn.textContent = 'Weiterleitung …';
     try {
@@ -98,7 +183,7 @@
       else { throw new Error(d.error || 'Unbekannter Fehler'); }
     } catch (e) {
       err.textContent = 'Fehler: ' + e.message;
-      btn.disabled = false; btn.textContent = 'Jetzt kaufen – {{PRICE}}';
+      btn.disabled = false; btn.innerHTML = label;
     }
   });
 </script>
