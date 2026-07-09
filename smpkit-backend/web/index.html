@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMP-Kit – Zugang kaufen</title>
+<style>
+  :root{
+    --bg:#0d1117; --card:#161b22; --border:#2b333d; --fg:#e6edf3; --muted:#9198a1;
+    --accent:#3fb950; --accent2:#2ea043; --chip:#1f6feb22; --chipfg:#6cb6ff;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f8fa; --card:#ffffff; --border:#d0d7de; --fg:#1f2328; --muted:#59636e;
+           --accent:#1a7f37; --accent2:#116329; --chip:#0969da14; --chipfg:#0969da; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+       background:var(--bg);color:var(--fg);line-height:1.55}
+  .wrap{max-width:760px;margin:0 auto;padding:32px 20px 64px}
+  .hero{text-align:center;padding:24px 0 8px}
+  .badge{display:inline-block;background:var(--chip);color:var(--chipfg);
+         font-size:13px;font-weight:600;padding:4px 12px;border-radius:999px;margin-bottom:16px}
+  h1{font-size:34px;margin:8px 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:17px;margin:0 auto;max-width:52ch}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;
+        padding:28px;margin-top:28px}
+  .price{display:flex;align-items:baseline;gap:10px;justify-content:center;margin:4px 0 2px}
+  .price .amount{font-size:44px;font-weight:800}
+  .price .once{color:var(--muted);font-size:15px}
+  .lifetime{text-align:center;color:var(--muted);font-size:14px;margin-bottom:20px}
+  ul.features{list-style:none;padding:0;margin:20px 0 24px;display:grid;gap:12px}
+  ul.features li{display:flex;gap:12px;align-items:flex-start;font-size:15.5px}
+  ul.features li::before{content:"✓";color:var(--accent);font-weight:800;flex:0 0 auto}
+  .buy{display:block;width:100%;border:0;border-radius:12px;cursor:pointer;
+       background:var(--accent);color:#fff;font-size:18px;font-weight:700;padding:15px 20px;
+       transition:background .15s}
+  .buy:hover{background:var(--accent2)}
+  .buy:disabled{opacity:.6;cursor:progress}
+  .fine{color:var(--muted);font-size:13px;text-align:center;margin-top:14px}
+  .dev{background:#bb800922;border:1px solid #bb8009;color:#e3b341;border-radius:10px;
+       padding:10px 14px;font-size:13.5px;text-align:center;margin-top:20px}
+  .how{margin-top:34px}
+  .how h2{font-size:19px;margin-bottom:10px}
+  .how ol{padding-left:20px;color:var(--fg)}
+  .how code{background:var(--chip);color:var(--chipfg);padding:2px 7px;border-radius:6px;
+            font-size:13.5px}
+  a{color:var(--chipfg)}
+  .err{color:#f85149;text-align:center;font-size:14px;margin-top:12px;min-height:18px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <span class="badge">für Donut SMP &amp; Hugo SMP</span>
+    <h1>SMP-Kit Zugang</h1>
+    <p class="sub">Das gemeinsame Trust- &amp; Scammer-Warnsystem. Melde Betrüger,
+      sieh zu jedem Spieler einen Vertrauenswert und werde vor bekannten Scammern gewarnt.</p>
+  </div>
+
+  <div class="card">
+    <div class="price"><span class="amount">{{PRICE}}</span><span class="once">einmalig</span></div>
+    <div class="lifetime">Lifetime-Zugang · kein Abo · ein Schlüssel pro Kauf</div>
+    <ul class="features">
+      <li>Zugang zur geteilten Scammer-Blacklist aller Nutzer</li>
+      <li>Vertrauenswert (%) zu jedem Spieler, den du anschaust</li>
+      <li>Melden &amp; Empfehlen per GUI, Warnung bei Scammern in der Nähe</li>
+      <li>Deckt die Serverkosten – damit der Dienst dauerhaft läuft</li>
+    </ul>
+    <button class="buy" id="buy">Jetzt kaufen – {{PRICE}}</button>
+    <div class="err" id="err"></div>
+    <p class="fine">Sichere Zahlung über Stripe. Nach dem Kauf erhältst du sofort deinen
+      Lizenzschlüssel.</p>
+    {{DEV_BANNER}}
+  </div>
+
+  <div class="how">
+    <h2>So funktioniert's</h2>
+    <ol>
+      <li>Oben kaufen – du wirst zur sicheren Bezahlseite geleitet.</li>
+      <li>Nach der Zahlung bekommst du deinen Schlüssel <code>SMPK-XXXX-XXXX-XXXX-XXXX</code>.</li>
+      <li>Im Spiel eintragen: <code>/smpkit setkey DEIN-SCHLÜSSEL</code></li>
+      <li>Fertig – Trust-Anzeige, Blacklist und Warnungen sind aktiv.</li>
+    </ol>
+    <p class="fine">SMP-Kit ist ein unabhängiges Community-Tool und steht in keiner Verbindung
+      zu den genannten Servern oder zu Mojang.</p>
+  </div>
+</div>
+
+<script>
+  const btn = document.getElementById('buy');
+  const err = document.getElementById('err');
+  btn.addEventListener('click', async () => {
+    err.textContent = ''; btn.disabled = true; btn.textContent = 'Weiterleitung …';
+    try {
+      const r = await fetch('/api/checkout', {method:'POST'});
+      const d = await r.json();
+      if (d.url) { window.location = d.url; }
+      else { throw new Error(d.error || 'Unbekannter Fehler'); }
+    } catch (e) {
+      err.textContent = 'Fehler: ' + e.message;
+      btn.disabled = false; btn.textContent = 'Jetzt kaufen – {{PRICE}}';
+    }
+  });
+</script>
+</body>
+</html>

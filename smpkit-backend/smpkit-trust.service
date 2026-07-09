@@ -3,7 +3,8 @@
 # Installation:
 #   sudo useradd -r -s /usr/sbin/nologin smpkit
 #   sudo mkdir -p /opt/smpkit /var/lib/smpkit
-#   sudo cp trust_server.py /opt/smpkit/
+#   sudo cp trust_server.py licensing.py /opt/smpkit/
+#   sudo cp -r web /opt/smpkit/web
 #   sudo chown -R smpkit:smpkit /var/lib/smpkit
 #   sudo cp smpkit-trust.service /etc/systemd/system/
 #   sudo systemctl daemon-reload && sudo systemctl enable --now smpkit-trust
@@ -22,8 +23,14 @@ WorkingDirectory=/opt/smpkit
 Environment=SMPKIT_HOST=127.0.0.1
 Environment=SMPKIT_PORT=8080
 Environment=SMPKIT_DB=/var/lib/smpkit/trust.db
-# Optionaler API-Key:
-# Environment=SMPKIT_API_KEY=bitte-aendern
+# Verkauf / Lizenz:
+Environment=SMPKIT_PUBLIC_URL=https://trust.deine-domain.de
+Environment=SMPKIT_PRICE_CENTS=499
+Environment=SMPKIT_LICENSE_REQUIRED=true
+# Stripe (ohne diese: Dev-Modus / simulierter Kauf):
+# Environment=STRIPE_SECRET_KEY=sk_live_...
+# Environment=STRIPE_WEBHOOK_SECRET=whsec_...
+# Environment=SMPKIT_ADMIN_KEY=bitte-aendern
 ExecStart=/usr/bin/python3 /opt/smpkit/trust_server.py
 Restart=on-failure
 RestartSec=3

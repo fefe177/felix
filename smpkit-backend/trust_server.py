@@ -37,12 +37,15 @@ python3 trust_server.py --port 8080 --db trust.db [--api-key GEHEIM]
 
 import argparse
 import json
+import os
 import re
 import sqlite3
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
+
+import licensing
 
 # --- Trust-Parameter (server-seitig konfigurierbar) -------------------------
 REPORT_WEIGHT = 3.0      # wie stark ein Report gegenüber einem Vouch zählt
@@ -277,10 +280,15 @@ def compute_trust(store: Store, name: str) -> dict:
 
 
 # --- HTTP -------------------------------------------------------------------
+WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "SMPKitTrust/1.0"
-    store: Store = None          # von main() gesetzt
-    api_key: str = None          # optional
+    store: Store = None                  # von main() gesetzt
+    licenses: "licensing.LicenseStore" = None
+    admin_key: str = None                # optionaler Admin-Schlüssel
+    license_required: bool = False       # Trust-API nur mit gültiger Lizenz?
 
     def log_message(self, fmt, *args):  # ruhigeres Log
         pass
@@ -294,10 +302,35 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_html(self, code, html):
+        body = html.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _template(self, name, replacements):
+        with open(os.path.join(WEB_DIR, name), encoding="utf-8") as fh:
+            html = fh.read()
+        for k, v in replacements.items():
+            html = html.replace("{{" + k + "}}", v)
+        return html
+
+    def _presented_key(self):
+        return (self.headers.get("X-Api-Key") or "").strip()
+
     def _auth_ok(self):
-        if not self.api_key:
+        """Darf dieser Request die Trust-API nutzen?"""
+        key = self._presented_key()
+        if self.admin_key and key == self.admin_key:
             return True
-        return self.headers.get("X-Api-Key") == self.api_key
+        if self.license_required:
+            return self.licenses is not None and self.licenses.is_valid(key)
+        # Ohne Lizenzpflicht: offen (Dev/Test). Admin-Key (falls gesetzt) wird oben geprüft.
+        if self.admin_key:
+            return key == self.admin_key
+        return True
 
     def _read_json(self):
         length = int(self.headers.get("Content-Length", 0) or 0)
@@ -320,8 +353,18 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/health":
             return self._send(200, {"ok": True, "service": "smpkit-trust", "version": "1.0"})
 
+        # --- Website / Shop (offen) ---
+        if u.path in ("/", "/index.html"):
+            return self._serve_landing()
+        if u.path == "/success":
+            return self._serve_success(q.get("session_id", [""])[0])
+        if u.path == "/api/license/verify":
+            key = (q.get("key", [""])[0]).strip()
+            valid = self.licenses is not None and self.licenses.is_valid(key)
+            return self._send(200, {"valid": valid})
+
         if not self._auth_ok():
-            return self._send(401, {"error": "unauthorized"})
+            return self._send(401, {"error": "unauthorized", "needLicense": self.license_required})
 
         if u.path == "/api/player":
             name = (q.get("name", [""])[0]).strip()
@@ -342,8 +385,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         u = urlparse(self.path)
+
+        # --- Bezahl-Routen (offen) ---
+        if u.path == "/api/checkout":
+            return self._handle_checkout()
+        if u.path == "/api/stripe-webhook":
+            return self._handle_webhook()
+
         if not self._auth_ok():
-            return self._send(401, {"error": "unauthorized"})
+            return self._send(401, {"error": "unauthorized", "needLicense": self.license_required})
         data = self._read_json()
         if data is None:
             return self._send(400, {"error": "invalid json"})
@@ -355,6 +405,70 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/api/unreport":
             return self._handle_unreport(data)
         return self._send(404, {"error": "not found"})
+
+    # -- Website & Bezahlung --
+    def _serve_landing(self):
+        dev_banner = ""
+        if not licensing.stripe_enabled():
+            dev_banner = ('<div class="dev">⚙️ Dev-Modus: Stripe ist nicht konfiguriert – '
+                          'der Kauf wird simuliert (keine echte Zahlung).</div>')
+        html = self._template("index.html", {
+            "PRICE": licensing.price_display(),
+            "DEV_BANNER": dev_banner,
+        })
+        return self._send_html(200, html)
+
+    def _handle_checkout(self):
+        try:
+            if licensing.stripe_enabled():
+                session = licensing.create_checkout_session()
+                return self._send(200, {"url": session["url"]})
+            # Dev-Modus: simulierte Sitzung, direkt zur Erfolgsseite.
+            import secrets as _s
+            sid = "dev_" + _s.token_hex(8)
+            return self._send(200, {"url": f"{licensing.PUBLIC_URL}/success?session_id={sid}"})
+        except Exception as e:  # noqa: BLE001 – Fehler an den Client melden
+            return self._send(502, {"error": f"checkout failed: {e}"})
+
+    def _serve_success(self, session_id):
+        session_id = (session_id or "").strip()
+        if not session_id:
+            return self._send_html(400, "<p>Fehlende Session.</p>")
+
+        email = None
+        paid = False
+        if session_id.startswith("dev_") and not licensing.stripe_enabled():
+            paid = True                       # Dev-Modus: als bezahlt behandeln
+        else:
+            try:
+                session = licensing.retrieve_session(session_id)
+                paid = licensing.session_is_paid(session)
+                email = licensing.session_email(session)
+            except Exception:                 # noqa: BLE001
+                paid = False
+
+        if not paid:
+            return self._send_html(402, "<p>Zahlung nicht bestätigt. Bitte erneut versuchen.</p>")
+
+        key = self.licenses.issue_for_session(session_id, email)
+        html = self._template("success.html", {
+            "KEY": key,
+            "PUBLIC_URL": licensing.PUBLIC_URL,
+        })
+        return self._send_html(200, html)
+
+    def _handle_webhook(self):
+        length = int(self.headers.get("Content-Length", 0) or 0)
+        payload = self.rfile.read(length) if length > 0 else b""
+        sig = self.headers.get("Stripe-Signature", "")
+        event = licensing.verify_webhook(payload, sig)
+        if event is None:
+            return self._send(400, {"error": "invalid signature"})
+        if event.get("type") == "checkout.session.completed":
+            session = event["data"]["object"]
+            if licensing.session_is_paid(session):
+                self.licenses.issue_for_session(session["id"], licensing.session_email(session))
+        return self._send(200, {"received": True})
 
     def _handle_report(self, d):
         ru = str(d.get("reporterUuid", "")).strip()
@@ -395,23 +509,34 @@ class Handler(BaseHTTPRequestHandler):
         return self._send(200, {"ok": True, "removed": removed, "player": compute_trust(self.store, target)})
 
 
+def _env_bool(name, default=False):
+    return os.environ.get(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
+
+
 def main():
-    import os
     ap = argparse.ArgumentParser(description="SMP-Kit Trust Backend")
     # Reihenfolge: CLI-Argument > Umgebungsvariable > Standard.
     ap.add_argument("--port", type=int, default=int(os.environ.get("SMPKIT_PORT", "8080")))
     ap.add_argument("--host", default=os.environ.get("SMPKIT_HOST", "0.0.0.0"))
     ap.add_argument("--db", default=os.environ.get("SMPKIT_DB", "trust.db"))
-    ap.add_argument("--api-key", default=os.environ.get("SMPKIT_API_KEY") or None,
-                    help="optionaler gemeinsamer API-Key (X-Api-Key)")
+    ap.add_argument("--admin-key", default=os.environ.get("SMPKIT_ADMIN_KEY") or None,
+                    help="optionaler Admin-Schlüssel (X-Api-Key)")
+    ap.add_argument("--require-license", action="store_true",
+                    default=_env_bool("SMPKIT_LICENSE_REQUIRED"),
+                    help="Trust-API nur mit gültigem Lizenzschlüssel zugänglich")
     args = ap.parse_args()
 
     Handler.store = Store(args.db)
-    Handler.api_key = args.api_key
+    Handler.licenses = licensing.LicenseStore(args.db)
+    Handler.admin_key = args.admin_key
+    Handler.license_required = args.require_license
 
     httpd = ThreadingHTTPServer((args.host, args.port), Handler)
-    print(f"SMP-Kit Trust Backend läuft auf http://{args.host}:{args.port} (db={args.db}, "
-          f"auth={'an' if args.api_key else 'aus'})")
+    mode = "Stripe" if licensing.stripe_enabled() else "DEV (simuliert)"
+    print(f"SMP-Kit Backend auf http://{args.host}:{args.port}  "
+          f"(db={args.db}, Lizenzpflicht={'an' if args.require_license else 'aus'}, "
+          f"Bezahlung={mode}, Preis={licensing.price_display()})")
+    print(f"  Shop:  {licensing.PUBLIC_URL}/")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

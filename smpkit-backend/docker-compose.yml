@@ -11,8 +11,19 @@ services:
     environment:
       SMPKIT_PORT: "8080"
       SMPKIT_DB: "/data/trust.db"
-      # Optionaler gemeinsamer API-Key – dann im Client: /smpkit setkey <key>
-      # SMPKIT_API_KEY: "bitte-aendern"
+
+      # --- Verkauf / Lizenz ---
+      # Öffentliche Basis-URL des Shops (für Stripe-Redirects & Erfolgsseite):
+      SMPKIT_PUBLIC_URL: "https://trust.deine-domain.de"
+      SMPKIT_PRICE_CENTS: "499"          # 4,99 €
+      SMPKIT_CURRENCY: "eur"
+      # Trust-API nur mit gekaufter Lizenz zugänglich:
+      SMPKIT_LICENSE_REQUIRED: "true"
+      # Stripe-Schlüssel (aus dem Stripe-Dashboard). Ohne diese läuft der Dev-Modus:
+      # STRIPE_SECRET_KEY: "sk_live_..."
+      # STRIPE_WEBHOOK_SECRET: "whsec_..."
+      # Optionaler Admin-Schlüssel (voller Zugriff ohne Lizenz):
+      # SMPKIT_ADMIN_KEY: "bitte-aendern"
 
 volumes:
   smpkit-data:

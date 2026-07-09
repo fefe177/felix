@@ -16,9 +16,46 @@ Danach im Spiel: `/smpkit seturl http://DEINE-IP:8080` (und ggf. `/smpkit setkey
 ## Test
 
 ```bash
-./test_api.sh            # HTTP-End-to-End: Reports/Vouches/Blacklist, räumt auf
+./test_api.sh              # HTTP-End-to-End: Reports/Vouches/Blacklist, räumt auf
 python3 test_algorithm.py  # Unit-Tests: Zeitverfall + Melder-Reputation
+python3 test_licensing.py  # Unit-Tests: Lizenzausstellung + Idempotenz
 ```
+
+## Verkauf / Lizenzen (Serverkosten decken)
+
+Der Server bringt einen **eingebauten Shop** mit: unter `/` liegt eine Verkaufsseite, auf der
+Spieler für **4,99 €** einen dauerhaften Lizenzschlüssel kaufen. Ist `SMPKIT_LICENSE_REQUIRED=true`,
+funktioniert die Trust-API nur mit einem gültigen Schlüssel (`X-Api-Key`), den der Spieler im
+Client per `/smpkit setkey <schlüssel>` einträgt.
+
+Ablauf: `/` (kaufen) → Stripe-Checkout → `/success` zeigt den Schlüssel `SMPK-XXXX-XXXX-XXXX-XXXX`.
+
+**Bezahlung** läuft über **Stripe** (direkt via REST-API, keine Zusatz-Abhängigkeit):
+
+| Env-Variable | Zweck |
+|---|---|
+| `STRIPE_SECRET_KEY` | Stripe Secret Key (`sk_live_…`). **Fehlt er → Dev-Modus** (simulierter Kauf). |
+| `STRIPE_WEBHOOK_SECRET` | für die Webhook-Signaturprüfung (`whsec_…`), optional |
+| `SMPKIT_PUBLIC_URL` | öffentliche Basis-URL (für Stripe-Redirects) |
+| `SMPKIT_PRICE_CENTS` | Preis in Cent (Standard `499`) |
+| `SMPKIT_CURRENCY` | Währung (Standard `eur`) |
+| `SMPKIT_LICENSE_REQUIRED` | `true` = Trust-API nur mit Lizenz |
+| `SMPKIT_ADMIN_KEY` | optionaler Voll-Zugriff ohne Lizenz |
+
+**Stripe einrichten (Kurzfassung):**
+1. Kostenloses Stripe-Konto anlegen, im Dashboard den **Secret Key** kopieren.
+2. `STRIPE_SECRET_KEY` setzen und `SMPKIT_PUBLIC_URL` auf deine (HTTPS-)Domain.
+3. Optional Webhook auf `https://deine-domain/api/stripe-webhook` einrichten und
+   `STRIPE_WEBHOOK_SECRET` setzen (die Erfolgsseite stellt den Schlüssel auch ohne Webhook aus).
+4. Stripe zahlt die Einnahmen automatisch auf dein Bankkonto aus.
+
+> **Dev-Modus:** Ohne `STRIPE_SECRET_KEY` wird der Kauf **simuliert** – ideal zum lokalen Testen
+> des kompletten Ablaufs, ohne echtes Geld. Die Verkaufsseite weist darauf hin.
+
+> **Rechtlicher Hinweis:** SMP-Kit ist ein eigenständiges Tool; verkauft wird der Zugang zu
+> **deinem** Dienst, nicht zu Minecraft oder den Servern. Für einen echten Verkauf brauchst du
+> ein Impressum, Widerrufs-/AGB-Hinweise und musst Umsatzsteuer beachten – kläre das je nach
+> Land/Umfang ab.
 
 ## Endpunkte
 

@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMP-Kit – Kauf erfolgreich</title>
+<style>
+  :root{ --bg:#0d1117; --card:#161b22; --border:#2b333d; --fg:#e6edf3; --muted:#9198a1;
+         --accent:#3fb950; --chip:#1f6feb22; --chipfg:#6cb6ff; }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f6f8fa; --card:#fff; --border:#d0d7de; --fg:#1f2328; --muted:#59636e;
+           --accent:#1a7f37; --chip:#0969da14; --chipfg:#0969da; } }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;
+       background:var(--bg);color:var(--fg);line-height:1.55}
+  .wrap{max-width:620px;margin:0 auto;padding:48px 20px}
+  .check{width:64px;height:64px;border-radius:50%;background:var(--accent);color:#fff;
+         display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 18px}
+  h1{text-align:center;font-size:28px;margin:0 0 6px}
+  .sub{text-align:center;color:var(--muted);margin:0 0 26px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px}
+  .label{font-size:13px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .keyrow{display:flex;gap:10px;margin-top:8px}
+  .key{flex:1;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:19px;
+       font-weight:700;background:var(--chip);color:var(--chipfg);border-radius:10px;
+       padding:14px 16px;text-align:center;letter-spacing:.04em;user-select:all}
+  .copy{border:1px solid var(--border);background:transparent;color:var(--fg);border-radius:10px;
+        padding:0 16px;cursor:pointer;font-size:14px}
+  .copy:hover{border-color:var(--accent)}
+  ol{padding-left:20px;margin-top:22px}
+  code{background:var(--chip);color:var(--chipfg);padding:2px 7px;border-radius:6px;font-size:13.5px}
+  .warn{color:var(--muted);font-size:13.5px;margin-top:18px}
+  a.btn{display:inline-block;margin-top:8px;color:var(--chipfg);text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="check">✓</div>
+  <h1>Vielen Dank für deinen Kauf!</h1>
+  <p class="sub">Dein SMP-Kit-Zugang ist aktiv. Hier ist dein Lizenzschlüssel:</p>
+
+  <div class="card">
+    <div class="label">Dein Lizenzschlüssel</div>
+    <div class="keyrow">
+      <div class="key" id="key">{{KEY}}</div>
+      <button class="copy" id="copy">Kopieren</button>
+    </div>
+
+    <ol>
+      <li>Minecraft starten, auf den SMP joinen.</li>
+      <li>Schlüssel eintragen: <code>/smpkit setkey {{KEY}}</code></li>
+      <li>Server-Adresse setzen (falls noch nicht): <code>/smpkit seturl {{PUBLIC_URL}}</code></li>
+      <li>Prüfen mit <code>/smpkit check &lt;spieler&gt;</code> – fertig!</li>
+    </ol>
+    <p class="warn">📩 Bewahre den Schlüssel gut auf. Bei Verlust hilft dir der Support mit
+      deiner Zahlungs-E-Mail weiter.</p>
+  </div>
+</div>
+<script>
+  document.getElementById('copy').addEventListener('click', () => {
+    navigator.clipboard.writeText(document.getElementById('key').textContent.trim());
+    document.getElementById('copy').textContent = 'Kopiert ✓';
+  });
+</script>
+</body>
+</html>
