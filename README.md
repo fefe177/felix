@@ -9,6 +9,13 @@ ausdrücklich erlaubt ist und der Server nicht eingreift.
 | [`smpkit-backend/`](smpkit-backend/) | Trust-Server **inkl. Verkaufs-Website** (Python-Standardbibliothek, kein pip). Speichert Reports/Vouches, berechnet den Vertrauenswert, liefert die geteilte Blacklist – und verkauft Lizenz-Zugänge für **4,99 €** über Stripe. **Getestet & lauffähig.** |
 | [`smpkit-mod/`](smpkit-mod/) | Fabric-Client-Mod (MC 1.21.1). Report-/Vouch-GUI, Trust-Anzeige in %, Blacklist-Fenster, Nähe-Warnung, dazu SafeTrade (`/pay`-Doppelbestätigung) und Economy-/Grind-HUD. |
 
+## 👉 Server auf dem eigenen PC starten
+
+Turnkey-Anleitung (Handy-tauglich, Schritt für Schritt): **[`PC-SETUP.md`](PC-SETUP.md)**.
+Kurz: Python installieren → im Ordner `smpkit-backend` die `start.bat` (Windows) bzw.
+`start.sh` (Mac/Linux) doppelklicken → Shop liegt auf `http://localhost:8080`. Für andere
+erreichbar via Cloudflare-Tunnel (ein Befehl, kein Router-Setup).
+
 ## Serverkosten decken
 
 Der Server bringt einen **eingebauten Shop** mit (`/`): Spieler kaufen für **4,99 €** einen
