@@ -156,15 +156,37 @@ public final class TrustApi {
         return postJson("/api/unreport", b);
     }
 
+    /** Kurzlebige serverId (Nonce) für die Mojang-Verifikation anfordern. */
+    public static CompletableFuture<NonceInfo> getNonce() {
+        HttpRequest req = base("/api/auth/nonce").GET().build();
+        return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+                .thenApply(r -> {
+                    if (r.statusCode() == 200) {
+                        try {
+                            JsonObject o = GSON.fromJson(r.body(), JsonObject.class);
+                            NonceInfo n = new NonceInfo();
+                            n.nonce = o.has("nonce") ? o.get("nonce").getAsString() : null;
+                            n.mojangAuth = o.has("mojangAuth") && o.get("mojangAuth").getAsBoolean();
+                            return n;
+                        } catch (RuntimeException ignored) { }
+                    }
+                    return null;
+                })
+                .exceptionally(e -> null);
+    }
+
     /**
      * Einmalige Einlösung eines gekauften Schlüssels. Bei Erfolg liefert das
      * Backend ein persönliches Token, das anschließend als Zugangsschlüssel dient.
+     * uuid wird bei aktiver Mojang-Verifikation ignoriert (Server nutzt Mojangs UUID).
      */
-    public static CompletableFuture<ApiResult> redeem(String key, String uuid, String username) {
+    public static CompletableFuture<ApiResult> redeem(String key, String username,
+                                                      String uuid, String nonce) {
         JsonObject b = new JsonObject();
         b.addProperty("key", key);
-        b.addProperty("uuid", uuid);
         b.addProperty("username", username);
+        b.addProperty("uuid", uuid);
+        if (nonce != null) b.addProperty("nonce", nonce);
         HttpRequest req = base("/api/redeem")
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(b.toString(), StandardCharsets.UTF_8))
@@ -188,6 +210,12 @@ public final class TrustApi {
                 .exceptionally(e -> ApiResult.error("Backend nicht erreichbar: " + e.getMessage()));
     }
 
+    /** Antwort von /api/auth/nonce. */
+    public static final class NonceInfo {
+        public String nonce;
+        public boolean mojangAuth;
+    }
+
     /** Ergebnis einer Schreib-Aktion. */
     public static final class ApiResult {
         public final boolean success;
@@ -198,8 +226,8 @@ public final class TrustApi {
         private ApiResult(boolean s, String e, PlayerTrust p, String t) {
             this.success = s; this.error = e; this.player = p; this.token = t;
         }
-        static ApiResult ok(PlayerTrust p) { return new ApiResult(true, null, p, null); }
-        static ApiResult error(String e) { return new ApiResult(false, e, null, null); }
-        static ApiResult token(String t) { return new ApiResult(true, null, null, t); }
+        public static ApiResult ok(PlayerTrust p) { return new ApiResult(true, null, p, null); }
+        public static ApiResult error(String e) { return new ApiResult(false, e, null, null); }
+        public static ApiResult token(String t) { return new ApiResult(true, null, null, t); }
     }
 }

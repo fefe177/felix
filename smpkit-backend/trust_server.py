@@ -46,6 +46,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
 import licensing
+import mojang
 
 # --- Trust-Parameter (server-seitig konfigurierbar) -------------------------
 REPORT_WEIGHT = 3.0      # wie stark ein Report gegenüber einem Vouch zählt
@@ -113,6 +114,34 @@ def ip_rate_ok(ip: str) -> bool:
         hits.append(now)
         _ip_hits[ip] = hits
         return True
+
+
+# --- Nonces für die Mojang-Verifikation (serverId beim joinServer) ----------
+NONCE_TTL_S = 120
+_nonce_lock = threading.Lock()
+_nonces: dict[str, float] = {}
+
+
+def new_nonce() -> str:
+    import secrets
+    n = secrets.token_hex(16)
+    now = time.time()
+    with _nonce_lock:
+        # abgelaufene aufräumen
+        for k in [k for k, exp in _nonces.items() if exp < now]:
+            _nonces.pop(k, None)
+        _nonces[n] = now + NONCE_TTL_S
+    return n
+
+
+def consume_nonce(n: str) -> bool:
+    """Einmalig verwendbar: gibt True, wenn die Nonce gültig war (und entfernt sie)."""
+    if not n:
+        return False
+    now = time.time()
+    with _nonce_lock:
+        exp = _nonces.pop(n, None)
+        return exp is not None and exp >= now
 
 
 # --- Datenbank --------------------------------------------------------------
@@ -385,6 +414,13 @@ class Handler(BaseHTTPRequestHandler):
     def _valid_name(name):
         return isinstance(name, str) and bool(NAME_RE.match(name))
 
+    def _verified_uuid(self):
+        """Bei Lizenzpflicht: die an das Token gebundene (Mojang-verifizierte) UUID,
+        damit niemand unter fremder UUID bewertet. Sonst None (Client-UUID gilt)."""
+        if not self.license_required or self.licenses is None:
+            return None
+        return self.licenses.uuid_for_token(self._presented_key())
+
     # -- Routen --
     def do_GET(self):
         u = urlparse(self.path)
@@ -405,6 +441,10 @@ class Handler(BaseHTTPRequestHandler):
             token = (q.get("token", [q.get("key", [""])[0]])[0]).strip()
             valid = self.licenses is not None and self.licenses.token_valid(token)
             return self._send(200, {"valid": valid})
+
+        if u.path == "/api/auth/nonce":
+            # serverId für die Mojang-Verifikation (kurzlebig, einmalig).
+            return self._send(200, {"nonce": new_nonce(), "mojangAuth": mojang.MOJANG_AUTH})
 
         if not self._auth_ok():
             return self._send(401, {"error": "unauthorized", "needLicense": self.license_required})
@@ -506,9 +546,26 @@ class Handler(BaseHTTPRequestHandler):
         if data is None:
             return self._send(400, {"error": "invalid json"})
         key = str(data.get("key", "")).strip()
-        uuid = str(data.get("uuid", "")).strip()
-        if not key or not uuid:
-            return self._send(400, {"error": "key und uuid erforderlich"})
+        if not key:
+            return self._send(400, {"error": "key erforderlich"})
+
+        if mojang.MOJANG_AUTH:
+            # Identität über Mojang beweisen – UUID kommt aus Mojangs Antwort.
+            username = str(data.get("username", "")).strip()
+            nonce = str(data.get("nonce", "")).strip()
+            if not username or not nonce:
+                return self._send(400, {"error": "username und nonce erforderlich"})
+            if not consume_nonce(nonce):
+                return self._send(400, {"error": "Nonce ungültig oder abgelaufen – bitte erneut."})
+            profile = mojang.verify_join(username, nonce)
+            if not profile:
+                return self._send(401, {"error": "Mojang-Verifizierung fehlgeschlagen."})
+            uuid = profile["uuid"]
+        else:
+            uuid = str(data.get("uuid", "")).strip()
+            if not uuid:
+                return self._send(400, {"error": "uuid erforderlich"})
+
         status, token = self.licenses.redeem(key, uuid)
         if status == "ok":
             return self._send(200, {"ok": True, "token": token})
@@ -531,6 +588,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _handle_report(self, d):
         ru = str(d.get("reporterUuid", "")).strip()
+        verified = self._verified_uuid()
+        if verified is not None:
+            ru = verified                     # verifizierte Identität hat Vorrang
         rn = str(d.get("reporter", "")).strip()
         target = str(d.get("target", "")).strip()
         category = str(d.get("category", "other")).strip()
@@ -562,6 +622,9 @@ class Handler(BaseHTTPRequestHandler):
 
     def _handle_vouch(self, d):
         vu = str(d.get("voucherUuid", "")).strip()
+        verified = self._verified_uuid()
+        if verified is not None:
+            vu = verified                     # verifizierte Identität hat Vorrang
         vn = str(d.get("voucher", "")).strip()
         target = str(d.get("target", "")).strip()
         if not vu or not self._valid_name(vn) or not self._valid_name(target):
@@ -612,7 +675,8 @@ def main():
     mode = "Stripe" if licensing.stripe_enabled() else "DEV (simuliert)"
     print(f"SMP-Kit Backend auf http://{args.host}:{args.port}  "
           f"(db={args.db}, Lizenzpflicht={'an' if args.require_license else 'aus'}, "
-          f"Bezahlung={mode}, Preis={licensing.price_display()})")
+          f"Bezahlung={mode}, Mojang-Auth={'an' if mojang.MOJANG_AUTH else 'aus'}, "
+          f"Preis={licensing.price_display()})")
     print(f"  Shop:  {licensing.PUBLIC_URL}/")
     try:
         httpd.serve_forever()

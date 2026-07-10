@@ -19,6 +19,8 @@ services:
       SMPKIT_CURRENCY: "eur"
       # Trust-API nur mit gekaufter Lizenz zugänglich:
       SMPKIT_LICENSE_REQUIRED: "true"
+      # Mojang-Verifikation beim Einlösen (keine fremde UUID möglich):
+      SMPKIT_MOJANG_AUTH: "true"
       # Stripe-Schlüssel (aus dem Stripe-Dashboard). Ohne diese läuft der Dev-Modus:
       # STRIPE_SECRET_KEY: "sk_live_..."
       # STRIPE_WEBHOOK_SECRET: "whsec_..."

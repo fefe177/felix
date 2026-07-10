@@ -70,7 +70,8 @@ Ablauf: `/` (kaufen) → Stripe-Checkout → `/success` zeigt den Schlüssel `SM
 | POST | `/api/report` | `{reporterUuid, reporter, target, category, note}` |
 | POST | `/api/vouch` | `{voucherUuid, voucher, target}` |
 | POST | `/api/unreport` | `{reporterUuid, target}` |
-| POST | `/api/redeem` | `{key, uuid}` → einmalige Einlösung, liefert `{token}` |
+| POST | `/api/redeem` | einmalige Einlösung, liefert `{token}` (Felder je nach Mojang-Modus) |
+| GET  | `/api/auth/nonce` | serverId (Nonce) + `mojangAuth`-Flag für die Verifikation |
 | GET  | `/api/license/verify?token=…` | prüft ein laufendes Zugriffs-Token |
 
 ## Trust-Berechnung
@@ -112,6 +113,11 @@ Melder, damit Gewichtung ein Flag nie ganz verhindert.
   nicht weiterverkaufen oder mehrfach nutzen.
 - **Brute-Force-Schutz:** `/api/redeem` und die Token-Prüfung sind pro IP limitiert
   (max. 10 Versuche / 10 Min → 429).
+- **Mojang-Verifikation** (`SMPKIT_MOJANG_AUTH=true`): Beim Einlösen beweist die Mod ihre
+  Identität über Mojang (joinServer/hasJoined, wie beim Server-Beitritt). Die UUID kommt dann
+  aus **Mojangs Antwort**, nicht vom Client – niemand kann unter fremder UUID einlösen. Das
+  ausgegebene Token ist an diese verifizierte UUID gebunden; Reports/Vouches werden serverseitig
+  dieser UUID zugeordnet (die im Request mitgeschickte `reporterUuid` wird ignoriert).
 - **Bewertungssperre:** Dieselbe Person kann man nur alle **5 Stunden** neu bewerten
   (pro Melder×Ziel). Bewertungen an *andere* Personen sind nicht betroffen – das verhindert
   künstliches Hoch-/Runterbewerten einer einzelnen Person.

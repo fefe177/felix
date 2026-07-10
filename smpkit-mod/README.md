@@ -57,6 +57,12 @@ Alles rein client-seitig und ohne Kampf-/Radar-Vorteil (siehe „Regelkonformit�
 > **Lizenz/Zugang:** Auf einem Server mit Lizenzpflicht zuerst `/smpkit redeem <schlüssel>`
 > ausführen. Der Schlüssel lässt sich nur **einmal** einlösen; dabei bekommst du ein
 > persönliches Token, das die Mod automatisch speichert und fortan mitschickt.
+>
+> Hat das Backend die **Mojang-Verifikation** aktiv, meldet die Mod beim Einlösen einen
+> Mojang-„Join" an (wie beim Serverbeitritt), damit der Server deine echte UUID prüfen kann –
+> dafür ist ein **Online-Account** nötig (kein Offline/Cracked). Der eine Aufruf dazu steckt in
+> `util/MojangAuth.java`; sollte der Build dort über die `joinServer`-Signatur meckern, liegt
+> das an der authlib-Version deiner Ziel-MC-Version – dann nur diese eine Zeile anpassen.
 
 **Konfiguration:** `config/smpkit.json` (Schwellen, Toggles, Backend-URL).
 

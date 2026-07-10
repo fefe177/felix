@@ -134,14 +134,18 @@ class LicenseStore:
 
     def token_valid(self, token: str) -> bool:
         """Prüft ein laufendes Zugriffs-Token (nach erfolgreicher Einlösung)."""
+        return self.uuid_for_token(token) is not None
+
+    def uuid_for_token(self, token: str) -> str | None:
+        """Liefert die (verifizierte) UUID, an die ein Token gebunden ist – oder None."""
         token = (token or "").strip()
         if not token:
-            return False
+            return None
         with self.lock:
             row = self.db.execute(
-                "SELECT 1 FROM licenses WHERE token=? AND redeemed=1", (token,)
+                "SELECT redeemed_by_uuid FROM licenses WHERE token=? AND redeemed=1", (token,)
             ).fetchone()
-            return row is not None
+            return row["redeemed_by_uuid"] if row else None
 
     def count(self) -> int:
         with self.lock:

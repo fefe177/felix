@@ -14,6 +14,7 @@ import eu.bieder.smpkit.reputation.TrustFormat;
 import eu.bieder.smpkit.reputation.TrustHud;
 import eu.bieder.smpkit.util.Identity;
 import eu.bieder.smpkit.util.LookHelper;
+import eu.bieder.smpkit.util.MojangAuth;
 import eu.bieder.smpkit.util.Msg;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -33,6 +34,7 @@ import org.lwjgl.glfw.GLFW;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 public class SmpKitClient implements ClientModInitializer {
 
@@ -155,17 +157,7 @@ public class SmpKitClient implements ClientModInitializer {
                 .then(ClientCommandManager.literal("redeem")
                         .then(ClientCommandManager.argument("key", StringArgumentType.greedyString())
                                 .executes(ctx -> {
-                                    String key = StringArgumentType.getString(ctx, "key").trim();
-                                    TrustApi.redeem(key, Identity.uuid(), Identity.username()).thenAccept(res -> {
-                                        if (res.success && res.token != null) {
-                                            SmpKitConfig cfg = SmpKitConfig.get();
-                                            cfg.apiKey = res.token;
-                                            cfg.save();
-                                            Msg.success("Lizenz aktiviert! Zugang ist jetzt freigeschaltet.");
-                                        } else {
-                                            Msg.error("Einlösung fehlgeschlagen: " + res.error);
-                                        }
-                                    });
+                                    redeemKey(StringArgumentType.getString(ctx, "key").trim());
                                     return 1;
                                 })))
                 .then(ClientCommandManager.literal("unreport")
@@ -225,6 +217,36 @@ public class SmpKitClient implements ClientModInitializer {
                             .formatted(Formatting.AQUA));
                     return 1;
                 });
+    }
+
+    private void redeemKey(String key) {
+        Msg.info("Löse Schlüssel ein …");
+        TrustApi.getNonce().thenCompose(info -> {
+            String nonce = info != null ? info.nonce : null;
+            if (info != null && info.mojangAuth) {
+                if (nonce == null) {
+                    return CompletableFuture.completedFuture(
+                            TrustApi.ApiResult.error("Keine Nonce vom Server erhalten."));
+                }
+                try {
+                    // Bei Mojang "beitreten" (serverId = Nonce) -> Server verifiziert die Identität.
+                    MojangAuth.joinServer(nonce);
+                } catch (Exception e) {
+                    return CompletableFuture.completedFuture(TrustApi.ApiResult.error(
+                            "Mojang-Login fehlgeschlagen (Online-Account nötig): " + e.getMessage()));
+                }
+            }
+            return TrustApi.redeem(key, Identity.username(), Identity.uuid(), nonce);
+        }).thenAccept(res -> {
+            if (res != null && res.success && res.token != null) {
+                SmpKitConfig cfg = SmpKitConfig.get();
+                cfg.apiKey = res.token;
+                cfg.save();
+                Msg.success("Lizenz aktiviert! Zugang ist jetzt freigeschaltet.");
+            } else {
+                Msg.error("Einlösung fehlgeschlagen: " + (res != null ? res.error : "keine Antwort"));
+            }
+        });
     }
 
     private void checkPlayer(FabricClientCommandSource source, String player) {

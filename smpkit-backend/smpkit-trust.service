@@ -27,6 +27,7 @@ Environment=SMPKIT_DB=/var/lib/smpkit/trust.db
 Environment=SMPKIT_PUBLIC_URL=https://trust.deine-domain.de
 Environment=SMPKIT_PRICE_CENTS=499
 Environment=SMPKIT_LICENSE_REQUIRED=true
+Environment=SMPKIT_MOJANG_AUTH=true
 # Stripe (ohne diese: Dev-Modus / simulierter Kauf):
 # Environment=STRIPE_SECRET_KEY=sk_live_...
 # Environment=STRIPE_WEBHOOK_SECRET=whsec_...
