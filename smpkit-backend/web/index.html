@@ -4,227 +4,307 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SMP-Kit — Trust-Score für Minecraft-SMPs</title>
-<meta name="description" content="SMP-Kit zeigt zu jedem Spieler einen Trust-Score, warnt vor Scammern und hilft der Community, Betrüger gemeinsam zu erkennen.">
+<meta name="description" content="SMP-Kit zeigt zu jedem Spieler einen Trust-Score, warnt vor Scammern und schützt dich bei TP- und Spawner-Trades.">
 <style>
   :root{
-    --bg:#f6f9f6; --surface:#ffffff; --surface-2:#f1f5f1; --border:#e5ebe6;
-    --text:#0f1a12; --muted:#59685e; --faint:#8a988d;
-    --accent:#4FA463; --accent-strong:#3f8c53; --accent-soft:#eaf4ec;
-    --bad:#e0533c; --bad-soft:#fdece9;
+    --bg:#f7faf7; --surface:#ffffff; --surface-2:#eff4ef; --border:#e3eae4;
+    --ink:#0e1710; --muted:#57675c; --faint:#8b998e;
+    --accent:#4FA463; --accent-deep:#35784a; --accent-soft:#e8f3ea;
+    --bad:#d9503d; --bad-soft:#fdecea;
     --glass:rgba(255,255,255,.72);
-    --sh-sm:0 1px 2px rgba(16,40,24,.05);
-    --sh:0 12px 34px -14px rgba(16,40,24,.16);
-    --sh-lg:0 30px 70px -24px rgba(16,40,24,.26);
-    --r:22px; --r-sm:14px;
+    --sh-xs:0 1px 2px rgba(14,30,18,.05);
+    --sh-sm:0 4px 14px -6px rgba(14,30,18,.10);
+    --sh:0 16px 40px -18px rgba(14,30,18,.20);
+    --sh-lg:0 36px 90px -30px rgba(14,30,18,.30);
+    --glowc:rgba(79,164,99,.22);
   }
-  @media (prefers-color-scheme:dark){
-    :root{
-      --bg:#0b0f0c; --surface:#121814; --surface-2:#0f1511; --border:#232c26;
-      --text:#e9f0ea; --muted:#9caaa0; --faint:#6f8175;
-      --accent:#5cb873; --accent-strong:#4FA463; --accent-soft:#15231a;
-      --bad:#f0715c; --bad-soft:#2a1512; --glass:rgba(18,24,20,.6);
-      --sh-sm:0 1px 2px rgba(0,0,0,.4);
-      --sh:0 16px 40px -16px rgba(0,0,0,.55);
-      --sh-lg:0 40px 80px -28px rgba(0,0,0,.65);
-    }
-  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#0a0e0b; --surface:#111812; --surface-2:#0d130e; --border:#212b23;
+    --ink:#eaf2ec; --muted:#9daba1; --faint:#6e7d72;
+    --accent:#5db974; --accent-deep:#4FA463; --accent-soft:#142418;
+    --bad:#ef6f57; --bad-soft:#2a1310; --glass:rgba(15,21,16,.66);
+    --sh-xs:0 1px 2px rgba(0,0,0,.5); --sh-sm:0 4px 14px -6px rgba(0,0,0,.5);
+    --sh:0 18px 44px -18px rgba(0,0,0,.6); --sh-lg:0 40px 100px -32px rgba(0,0,0,.7);
+    --glowc:rgba(93,185,116,.14);
+  }}
   :root[data-theme="light"]{
-    --bg:#f6f9f6; --surface:#fff; --surface-2:#f1f5f1; --border:#e5ebe6;
-    --text:#0f1a12; --muted:#59685e; --faint:#8a988d; --accent:#4FA463;
-    --accent-strong:#3f8c53; --accent-soft:#eaf4ec; --bad:#e0533c; --bad-soft:#fdece9;
-    --glass:rgba(255,255,255,.72);
-    --sh:0 12px 34px -14px rgba(16,40,24,.16); --sh-lg:0 30px 70px -24px rgba(16,40,24,.26);
+    --bg:#f7faf7; --surface:#fff; --surface-2:#eff4ef; --border:#e3eae4;
+    --ink:#0e1710; --muted:#57675c; --faint:#8b998e; --accent:#4FA463;
+    --accent-deep:#35784a; --accent-soft:#e8f3ea; --bad:#d9503d; --bad-soft:#fdecea;
+    --glass:rgba(255,255,255,.72); --glowc:rgba(79,164,99,.22);
+    --sh:0 16px 40px -18px rgba(14,30,18,.20); --sh-lg:0 36px 90px -30px rgba(14,30,18,.30);
   }
   :root[data-theme="dark"]{
-    --bg:#0b0f0c; --surface:#121814; --surface-2:#0f1511; --border:#232c26;
-    --text:#e9f0ea; --muted:#9caaa0; --faint:#6f8175; --accent:#5cb873;
-    --accent-strong:#4FA463; --accent-soft:#15231a; --bad:#f0715c; --bad-soft:#2a1512;
-    --glass:rgba(18,24,20,.6);
-    --sh:0 16px 40px -16px rgba(0,0,0,.55); --sh-lg:0 40px 80px -28px rgba(0,0,0,.65);
+    --bg:#0a0e0b; --surface:#111812; --surface-2:#0d130e; --border:#212b23;
+    --ink:#eaf2ec; --muted:#9daba1; --faint:#6e7d72; --accent:#5db974;
+    --accent-deep:#4FA463; --accent-soft:#142418; --bad:#ef6f57; --bad-soft:#2a1310;
+    --glass:rgba(15,21,16,.66); --glowc:rgba(93,185,116,.14);
+    --sh:0 18px 44px -18px rgba(0,0,0,.6); --sh-lg:0 40px 100px -32px rgba(0,0,0,.7);
   }
 
   *{box-sizing:border-box}
   html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
-  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-  body{margin:0;background:var(--bg);color:var(--text);line-height:1.6;
-       font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-       -webkit-font-smoothing:antialiased;letter-spacing:-.011em}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.6;
+    font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;letter-spacing:-.011em;overflow-x:hidden}
   .mono{font-family:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:0}
   a{color:inherit;text-decoration:none}
-  .wrap{width:100%;max-width:1120px;margin:0 auto;padding:0 22px}
-  section{position:relative}
+  .wrap{width:100%;max-width:1140px;margin:0 auto;padding:0 22px}
 
-  /* ambient glow */
-  .glow{position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0}
-  .glow::before{content:"";position:absolute;top:-160px;left:50%;transform:translateX(-50%);
-    width:760px;height:520px;border-radius:50%;
-    background:radial-gradient(circle, color-mix(in srgb,var(--accent) 26%, transparent), transparent 70%);
-    filter:blur(30px);opacity:.5}
-
-  /* nav */
-  nav{position:sticky;top:0;z-index:50;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
-      background:var(--glass);border-bottom:1px solid var(--border)}
+  /* ===== nav ===== */
+  nav{position:sticky;top:0;z-index:60;background:var(--glass);
+    backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);
+    border-bottom:1px solid var(--border)}
   .nav{display:flex;align-items:center;justify-content:space-between;height:64px}
-  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:16px}
-  .logo{width:26px;height:26px;border-radius:8px;background:linear-gradient(140deg,var(--accent),var(--accent-strong));
-    display:grid;place-items:center;color:#fff;font-size:15px;box-shadow:var(--sh-sm)}
-  .nav-links{display:flex;align-items:center;gap:26px}
-  .nav-links a.link{color:var(--muted);font-size:14.5px;font-weight:500;transition:color .15s}
-  .nav-links a.link:hover{color:var(--text)}
-  select#lang{font:inherit;font-size:13.5px;color:var(--text);background:var(--surface);
-    border:1px solid var(--border);border-radius:10px;padding:7px 28px 7px 10px;cursor:pointer;
+  .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16.5px;letter-spacing:-.02em}
+  .logo{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;color:#fff;font-size:15px;
+    background:linear-gradient(140deg,var(--accent),var(--accent-deep));
+    box-shadow:0 4px 12px -3px var(--glowc)}
+  .nav-links{display:flex;align-items:center;gap:24px}
+  .nav-links a.link{color:var(--muted);font-size:14.5px;font-weight:520;transition:color .15s}
+  .nav-links a.link:hover{color:var(--ink)}
+  select#lang{font:inherit;font-size:13px;font-weight:600;color:var(--muted);background:transparent;
+    border:1px solid var(--border);border-radius:9px;padding:6px 26px 6px 10px;cursor:pointer;
     -webkit-appearance:none;appearance:none;
     background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
-    background-position:calc(100% - 14px) 53%,calc(100% - 9px) 53%;background-size:5px 5px;background-repeat:no-repeat}
-  @media (max-width:640px){.nav-links .link{display:none}}
+    background-position:calc(100% - 13px) 53%,calc(100% - 8px) 53%;background-size:5px 5px;background-repeat:no-repeat}
+  @media (max-width:680px){.nav-links .link{display:none}}
 
-  /* buttons */
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font:inherit;
-    font-weight:650;font-size:15px;border:0;border-radius:12px;padding:12px 20px;cursor:pointer;
-    transition:transform .12s ease, box-shadow .2s ease, background .2s ease, border-color .2s;
-    white-space:nowrap}
-  .btn-primary{background:var(--accent);color:#fff;box-shadow:0 8px 22px -8px color-mix(in srgb,var(--accent) 75%,transparent)}
-  .btn-primary:hover{background:var(--accent-strong);transform:translateY(-2px);
-    box-shadow:0 14px 30px -10px color-mix(in srgb,var(--accent) 80%,transparent)}
-  .btn-primary:active{transform:translateY(0)}
-  .btn-ghost{background:var(--surface);color:var(--text);border:1px solid var(--border);box-shadow:var(--sh-sm)}
-  .btn-ghost:hover{transform:translateY(-2px);box-shadow:var(--sh);border-color:color-mix(in srgb,var(--accent) 40%,var(--border))}
-  .btn-sm{padding:9px 16px;font-size:14px;border-radius:10px}
+  /* ===== buttons ===== */
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font:inherit;font-weight:650;
+    font-size:15.5px;border:0;border-radius:13px;padding:13px 24px;cursor:pointer;white-space:nowrap;
+    transition:transform .14s cubic-bezier(.2,.7,.3,1.4), box-shadow .22s ease, background .2s, border-color .2s}
+  .btn-primary{background:linear-gradient(180deg,var(--accent),var(--accent-deep));color:#fff;
+    box-shadow:0 10px 26px -8px var(--glowc), inset 0 1px 0 rgba(255,255,255,.25)}
+  .btn-primary:hover{transform:translateY(-2px) scale(1.015);box-shadow:0 18px 36px -10px var(--glowc), inset 0 1px 0 rgba(255,255,255,.25)}
+  .btn-primary:active{transform:translateY(0) scale(.99)}
+  .btn-ghost{background:var(--surface);color:var(--ink);border:1px solid var(--border);box-shadow:var(--sh-xs)}
+  .btn-ghost:hover{transform:translateY(-2px);box-shadow:var(--sh-sm);border-color:color-mix(in srgb,var(--accent) 45%,var(--border))}
+  .btn-sm{padding:9px 16px;font-size:14px;border-radius:11px}
   .btn:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 55%,transparent);outline-offset:2px}
+  .arrow{transition:transform .18s}
+  .btn:hover .arrow{transform:translateX(3px)}
 
-  /* hero */
-  .hero{padding:72px 0 40px}
-  .hero-grid{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center}
-  .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:600;
-    color:var(--accent-strong);background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 25%,transparent);
-    padding:6px 12px;border-radius:999px;margin-bottom:20px}
-  .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}
-  h1{font-size:clamp(38px,6.2vw,60px);line-height:1.03;letter-spacing:-.03em;font-weight:820;
-     margin:0 0 18px;text-wrap:balance}
-  .lede{font-size:clamp(16px,2.4vw,19px);color:var(--muted);margin:0 0 30px;max-width:34ch}
-  .hero-cta{display:flex;gap:12px;flex-wrap:wrap}
-  .trustline{display:flex;align-items:center;gap:14px;margin-top:26px;color:var(--faint);font-size:13px}
+  /* ===== hero ===== */
+  .hero{position:relative;padding:84px 0 30px}
+  .hero::before{content:"";position:absolute;top:-220px;left:50%;transform:translateX(-50%);
+    width:900px;height:600px;border-radius:50%;pointer-events:none;
+    background:radial-gradient(closest-side,var(--glowc),transparent 72%);filter:blur(18px)}
+  .hero::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);
+    background-size:56px 56px;
+    -webkit-mask-image:radial-gradient(ellipse 70% 60% at 50% 0%,#000 30%,transparent 75%);
+    mask-image:radial-gradient(ellipse 70% 60% at 50% 0%,#000 30%,transparent 75%)}
+  .hero-grid{position:relative;z-index:1;display:grid;grid-template-columns:1.04fr .96fr;gap:56px;align-items:center}
+  .pill{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:600;color:var(--accent-deep);
+    background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 28%,transparent);
+    padding:7px 14px;border-radius:999px;margin-bottom:22px}
+  .pill .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);animation:blink 2.2s ease-in-out infinite}
+  @keyframes blink{0%,100%{box-shadow:0 0 0 0 var(--glowc)}50%{box-shadow:0 0 0 6px transparent}}
+  h1{font-size:clamp(40px,6.6vw,66px);line-height:1.02;letter-spacing:-.035em;font-weight:830;margin:0 0 20px;text-wrap:balance}
+  h1 .hl{background:linear-gradient(120deg,var(--accent) 20%,var(--accent-deep));-webkit-background-clip:text;
+    background-clip:text;color:transparent}
+  .lede{font-size:clamp(16.5px,2.4vw,19.5px);color:var(--muted);margin:0 0 32px;max-width:36ch}
+  .hero-cta{display:flex;gap:13px;flex-wrap:wrap}
+  .trustline{display:flex;align-items:center;gap:13px;margin-top:30px;color:var(--faint);font-size:13.5px}
   .avatars{display:flex}
-  .avatars span{width:26px;height:26px;border-radius:50%;border:2px solid var(--bg);margin-left:-8px;
-    background:linear-gradient(140deg,var(--accent),var(--accent-strong))}
-  .avatars span:first-child{margin-left:0}
+  .avatars i{width:28px;height:28px;border-radius:50%;border:2.5px solid var(--bg);margin-left:-9px}
+  .avatars i:nth-child(1){margin-left:0;background:linear-gradient(140deg,#7cc98f,#4FA463)}
+  .avatars i:nth-child(2){background:linear-gradient(140deg,#e6c07a,#c98a3f)}
+  .avatars i:nth-child(3){background:linear-gradient(140deg,#8fb7e6,#4f7ba4)}
+  .avatars i:nth-child(4){background:linear-gradient(140deg,#caa0d8,#8a5aa4)}
 
-  /* minecraft preview */
-  .preview{position:relative;border-radius:26px;padding:22px;
-    background:linear-gradient(180deg, color-mix(in srgb,var(--accent) 10%,var(--surface)), var(--surface));
+  /* hero scene */
+  .scene-frame{position:relative;border-radius:28px;padding:14px;
+    background:linear-gradient(170deg,color-mix(in srgb,var(--accent) 14%,var(--surface)),var(--surface) 60%);
     border:1px solid var(--border);box-shadow:var(--sh-lg)}
-  .preview::before{content:"";position:absolute;inset:0;border-radius:26px;pointer-events:none;
-    background:linear-gradient(120deg,rgba(255,255,255,.15),transparent 40%)}
-  .sky{border-radius:18px;padding:20px 16px;
-    background:linear-gradient(180deg,#a7d8ff,#cdeccf 78%,#8fca86);position:relative;overflow:hidden}
-  @media (prefers-color-scheme:dark){.sky{background:linear-gradient(180deg,#26506f,#2f5a3d 80%,#28502f)}}
-  :root[data-theme="dark"] .sky{background:linear-gradient(180deg,#26506f,#2f5a3d 80%,#28502f)}
-  .sun{position:absolute;top:14px;right:16px;width:34px;height:34px;border-radius:8px;background:#ffe98a;box-shadow:0 0 30px #ffe98a}
-  .tag{position:relative;display:flex;align-items:center;gap:11px;background:var(--glass);
-    backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border:1px solid var(--border);
-    border-radius:14px;padding:11px 13px;box-shadow:var(--sh);margin:0 auto}
-  .tag+.tag{margin-top:14px}
-  .tag.scam{border-color:color-mix(in srgb,var(--bad) 45%,var(--border))}
-  .pixel{width:34px;height:34px;border-radius:8px;image-rendering:pixelated;flex:0 0 auto}
-  .tag .name{font-weight:700;font-size:14.5px}
-  .tag .meta{margin-left:auto;text-align:right}
-  .score{font-family:ui-monospace,Menlo,monospace;font-weight:800;font-size:14px}
-  .score.ok{color:var(--accent-strong)} .score.bad{color:var(--bad)}
-  .bar{width:96px;height:6px;border-radius:99px;background:color-mix(in srgb,var(--muted) 22%,transparent);margin-top:5px;overflow:hidden}
-  .bar>i{display:block;height:100%;border-radius:99px}
-  .bar>i.ok{width:94%;background:var(--accent)} .bar>i.bad{width:6%;background:var(--bad)}
-  .scam-pill{display:inline-block;margin-top:4px;font-size:11px;font-weight:700;color:#fff;background:var(--bad);
-    padding:2px 8px;border-radius:99px}
-  .preview-cap{text-align:center;color:var(--faint);font-size:12.5px;margin:14px 4px 2px}
+  .scene{position:relative;border-radius:18px;overflow:hidden;height:400px;
+    background:linear-gradient(180deg,#8ecafc 0%,#bfe4f7 44%,#d8f0d2 62%,#9fd48e 78%,#7fbf6f 100%)}
+  @media (prefers-color-scheme:dark){.scene{background:linear-gradient(180deg,#17324a 0%,#1d4258 44%,#1f4630 68%,#1d4028 100%)}}
+  :root[data-theme="dark"] .scene{background:linear-gradient(180deg,#17324a 0%,#1d4258 44%,#1f4630 68%,#1d4028 100%)}
+  .sun{position:absolute;top:22px;right:26px;width:38px;height:38px;border-radius:9px;background:#ffe98a;
+    box-shadow:0 0 40px 6px rgba(255,233,138,.65)}
+  .cloud{position:absolute;height:14px;border-radius:99px;background:rgba(255,255,255,.75);animation:drift 26s linear infinite}
+  .cloud.c1{top:44px;left:-70px;width:88px}
+  .cloud.c2{top:84px;left:-160px;width:60px;animation-duration:34s;animation-delay:-12s}
+  @keyframes drift{to{transform:translateX(calc(100vw/1.6))}}
+  .ground{position:absolute;left:0;right:0;bottom:0;height:56px;
+    background:
+      repeating-linear-gradient(90deg,rgba(0,0,0,.10) 0 2px,transparent 2px 28px),
+      linear-gradient(180deg,#6aa85c 0 18px,#7b5a3c 18px);opacity:.9}
+  .htag{position:absolute;display:flex;align-items:center;gap:11px;background:var(--glass);
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+    border:1px solid var(--border);border-radius:15px;padding:12px 14px;box-shadow:var(--sh);
+    animation:float 5.5s ease-in-out infinite}
+  .htag.a{top:52px;left:26px;animation-delay:-.6s}
+  .htag.b{top:168px;right:22px;border-color:color-mix(in srgb,var(--bad) 50%,var(--border));animation-delay:-2.8s}
+  @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+  @media (prefers-reduced-motion:reduce){.htag,.cloud,.pill .dot,.toast{animation:none!important}}
+  .pixel{width:36px;height:36px;border-radius:9px;image-rendering:pixelated;flex:0 0 auto}
+  .htag .name{font-weight:720;font-size:14.5px;line-height:1.25}
+  .htag .sub{display:block;font-size:11.5px;color:var(--faint);font-weight:500}
+  .htag .meta{margin-left:8px;text-align:right}
+  .score{font-family:ui-monospace,Menlo,monospace;font-weight:800;font-size:14.5px;letter-spacing:-.02em}
+  .score.ok{color:var(--accent-deep)} .score.bad{color:var(--bad)}
+  .bar{width:104px;height:6px;border-radius:99px;background:color-mix(in srgb,var(--muted) 20%,transparent);margin-top:6px;overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:99px;transform-origin:left;animation:grow 1.2s cubic-bezier(.2,.7,.2,1) both}
+  .bar i.ok{width:94%;background:linear-gradient(90deg,var(--accent),var(--accent-deep))}
+  .bar i.bad{width:6%;background:var(--bad)}
+  @keyframes grow{from{transform:scaleX(0)}}
+  .scam-pill{display:inline-block;margin-top:3px;font-size:10.5px;font-weight:800;color:#fff;background:var(--bad);
+    padding:2px 8px;border-radius:99px;letter-spacing:.02em;animation:blink 2.4s ease-in-out infinite}
+  .toast{position:absolute;left:50%;bottom:20px;transform:translateX(-50%);display:flex;align-items:center;gap:10px;
+    background:var(--glass);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border:1px solid color-mix(in srgb,var(--bad) 45%,var(--border));border-radius:13px;
+    padding:10px 15px;box-shadow:var(--sh);font-size:13px;font-weight:600;white-space:nowrap;
+    animation:toastIn 1s .9s cubic-bezier(.2,.9,.3,1.3) both}
+  .toast .ic{width:24px;height:24px;border-radius:8px;background:var(--bad-soft);color:var(--bad);
+    display:grid;place-items:center;font-size:13px;flex:0 0 auto}
+  @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(16px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+  .scene-cap{text-align:center;color:var(--faint);font-size:12.5px;margin:12px 6px 2px}
 
-  /* generic section heads */
-  .sec{padding:72px 0}
-  .sec-head{text-align:center;max-width:640px;margin:0 auto 44px}
-  .sec-head h2{font-size:clamp(28px,4.5vw,40px);letter-spacing:-.025em;font-weight:780;margin:0 0 12px;text-wrap:balance}
+  /* ===== stat band ===== */
+  .stats{margin:56px 0 0;border:1px solid var(--border);border-radius:20px;background:var(--surface);
+    box-shadow:var(--sh-xs);display:grid;grid-template-columns:repeat(3,1fr)}
+  .stat{padding:22px 26px;text-align:center;position:relative}
+  .stat+.stat::before{content:"";position:absolute;left:0;top:22%;bottom:22%;width:1px;background:var(--border)}
+  .stat b{display:block;font-size:20px;font-weight:800;letter-spacing:-.02em}
+  .stat span{font-size:13.5px;color:var(--muted)}
+
+  /* ===== sections ===== */
+  .sec{padding:88px 0 0}
+  .sec-head{max-width:660px;margin:0 auto 46px;text-align:center}
+  .kicker{display:inline-block;font-size:12.5px;font-weight:750;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--accent-deep);background:var(--accent-soft);border-radius:999px;padding:5px 13px;margin-bottom:14px}
+  .sec-head h2{font-size:clamp(28px,4.6vw,42px);letter-spacing:-.03em;font-weight:800;margin:0 0 12px;text-wrap:balance}
   .sec-head p{color:var(--muted);font-size:17px;margin:0}
-  .kicker{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-strong);margin-bottom:12px}
 
-  /* features */
-  .features{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;
-    box-shadow:var(--sh-sm);transition:transform .18s ease, box-shadow .25s ease, border-color .25s}
-  .card:hover{transform:translateY(-4px);box-shadow:var(--sh);border-color:color-mix(in srgb,var(--accent) 35%,var(--border))}
-  .ficon{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-size:22px;
-    background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 22%,transparent);margin-bottom:16px}
-  .card h3{font-size:16.5px;margin:0 0 7px;font-weight:700}
-  .card p{font-size:14px;color:var(--muted);margin:0}
-
-  /* pricing */
-  .price-card{max-width:460px;margin:0 auto;background:var(--surface);border:1px solid var(--border);
-    border-radius:26px;padding:34px;box-shadow:var(--sh-lg);text-align:center;position:relative;overflow:hidden}
-  .price-card::after{content:"";position:absolute;inset:0;border-radius:26px;pointer-events:none;
-    box-shadow:inset 0 1px 0 rgba(255,255,255,.5)}
-  .price-row{display:flex;align-items:baseline;justify-content:center;gap:10px;flex-wrap:wrap;margin:6px 0 2px}
-  .price{font-size:56px;font-weight:820;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1}
-  .per{color:var(--muted);font-size:16px}
-  .regular{color:var(--faint);text-decoration:line-through;font-size:24px;font-weight:600}
-  .sale-badge{display:inline-block;font-size:12px;font-weight:700;color:#fff;background:var(--accent);
-    padding:4px 11px;border-radius:99px;margin-bottom:16px}
-  .hints{list-style:none;padding:0;margin:22px 0 26px;display:grid;gap:12px;text-align:left}
-  .hints li{display:flex;gap:11px;align-items:center;font-size:15px}
-  .hints .chk{flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--accent-soft);
-    color:var(--accent-strong);display:grid;place-items:center;font-size:12px;font-weight:800;
-    border:1px solid color-mix(in srgb,var(--accent) 25%,transparent)}
-  .price-card .btn{width:100%}
-  .fineprint{color:var(--faint);font-size:12.5px;margin-top:14px}
-  .err{color:var(--bad);font-size:13.5px;margin-top:10px;min-height:16px;text-align:center}
+  /* bento features */
+  .bento{display:grid;grid-template-columns:repeat(6,1fr);gap:18px}
+  .bcard{background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:26px;
+    box-shadow:var(--sh-xs);position:relative;overflow:hidden;
+    transition:transform .2s ease, box-shadow .28s ease, border-color .28s}
+  .bcard:hover{transform:translateY(-5px);box-shadow:var(--sh);border-color:color-mix(in srgb,var(--accent) 40%,var(--border))}
+  .bcard.w4{grid-column:span 4}.bcard.w2{grid-column:span 2}.bcard.w3{grid-column:span 3}
+  .bic{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-size:21px;
+    background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 24%,transparent);margin-bottom:16px}
+  .bcard h3{margin:0 0 7px;font-size:17px;font-weight:740;letter-spacing:-.015em}
+  .bcard p{margin:0;color:var(--muted);font-size:14.5px}
+  /* mini visuals */
+  .mini{margin-top:20px;border:1px solid var(--border);border-radius:15px;background:var(--surface-2);padding:13px;font-size:12.5px}
+  .mrow{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:10px}
+  .mrow+.mrow{margin-top:4px}
+  .mrow .sq{width:20px;height:20px;border-radius:6px;flex:0 0 auto}
+  .mrow b{font-weight:650}
+  .mrow .pct{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-weight:750}
+  .pct.g{color:var(--accent-deep)} .pct.r{color:var(--bad)}
+  .mrow.flag{background:var(--bad-soft)}
+  .gauge{height:8px;border-radius:99px;background:color-mix(in srgb,var(--muted) 18%,transparent);overflow:hidden;margin-top:10px}
+  .gauge i{display:block;height:100%;width:88%;border-radius:99px;background:linear-gradient(90deg,var(--accent),var(--accent-deep))}
+  .mini .toastline{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid color-mix(in srgb,var(--bad) 40%,var(--border));border-radius:11px;padding:9px 11px;font-weight:600}
+  .btnrow{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap}
+  .chip{font-size:11.5px;font-weight:650;border:1px solid var(--border);background:var(--surface);
+    border-radius:99px;padding:5px 11px;color:var(--muted)}
+  .chip.g{background:var(--accent-soft);border-color:color-mix(in srgb,var(--accent) 30%,transparent);color:var(--accent-deep)}
 
   /* steps */
-  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;counter-reset:s}
-  .step{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px;box-shadow:var(--sh-sm)}
-  .step .n{width:34px;height:34px;border-radius:11px;background:var(--accent);color:#fff;font-weight:800;
-    display:grid;place-items:center;margin-bottom:15px;box-shadow:0 6px 16px -6px color-mix(in srgb,var(--accent) 75%,transparent)}
-  .step h3{margin:0 0 6px;font-size:16px;font-weight:700}
-  .step p{margin:0;color:var(--muted);font-size:14px}
-  .cmd{display:inline-block;margin-top:4px;font-family:ui-monospace,Menlo,monospace;font-size:13px;
-    background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:6px 10px;color:var(--text)}
+  .steps{display:grid;grid-template-columns:repeat(3,1fr);gap:0;position:relative;counter-reset:s}
+  .sline{position:absolute;top:26px;left:16%;right:16%;height:2px;
+    background:repeating-linear-gradient(90deg,var(--border) 0 10px,transparent 10px 18px);z-index:0}
+  .step{position:relative;z-index:1;text-align:center;padding:0 20px}
+  .step .n{width:52px;height:52px;margin:0 auto 18px;border-radius:17px;display:grid;place-items:center;
+    font-weight:800;font-size:19px;color:#fff;background:linear-gradient(160deg,var(--accent),var(--accent-deep));
+    box-shadow:0 12px 26px -10px var(--glowc), inset 0 1px 0 rgba(255,255,255,.3)}
+  .step h3{margin:0 0 7px;font-size:16.5px;font-weight:740}
+  .step p{margin:0;color:var(--muted);font-size:14.5px}
+  .cmd{display:inline-block;margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:13px;
+    background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 13px;box-shadow:var(--sh-xs)}
+  .cmd b{color:var(--accent-deep)}
+
+  /* pricing */
+  .price-wrap{max-width:480px;margin:0 auto;position:relative}
+  .price-wrap::before{content:"";position:absolute;inset:-36px;border-radius:50%;
+    background:radial-gradient(closest-side,var(--glowc),transparent 75%);pointer-events:none}
+  .price-card{position:relative;background:var(--surface);border:1px solid color-mix(in srgb,var(--accent) 26%,var(--border));
+    border-radius:28px;padding:38px 36px;box-shadow:var(--sh-lg);text-align:center;overflow:hidden}
+  .price-card::before{content:"";position:absolute;top:0;left:12%;right:12%;height:3px;border-radius:0 0 6px 6px;
+    background:linear-gradient(90deg,transparent,var(--accent),transparent)}
+  .sale-badge{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:750;color:var(--accent-deep);
+    background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 30%,transparent);
+    padding:5px 13px;border-radius:999px;margin-bottom:18px}
+  .price-row{display:flex;align-items:baseline;justify-content:center;gap:11px;flex-wrap:wrap}
+  .price{font-size:62px;font-weight:830;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums}
+  .per{color:var(--muted);font-size:16.5px}
+  .regular{color:var(--faint);text-decoration:line-through;font-size:25px;font-weight:600}
+  .hints{list-style:none;padding:0;margin:26px 0 28px;display:grid;gap:13px;text-align:left}
+  .hints li{display:flex;gap:12px;align-items:center;font-size:15px}
+  .hints .chk{flex:0 0 auto;width:23px;height:23px;border-radius:50%;background:var(--accent-soft);
+    color:var(--accent-deep);display:grid;place-items:center;font-size:12px;font-weight:800;
+    border:1px solid color-mix(in srgb,var(--accent) 26%,transparent)}
+  .price-card .btn{width:100%;padding:15px 24px;font-size:16.5px}
+  .fineprint{color:var(--faint);font-size:12.5px;margin-top:15px}
+  .err{color:var(--bad);font-size:13.5px;margin-top:10px;min-height:16px;text-align:center}
+  .dev-banner{margin:16px auto 0;text-align:center;font-size:13px;background:var(--bad-soft);color:var(--bad);
+    border:1px solid color-mix(in srgb,var(--bad) 40%,transparent);border-radius:12px;padding:10px 14px}
 
   /* faq */
-  .faq{max-width:760px;margin:0 auto;display:grid;gap:12px}
-  details{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:2px 20px;
-    box-shadow:var(--sh-sm);transition:border-color .2s}
-  details[open]{border-color:color-mix(in srgb,var(--accent) 35%,var(--border))}
-  summary{list-style:none;cursor:pointer;padding:16px 0;font-weight:650;font-size:16px;
+  .faq{max-width:740px;margin:0 auto;display:grid;gap:12px}
+  details{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:2px 22px;
+    box-shadow:var(--sh-xs);transition:border-color .2s, box-shadow .2s}
+  details:hover{box-shadow:var(--sh-sm)}
+  details[open]{border-color:color-mix(in srgb,var(--accent) 40%,var(--border))}
+  summary{list-style:none;cursor:pointer;padding:17px 0;font-weight:660;font-size:16px;
     display:flex;align-items:center;justify-content:space-between;gap:16px}
   summary::-webkit-details-marker{display:none}
-  summary .plus{flex:0 0 auto;width:22px;height:22px;position:relative;transition:transform .25s}
-  summary .plus::before,summary .plus::after{content:"";position:absolute;background:var(--accent);border-radius:2px}
-  summary .plus::before{top:10px;left:3px;width:16px;height:2px}
-  summary .plus::after{left:10px;top:3px;width:2px;height:16px;transition:transform .25s}
-  details[open] summary .plus{transform:rotate(180deg)}
-  details[open] summary .plus::after{transform:scaleY(0)}
-  details p{margin:0 0 18px;color:var(--muted);font-size:15px}
+  summary .plus{flex:0 0 auto;width:24px;height:24px;border-radius:8px;background:var(--accent-soft);position:relative;transition:transform .25s}
+  summary .plus::before,summary .plus::after{content:"";position:absolute;background:var(--accent-deep);border-radius:2px}
+  summary .plus::before{top:11px;left:6px;width:12px;height:2px}
+  summary .plus::after{left:11px;top:6px;width:2px;height:12px;transition:transform .25s}
+  details[open] summary .plus{transform:rotate(135deg)}
+  details p{margin:0 0 19px;color:var(--muted);font-size:15px}
+
+  /* CTA band */
+  .cta-band{margin:96px 0 0;border-radius:30px;position:relative;overflow:hidden;text-align:center;
+    padding:64px 28px;color:#fff;background:linear-gradient(150deg,var(--accent) 0%,var(--accent-deep) 70%);
+    box-shadow:var(--sh-lg)}
+  .cta-band::before{content:"";position:absolute;inset:0;opacity:.16;
+    background-image:linear-gradient(rgba(255,255,255,.9) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.9) 1px,transparent 1px);
+    background-size:44px 44px}
+  .cta-band h2{position:relative;font-size:clamp(26px,4.4vw,38px);font-weight:820;letter-spacing:-.03em;margin:0 0 10px;text-wrap:balance}
+  .cta-band p{position:relative;margin:0 0 28px;font-size:16.5px;opacity:.92}
+  .btn-invert{position:relative;background:#fff;color:var(--accent-deep);box-shadow:0 14px 34px -12px rgba(0,0,0,.35)}
+  .btn-invert:hover{transform:translateY(-2px) scale(1.015)}
 
   /* footer */
-  footer{border-top:1px solid var(--border);margin-top:40px;padding:36px 0}
+  footer{margin-top:64px;border-top:1px solid var(--border);padding:38px 0 44px}
   .foot{display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap}
-  .foot-links{display:flex;gap:22px;flex-wrap:wrap}
+  .foot-links{display:flex;gap:24px;flex-wrap:wrap}
   .foot-links a{color:var(--muted);font-size:14px;transition:color .15s}
-  .foot-links a:hover{color:var(--accent-strong)}
+  .foot-links a:hover{color:var(--accent-deep)}
   .foot small{color:var(--faint);font-size:12.5px}
-  .dev-banner{margin:18px auto 0;max-width:460px;text-align:center;font-size:13px;
-    background:var(--bad-soft);color:var(--bad);border:1px solid color-mix(in srgb,var(--bad) 40%,transparent);
-    border-radius:12px;padding:10px 14px}
 
-  /* reveal on scroll */
-  .reveal{opacity:0;transform:translateY(16px);transition:opacity .6s ease, transform .6s ease}
+  /* reveal */
+  .reveal{opacity:0;transform:translateY(20px);transition:opacity .65s ease, transform .65s cubic-bezier(.2,.7,.2,1)}
   .reveal.in{opacity:1;transform:none}
+  .d1{transition-delay:.06s}.d2{transition-delay:.12s}.d3{transition-delay:.18s}.d4{transition-delay:.24s}
   @media (prefers-reduced-motion:reduce){.reveal{opacity:1;transform:none;transition:none}}
 
-  @media (max-width:860px){
-    .hero-grid{grid-template-columns:1fr;gap:34px}
-    .features{grid-template-columns:repeat(2,1fr)}
-    .steps{grid-template-columns:1fr}
+  @media (max-width:900px){
+    .hero-grid{grid-template-columns:1fr;gap:40px}
     .lede{max-width:none}
+    .bento{grid-template-columns:1fr 1fr}
+    .bcard.w4,.bcard.w2,.bcard.w3{grid-column:span 2}
+    .steps{grid-template-columns:1fr;gap:34px}
+    .sline{display:none}
+    .stats{grid-template-columns:1fr}
+    .stat+.stat::before{left:22%;right:22%;top:0;bottom:auto;width:auto;height:1px}
   }
-  @media (max-width:480px){
-    .features{grid-template-columns:1fr}
-    .hero{padding:48px 0 24px}
+  @media (max-width:520px){
+    .hero{padding:56px 0 20px}
+    .scene{height:330px}
+    .htag.a{left:12px}.htag.b{right:10px}
+    .bento{grid-template-columns:1fr}
+    .bcard.w4,.bcard.w2,.bcard.w3{grid-column:span 1}
   }
 </style>
 </head>
@@ -232,11 +312,12 @@
 
 <nav>
   <div class="wrap nav">
-    <div class="brand"><span class="logo">🛡</span> SMP-Kit</div>
+    <a class="brand" href="#"><span class="logo">🛡</span> SMP-Kit</a>
     <div class="nav-links">
       <a class="link" href="#features" data-i18n="navFeatures">Funktionen</a>
+      <a class="link" href="#steps" data-i18n="navHow">So funktioniert's</a>
       <a class="link" href="#pricing" data-i18n="navPricing">Preis</a>
-      <a class="link" href="#faq" data-i18n="navFaq">FAQ</a>
+      <a class="link" href="#faq">FAQ</a>
       <select id="lang" aria-label="Sprache / Language">
         <option value="de">DE</option><option value="en">EN</option>
         <option value="es">ES</option><option value="fr">FR</option><option value="pt">PT</option>
@@ -246,145 +327,192 @@
   </div>
 </nav>
 
-<!-- HERO -->
-<section class="hero">
-  <div class="glow"></div>
-  <div class="wrap hero-grid" style="position:relative;z-index:1">
+<!-- ================= HERO ================= -->
+<header class="hero">
+  <div class="wrap hero-grid">
     <div>
-      <span class="eyebrow"><span class="dot"></span><span data-i18n="eyebrow">Trust-System für Minecraft-SMPs</span></span>
-      <h1 data-i18n="h1">Nie wieder blind traden.</h1>
+      <span class="pill"><span class="dot"></span><span data-i18n="eyebrow">Live auf Donut SMP &amp; Hugo SMP</span></span>
+      <h1 data-i18n="h1">Nie wieder <span class="hl">blind</span> traden.</h1>
       <p class="lede" data-i18n="sub">SMP-Kit zeigt dir zu jedem Spieler einen Trust-Score, warnt vor
         bekannten Scammern und schützt dich bei TP- und Spawner-Trades.</p>
       <div class="hero-cta">
-        <button class="btn btn-primary js-buy" data-i18n="ctaSubscribe">Jetzt abonnieren</button>
+        <button class="btn btn-primary js-buy"><span data-i18n="ctaSubscribe">Jetzt abonnieren</span> <span class="arrow">→</span></button>
         <a class="btn btn-ghost" href="#preview" data-i18n="ctaDemo">Demo ansehen</a>
       </div>
       <div class="trustline">
-        <span class="avatars"><span></span><span></span><span></span><span></span></span>
-        <span data-i18n="trustline">Schützt Spieler auf Donut SMP, Hugo SMP &amp; jedem anderen Server.</span>
+        <span class="avatars"><i></i><i></i><i></i><i></i></span>
+        <span data-i18n="trustline">Eine Community, eine Blacklist – serverübergreifend.</span>
       </div>
     </div>
 
     <div id="preview">
-      <div class="preview">
-        <div class="sky">
+      <div class="scene-frame">
+        <div class="scene" role="img" aria-label="In-Game-Vorschau der Trust-Anzeige">
           <div class="sun"></div>
-          <div class="tag">
+          <div class="cloud c1"></div><div class="cloud c2"></div>
+          <div class="htag a">
             <svg class="pixel" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <rect width="8" height="8" fill="#7c5a3a"/><rect x="1" y="1" width="6" height="4" fill="#e6b78d"/>
               <rect x="2" y="2" width="1" height="1" fill="#26333a"/><rect x="5" y="2" width="1" height="1" fill="#26333a"/>
               <rect x="1" y="5" width="6" height="3" fill="#3f8c53"/></svg>
-            <span class="name">Notch_Trader</span>
-            <span class="meta"><span class="score ok">Trust 94%</span><span class="bar"><i class="ok"></i></span></span>
+            <span class="name">Notch_Trader<span class="sub" data-i18n="tagSafe">Sicherer Handelspartner</span></span>
+            <span class="meta"><span class="score ok">94%</span><span class="bar"><i class="ok"></i></span></span>
           </div>
-          <div class="tag scam">
+          <div class="htag b">
             <svg class="pixel" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <rect width="8" height="8" fill="#3a2b45"/><rect x="1" y="1" width="6" height="4" fill="#caa0d8"/>
               <rect x="2" y="2" width="1" height="1" fill="#26333a"/><rect x="5" y="2" width="1" height="1" fill="#26333a"/>
               <rect x="1" y="5" width="6" height="3" fill="#7a3b3b"/></svg>
-            <span class="name">xX_freemoney<br><span class="scam-pill" data-i18n="scammer">⚠ Scammer</span></span>
-            <span class="meta"><span class="score bad">Trust 6%</span><span class="bar"><i class="bad"></i></span></span>
+            <span class="name">xX_freemoney<br><span class="scam-pill" data-i18n="scammer">⚠ SCAMMER</span></span>
+            <span class="meta"><span class="score bad">6%</span><span class="bar"><i class="bad"></i></span></span>
           </div>
+          <div class="toast"><span class="ic">⚠</span><span data-i18n="toast">Geflaggter Scammer in deiner Nähe!</span></div>
+          <div class="ground"></div>
         </div>
-        <p class="preview-cap" data-i18n="previewCap">So erscheint der Trust-Score im Spiel – sobald du jemanden anschaust.</p>
+        <p class="scene-cap" data-i18n="previewCap">Live im Spiel: Trust-Score erscheint, sobald du jemanden anschaust.</p>
       </div>
     </div>
   </div>
-</section>
 
-<!-- FEATURES -->
+  <div class="wrap">
+    <div class="stats reveal">
+      <div class="stat"><b data-i18n="stat1t">100 % client-seitig</b><span data-i18n="stat1d">keine Serverrechte nötig</span></div>
+      <div class="stat"><b data-i18n="stat2t">Echtzeit-Score</b><span data-i18n="stat2d">beim Anschauen jedes Spielers</span></div>
+      <div class="stat"><b data-i18n="stat3t">1× einlösen</b><span data-i18n="stat3d">danach läuft alles automatisch</span></div>
+    </div>
+  </div>
+</header>
+
+<!-- ================= FEATURES ================= -->
 <section class="sec" id="features">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="kicker" data-i18n="featKicker">Funktionen</div>
+      <span class="kicker" data-i18n="featKicker">Funktionen</span>
       <h2 data-i18n="featTitle">Alles für sicheres Traden</h2>
-      <p data-i18n="featSub">Vier Bausteine, die Betrug auf Economy-Servern sichtbar machen.</p>
+      <p data-i18n="featSub">Vier Bausteine, die Betrug auf Economy-Servern sichtbar machen – bevor es dich trifft.</p>
     </div>
-    <div class="features">
-      <div class="card reveal"><div class="ficon">🛡</div>
+    <div class="bento">
+      <div class="bcard w4 reveal">
+        <div class="bic">🛡</div>
         <h3 data-i18n="f1t">Trust-Score in Echtzeit</h3>
-        <p data-i18n="f1d">Sieh sofort, wie vertrauenswürdig ein Spieler ist – direkt über dem Kopf.</p></div>
-      <div class="card reveal"><div class="ficon">👥</div>
-        <h3 data-i18n="f2t">Community-Blacklist</h3>
-        <p data-i18n="f2d">Eine geteilte Liste bekannter Scammer – serverübergreifend für alle Nutzer.</p></div>
-      <div class="card reveal"><div class="ficon">🚨</div>
-        <h3 data-i18n="f3t">Warnung vor Scammern</h3>
-        <p data-i18n="f3d">Automatische Warnung, sobald ein geflaggter Betrüger in deiner Nähe ist.</p></div>
-      <div class="card reveal"><div class="ficon">🖥</div>
-        <h3 data-i18n="f4t">GUI zum Melden</h3>
-        <p data-i18n="f4d">Betrüger mit wenigen Klicks melden – und faire Spieler empfehlen.</p></div>
-    </div>
-  </div>
-</section>
-
-<!-- PRICING -->
-<section class="sec" id="pricing" style="padding-top:24px">
-  <div class="wrap">
-    <div class="sec-head reveal">
-      <div class="kicker" data-i18n="priceKicker">Preis</div>
-      <h2 data-i18n="priceTitle">Ein Preis, voller Schutz</h2>
-      <p data-i18n="priceSub">Monatliches Abo, jederzeit kündbar. Deckt die Serverkosten der Community.</p>
-    </div>
-    <div class="price-card reveal">
-      <span class="sale-badge" id="salebadge" data-i18n="saleBadge" hidden>Angebot</span>
-      <div class="price-row">
-        <span class="regular" id="regular" hidden>{{REGULAR_PRICE}}</span>
-        <span class="price">{{PRICE}}</span>
-        <span class="per" id="per">/Monat</span>
+        <p data-i18n="f1d">Schau einen Spieler an und sieh sofort, wie vertrauenswürdig er ist – berechnet aus Meldungen und Empfehlungen der ganzen Community.</p>
+        <div class="mini">
+          <div class="mrow"><span class="sq" style="background:linear-gradient(140deg,#7cc98f,#4FA463)"></span><b>Notch_Trader</b><span class="pct g">94%</span></div>
+          <div class="gauge"><i></i></div>
+        </div>
       </div>
-      <ul class="hints">
-        <li><span class="chk">✓</span><span data-i18n="hint1">Monatlich kündbar</span></li>
-        <li><span class="chk">✓</span><span data-i18n="hint2">Sofortiger Lizenzschlüssel</span></li>
-        <li><span class="chk">✓</span><span data-i18n="hint3">Sichere Stripe-Zahlung</span></li>
-      </ul>
-      <button class="btn btn-primary js-buy" data-i18n="ctaSubscribe">Jetzt abonnieren</button>
-      <div class="err" id="err" role="alert"></div>
-      <p class="fineprint" data-i18n="fineprint">Kartendaten sieht nur Stripe, nie dieser Server.</p>
-      <div class="dev-banner" id="dev" hidden></div>
+      <div class="bcard w2 reveal d1">
+        <div class="bic">🚨</div>
+        <h3 data-i18n="f3t">Warnung vor Scammern</h3>
+        <p data-i18n="f3d">Automatischer Alarm, sobald ein geflaggter Betrüger in deiner Nähe auftaucht.</p>
+        <div class="mini"><div class="toastline"><span>⚠</span><span data-i18n="toast">Geflaggter Scammer in deiner Nähe!</span></div></div>
+      </div>
+      <div class="bcard w2 reveal d2">
+        <div class="bic">🖥</div>
+        <h3 data-i18n="f4t">GUI zum Melden</h3>
+        <p data-i18n="f4d">Betrüger mit zwei Klicks melden, faire Spieler empfehlen – direkt im Spiel.</p>
+        <div class="mini"><div class="btnrow">
+          <span class="chip" data-i18n="chip1">Beim TP-Trade betrogen</span>
+          <span class="chip" data-i18n="chip2">Spawner-Scam</span>
+          <span class="chip g" data-i18n="chip3">✓ Empfehlen</span>
+        </div></div>
+      </div>
+      <div class="bcard w4 reveal d3">
+        <div class="bic">👥</div>
+        <h3 data-i18n="f2t">Community-Blacklist</h3>
+        <p data-i18n="f2d">Eine geteilte Liste bekannter Scammer – gepflegt von allen Nutzern, gültig auf jedem Server. Manipulationssicher durch Mojang-Verifikation und gewichtete Bewertungen.</p>
+        <div class="mini">
+          <div class="mrow flag"><span class="sq" style="background:linear-gradient(140deg,#caa0d8,#8a5aa4)"></span><b>xX_freemoney</b><span class="pct r">6%</span></div>
+          <div class="mrow flag"><span class="sq" style="background:linear-gradient(140deg,#e08a8a,#a44f4f)"></span><b>FastRichKid</b><span class="pct r">11%</span></div>
+          <div class="mrow"><span class="sq" style="background:linear-gradient(140deg,#8fb7e6,#4f7ba4)"></span><b>BuilderTom</b><span class="pct g">88%</span></div>
+        </div>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- STEPS -->
-<section class="sec" id="steps" style="padding-top:24px">
+<!-- ================= STEPS ================= -->
+<section class="sec" id="steps">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="kicker" data-i18n="stepsKicker">Los geht's</div>
+      <span class="kicker" data-i18n="stepsKicker">Los geht's</span>
       <h2 data-i18n="stepsTitle">In 3 Schritten startklar</h2>
     </div>
-    <div class="steps">
-      <div class="step reveal"><div class="n">1</div>
-        <h3 data-i18n="s1t">Kaufen</h3><p data-i18n="s1d">Abo abschließen – sicher über Stripe.</p></div>
-      <div class="step reveal"><div class="n">2</div>
-        <h3 data-i18n="s2t">Lizenzschlüssel erhalten</h3><p data-i18n="s2d">Deinen Schlüssel bekommst du sofort nach dem Kauf.</p></div>
-      <div class="step reveal"><div class="n">3</div>
+    <div class="steps reveal">
+      <div class="sline"></div>
+      <div class="step"><div class="n">1</div>
+        <h3 data-i18n="s1t">Abo abschließen</h3><p data-i18n="s1d">Sicher bezahlen über Stripe – monatlich kündbar.</p></div>
+      <div class="step"><div class="n">2</div>
+        <h3 data-i18n="s2t">Schlüssel erhalten</h3><p data-i18n="s2d">Dein Lizenzschlüssel erscheint sofort nach dem Kauf.</p></div>
+      <div class="step"><div class="n">3</div>
         <h3 data-i18n="s3t">Im Spiel einlösen</h3>
-        <p><span class="cmd">/smpkit redeem DEIN-SCHLÜSSEL</span></p></div>
+        <p><span class="cmd">/smpkit redeem <b>DEIN-SCHLÜSSEL</b></span></p></div>
     </div>
   </div>
 </section>
 
-<!-- FAQ -->
-<section class="sec" id="faq" style="padding-top:24px">
+<!-- ================= PRICING ================= -->
+<section class="sec" id="pricing">
   <div class="wrap">
     <div class="sec-head reveal">
-      <div class="kicker" data-i18n="faqKicker">FAQ</div>
-      <h2 data-i18n="faqTitle">Häufige Fragen</h2>
+      <span class="kicker" data-i18n="priceKicker">Preis</span>
+      <h2 data-i18n="priceTitle">Ein Preis, voller Schutz</h2>
+      <p data-i18n="priceSub">Dein Abo deckt die Serverkosten der Community – und schützt dein Vermögen.</p>
     </div>
-    <div class="faq">
-      <details class="reveal"><summary><span data-i18n="q1">Was passiert nach dem Kauf?</span><span class="plus"></span></summary>
-        <p data-i18n="a1">Du erhältst sofort deinen Lizenzschlüssel und löst ihn einmal im Spiel ein. Danach ist alles aktiv – du musst nichts weiter tun.</p></details>
-      <details class="reveal"><summary><span data-i18n="q2">Kann ich kündigen?</span><span class="plus"></span></summary>
-        <p data-i18n="a2">Ja, jederzeit mit einem Klick im Kundenportal. Dein Zugang bleibt bis zum Ende des bezahlten Monats aktiv.</p></details>
-      <details class="reveal"><summary><span data-i18n="q3">Welche Server werden unterstützt?</span><span class="plus"></span></summary>
-        <p data-i18n="a3">Alle. SMP-Kit ist client-seitig und funktioniert auf jedem Server (z. B. Donut SMP, Hugo SMP), ohne dort Rechte zu brauchen.</p></details>
+    <div class="price-wrap reveal">
+      <div class="price-card">
+        <span class="sale-badge" id="salebadge" hidden>🔥 <span data-i18n="saleBadge">Aktuell im Angebot</span></span>
+        <div class="price-row">
+          <span class="regular" id="regular" hidden>{{REGULAR_PRICE}}</span>
+          <span class="price">{{PRICE}}</span>
+          <span class="per" id="per">/Monat</span>
+        </div>
+        <ul class="hints">
+          <li><span class="chk">✓</span><span data-i18n="hint1">Monatlich kündbar – ohne Risiko</span></li>
+          <li><span class="chk">✓</span><span data-i18n="hint2">Sofortiger Lizenzschlüssel</span></li>
+          <li><span class="chk">✓</span><span data-i18n="hint3">Sichere Stripe-Zahlung</span></li>
+        </ul>
+        <button class="btn btn-primary js-buy"><span data-i18n="ctaSubscribe">Jetzt abonnieren</span> <span class="arrow">→</span></button>
+        <div class="err" id="err" role="alert"></div>
+        <p class="fineprint" data-i18n="fineprint">Kartendaten sieht nur Stripe, nie dieser Server.</p>
+        <div class="dev-banner" id="dev" hidden></div>
+      </div>
     </div>
   </div>
 </section>
+
+<!-- ================= FAQ ================= -->
+<section class="sec" id="faq">
+  <div class="wrap">
+    <div class="sec-head reveal">
+      <span class="kicker">FAQ</span>
+      <h2 data-i18n="faqTitle">Häufige Fragen</h2>
+    </div>
+    <div class="faq reveal">
+      <details><summary><span data-i18n="q1">Was passiert nach dem Kauf?</span><span class="plus"></span></summary>
+        <p data-i18n="a1">Du erhältst sofort deinen Lizenzschlüssel und löst ihn einmal im Spiel ein. Danach ist alles aktiv – solange dein Abo läuft, musst du nie wieder etwas eintippen.</p></details>
+      <details><summary><span data-i18n="q2">Kann ich kündigen?</span><span class="plus"></span></summary>
+        <p data-i18n="a2">Ja, jederzeit mit einem Klick im Kundenportal. Dein Zugang bleibt bis zum Ende des bezahlten Monats aktiv und endet dann automatisch.</p></details>
+      <details><summary><span data-i18n="q3">Welche Server werden unterstützt?</span><span class="plus"></span></summary>
+        <p data-i18n="a3">Alle. SMP-Kit ist rein client-seitig und funktioniert auf jedem Server – z. B. Donut SMP und Hugo SMP – ganz ohne Rechte auf dem Server.</p></details>
+      <details><summary><span data-i18n="q4">Ist das ein unfairer Vorteil oder bannbar?</span><span class="plus"></span></summary>
+        <p data-i18n="a4">Nein. SMP-Kit liest nur sichtbare Nametags und deinen eigenen Chat – kein Radar, kein Auto-Totem, keine Kampf-Automatisierung. Es zeigt nur Informationen der Community an.</p></details>
+    </div>
+  </div>
+</section>
+
+<!-- ================= CTA ================= -->
+<div class="wrap">
+  <div class="cta-band reveal">
+    <h2 data-i18n="ctaTitle">Bereit für sichere Trades?</h2>
+    <p data-i18n="ctaSub">Schließe dich der Community an – und trade nie wieder blind.</p>
+    <button class="btn btn-invert js-buy"><span data-i18n="ctaSubscribe">Jetzt abonnieren</span> <span class="arrow">→</span></button>
+  </div>
+</div>
 
 <footer>
   <div class="wrap foot">
-    <div class="brand"><span class="logo">🛡</span> SMP-Kit</div>
+    <a class="brand" href="#"><span class="logo">🛡</span> SMP-Kit</a>
     <div class="foot-links">
       <a href="/privacy" data-i18n="footPrivacy">Datenschutz</a>
       <a href="/privacy#impressum" data-i18n="footImprint">Impressum</a>
@@ -397,131 +525,191 @@
 
 <script id="i18n">
   const I18N = {
-    de:{navFeatures:`Funktionen`,navPricing:`Preis`,navFaq:`FAQ`,ctaSubscribe:`Jetzt abonnieren`,
-      eyebrow:`Trust-System für Minecraft-SMPs`,h1:`Nie wieder blind traden.`,
+    de:{navFeatures:`Funktionen`,navHow:`So funktioniert's`,navPricing:`Preis`,ctaSubscribe:`Jetzt abonnieren`,
+      eyebrow:`Live auf Donut SMP &amp; Hugo SMP`,
+      h1:`Nie wieder <span class="hl">blind</span> traden.`,
       sub:`SMP-Kit zeigt dir zu jedem Spieler einen Trust-Score, warnt vor bekannten Scammern und schützt dich bei TP- und Spawner-Trades.`,
-      ctaDemo:`Demo ansehen`,scammer:`⚠ Scammer`,previewCap:`So erscheint der Trust-Score im Spiel – sobald du jemanden anschaust.`,
-      trustline:`Schützt Spieler auf Donut SMP, Hugo SMP & jedem anderen Server.`,
-      featKicker:`Funktionen`,featTitle:`Alles für sicheres Traden`,featSub:`Vier Bausteine, die Betrug auf Economy-Servern sichtbar machen.`,
-      f1t:`Trust-Score in Echtzeit`,f1d:`Sieh sofort, wie vertrauenswürdig ein Spieler ist – direkt über dem Kopf.`,
-      f2t:`Community-Blacklist`,f2d:`Eine geteilte Liste bekannter Scammer – serverübergreifend für alle Nutzer.`,
-      f3t:`Warnung vor Scammern`,f3d:`Automatische Warnung, sobald ein geflaggter Betrüger in deiner Nähe ist.`,
-      f4t:`GUI zum Melden`,f4d:`Betrüger mit wenigen Klicks melden – und faire Spieler empfehlen.`,
-      priceKicker:`Preis`,priceTitle:`Ein Preis, voller Schutz`,priceSub:`Monatliches Abo, jederzeit kündbar. Deckt die Serverkosten der Community.`,
-      saleBadge:`Angebot`,per:`/Monat`,perOnce:`einmalig`,
-      hint1:`Monatlich kündbar`,hint2:`Sofortiger Lizenzschlüssel`,hint3:`Sichere Stripe-Zahlung`,
-      fineprint:`Kartendaten sieht nur Stripe, nie dieser Server.`,
+      ctaDemo:`Demo ansehen`,trustline:`Eine Community, eine Blacklist – serverübergreifend.`,
+      tagSafe:`Sicherer Handelspartner`,scammer:`⚠ SCAMMER`,toast:`Geflaggter Scammer in deiner Nähe!`,
+      previewCap:`Live im Spiel: Trust-Score erscheint, sobald du jemanden anschaust.`,
+      stat1t:`100 % client-seitig`,stat1d:`keine Serverrechte nötig`,
+      stat2t:`Echtzeit-Score`,stat2d:`beim Anschauen jedes Spielers`,
+      stat3t:`1× einlösen`,stat3d:`danach läuft alles automatisch`,
+      featKicker:`Funktionen`,featTitle:`Alles für sicheres Traden`,
+      featSub:`Vier Bausteine, die Betrug auf Economy-Servern sichtbar machen – bevor es dich trifft.`,
+      f1t:`Trust-Score in Echtzeit`,f1d:`Schau einen Spieler an und sieh sofort, wie vertrauenswürdig er ist – berechnet aus Meldungen und Empfehlungen der ganzen Community.`,
+      f2t:`Community-Blacklist`,f2d:`Eine geteilte Liste bekannter Scammer – gepflegt von allen Nutzern, gültig auf jedem Server. Manipulationssicher durch Mojang-Verifikation und gewichtete Bewertungen.`,
+      f3t:`Warnung vor Scammern`,f3d:`Automatischer Alarm, sobald ein geflaggter Betrüger in deiner Nähe auftaucht.`,
+      f4t:`GUI zum Melden`,f4d:`Betrüger mit zwei Klicks melden, faire Spieler empfehlen – direkt im Spiel.`,
+      chip1:`Beim TP-Trade betrogen`,chip2:`Spawner-Scam`,chip3:`✓ Empfehlen`,
       stepsKicker:`Los geht's`,stepsTitle:`In 3 Schritten startklar`,
-      s1t:`Kaufen`,s1d:`Abo abschließen – sicher über Stripe.`,
-      s2t:`Lizenzschlüssel erhalten`,s2d:`Deinen Schlüssel bekommst du sofort nach dem Kauf.`,
+      s1t:`Abo abschließen`,s1d:`Sicher bezahlen über Stripe – monatlich kündbar.`,
+      s2t:`Schlüssel erhalten`,s2d:`Dein Lizenzschlüssel erscheint sofort nach dem Kauf.`,
       s3t:`Im Spiel einlösen`,
-      faqKicker:`FAQ`,faqTitle:`Häufige Fragen`,
-      q1:`Was passiert nach dem Kauf?`,a1:`Du erhältst sofort deinen Lizenzschlüssel und löst ihn einmal im Spiel ein. Danach ist alles aktiv – du musst nichts weiter tun.`,
-      q2:`Kann ich kündigen?`,a2:`Ja, jederzeit mit einem Klick im Kundenportal. Dein Zugang bleibt bis zum Ende des bezahlten Monats aktiv.`,
-      q3:`Welche Server werden unterstützt?`,a3:`Alle. SMP-Kit ist client-seitig und funktioniert auf jedem Server (z. B. Donut SMP, Hugo SMP), ohne dort Rechte zu brauchen.`,
+      priceKicker:`Preis`,priceTitle:`Ein Preis, voller Schutz`,
+      priceSub:`Dein Abo deckt die Serverkosten der Community – und schützt dein Vermögen.`,
+      saleBadge:`Aktuell im Angebot`,per:`/Monat`,perOnce:`einmalig`,
+      hint1:`Monatlich kündbar – ohne Risiko`,hint2:`Sofortiger Lizenzschlüssel`,hint3:`Sichere Stripe-Zahlung`,
+      fineprint:`Kartendaten sieht nur Stripe, nie dieser Server.`,
+      faqTitle:`Häufige Fragen`,
+      q1:`Was passiert nach dem Kauf?`,a1:`Du erhältst sofort deinen Lizenzschlüssel und löst ihn einmal im Spiel ein. Danach ist alles aktiv – solange dein Abo läuft, musst du nie wieder etwas eintippen.`,
+      q2:`Kann ich kündigen?`,a2:`Ja, jederzeit mit einem Klick im Kundenportal. Dein Zugang bleibt bis zum Ende des bezahlten Monats aktiv und endet dann automatisch.`,
+      q3:`Welche Server werden unterstützt?`,a3:`Alle. SMP-Kit ist rein client-seitig und funktioniert auf jedem Server – z. B. Donut SMP und Hugo SMP – ganz ohne Rechte auf dem Server.`,
+      q4:`Ist das ein unfairer Vorteil oder bannbar?`,a4:`Nein. SMP-Kit liest nur sichtbare Nametags und deinen eigenen Chat – kein Radar, kein Auto-Totem, keine Kampf-Automatisierung. Es zeigt nur Informationen der Community an.`,
+      ctaTitle:`Bereit für sichere Trades?`,ctaSub:`Schließe dich der Community an – und trade nie wieder blind.`,
       footPrivacy:`Datenschutz`,footImprint:`Impressum`,footMyData:`Meine Daten`,footManage:`Abo verwalten`,
       footNote:`Unabhängiges Community-Tool, nicht mit Mojang verbunden.`,
-      redirecting:`Weiterleitung …`,errPrefix:`Fehler: `,previewNote:`Design-Vorschau – im Livebetrieb geht es hier zur sicheren Stripe-Bezahlung.`},
-    en:{navFeatures:`Features`,navPricing:`Pricing`,navFaq:`FAQ`,ctaSubscribe:`Subscribe now`,
-      eyebrow:`Trust system for Minecraft SMPs`,h1:`Never trade blind again.`,
+      redirecting:`Weiterleitung …`,errPrefix:`Fehler: `,
+      devBanner:`⚙️ Dev-Modus: Stripe ist nicht konfiguriert – der Kauf wird simuliert.`,
+      previewNote:`Design-Vorschau – im Livebetrieb geht es hier zur sicheren Stripe-Bezahlung.`},
+    en:{navFeatures:`Features`,navHow:`How it works`,navPricing:`Pricing`,ctaSubscribe:`Subscribe now`,
+      eyebrow:`Live on Donut SMP &amp; Hugo SMP`,
+      h1:`Never trade <span class="hl">blind</span> again.`,
       sub:`SMP-Kit shows a trust score for every player, warns you about known scammers and protects you during TP and spawner trades.`,
-      ctaDemo:`See demo`,scammer:`⚠ Scammer`,previewCap:`This is how the trust score appears in game – as soon as you look at someone.`,
-      trustline:`Protects players on Donut SMP, Hugo SMP & any other server.`,
-      featKicker:`Features`,featTitle:`Everything for safe trading`,featSub:`Four building blocks that make fraud on economy servers visible.`,
-      f1t:`Real-time trust score`,f1d:`See instantly how trustworthy a player is – right above their head.`,
-      f2t:`Community blacklist`,f2d:`A shared list of known scammers – across servers, for every user.`,
-      f3t:`Scammer warnings`,f3d:`Automatic warning as soon as a flagged fraudster is near you.`,
-      f4t:`Report via GUI`,f4d:`Report scammers in a few clicks – and vouch for fair players.`,
-      priceKicker:`Pricing`,priceTitle:`One price, full protection`,priceSub:`Monthly subscription, cancel anytime. Covers the community's server costs.`,
-      saleBadge:`Sale`,per:`/month`,perOnce:`one-time`,
-      hint1:`Cancel monthly`,hint2:`Instant license key`,hint3:`Secure Stripe payment`,
-      fineprint:`Only Stripe sees your card details, never this server.`,
+      ctaDemo:`See demo`,trustline:`One community, one blacklist – across servers.`,
+      tagSafe:`Safe trading partner`,scammer:`⚠ SCAMMER`,toast:`Flagged scammer near you!`,
+      previewCap:`Live in game: the trust score appears as soon as you look at someone.`,
+      stat1t:`100% client-side`,stat1d:`no server permissions needed`,
+      stat2t:`Real-time score`,stat2d:`when looking at any player`,
+      stat3t:`Redeem once`,stat3d:`everything runs automatically after`,
+      featKicker:`Features`,featTitle:`Everything for safe trading`,
+      featSub:`Four building blocks that expose fraud on economy servers – before it hits you.`,
+      f1t:`Real-time trust score`,f1d:`Look at a player and instantly see how trustworthy they are – computed from reports and vouches of the whole community.`,
+      f2t:`Community blacklist`,f2d:`A shared list of known scammers – maintained by all users, valid on every server. Tamper-proof thanks to Mojang verification and weighted ratings.`,
+      f3t:`Scammer warnings`,f3d:`Automatic alert as soon as a flagged fraudster shows up near you.`,
+      f4t:`Report via GUI`,f4d:`Report scammers in two clicks, vouch for fair players – right in the game.`,
+      chip1:`Scammed in TP trade`,chip2:`Spawner scam`,chip3:`✓ Vouch`,
       stepsKicker:`Get started`,stepsTitle:`Ready in 3 steps`,
-      s1t:`Subscribe`,s1d:`Start your subscription – securely via Stripe.`,
-      s2t:`Get your license key`,s2d:`You receive your key right after purchase.`,
+      s1t:`Subscribe`,s1d:`Pay securely via Stripe – cancel monthly.`,
+      s2t:`Get your key`,s2d:`Your license key appears right after purchase.`,
       s3t:`Redeem in game`,
-      faqKicker:`FAQ`,faqTitle:`Frequently asked`,
-      q1:`What happens after purchase?`,a1:`You instantly get your license key and redeem it once in game. After that everything is active – nothing else to do.`,
-      q2:`Can I cancel?`,a2:`Yes, anytime with one click in the customer portal. Your access stays active until the end of the paid month.`,
-      q3:`Which servers are supported?`,a3:`All of them. SMP-Kit is client-side and works on any server (e.g. Donut SMP, Hugo SMP) without needing permissions there.`,
+      priceKicker:`Pricing`,priceTitle:`One price, full protection`,
+      priceSub:`Your subscription covers the community's server costs – and protects your wealth.`,
+      saleBadge:`On sale now`,per:`/month`,perOnce:`one-time`,
+      hint1:`Cancel monthly – no risk`,hint2:`Instant license key`,hint3:`Secure Stripe payment`,
+      fineprint:`Only Stripe sees your card details, never this server.`,
+      faqTitle:`Frequently asked`,
+      q1:`What happens after purchase?`,a1:`You instantly get your license key and redeem it once in game. After that everything is active – as long as your subscription runs, you never type anything again.`,
+      q2:`Can I cancel?`,a2:`Yes, anytime with one click in the customer portal. Your access stays active until the end of the paid month, then ends automatically.`,
+      q3:`Which servers are supported?`,a3:`All of them. SMP-Kit is purely client-side and works on any server – e.g. Donut SMP and Hugo SMP – without any server permissions.`,
+      q4:`Is this an unfair advantage or bannable?`,a4:`No. SMP-Kit only reads visible nametags and your own chat – no radar, no auto-totem, no combat automation. It just displays community information.`,
+      ctaTitle:`Ready for safe trades?`,ctaSub:`Join the community – and never trade blind again.`,
       footPrivacy:`Privacy`,footImprint:`Imprint`,footMyData:`My data`,footManage:`Manage subscription`,
       footNote:`Independent community tool, not affiliated with Mojang.`,
-      redirecting:`Redirecting …`,errPrefix:`Error: `,previewNote:`Design preview – in live mode this goes to secure Stripe checkout.`},
-    es:{navFeatures:`Funciones`,navPricing:`Precio`,navFaq:`FAQ`,ctaSubscribe:`Suscríbete ahora`,
-      eyebrow:`Sistema de confianza para SMPs de Minecraft`,h1:`Nunca más comercies a ciegas.`,
+      redirecting:`Redirecting …`,errPrefix:`Error: `,
+      devBanner:`⚙️ Dev mode: Stripe isn't configured – the purchase is simulated.`,
+      previewNote:`Design preview – in live mode this goes to secure Stripe checkout.`},
+    es:{navFeatures:`Funciones`,navHow:`Cómo funciona`,navPricing:`Precio`,ctaSubscribe:`Suscríbete ahora`,
+      eyebrow:`En vivo en Donut SMP &amp; Hugo SMP`,
+      h1:`Nunca más comercies <span class="hl">a ciegas</span>.`,
       sub:`SMP-Kit te muestra una puntuación de confianza de cada jugador, te avisa de estafadores conocidos y te protege en los intercambios por TP y de spawners.`,
-      ctaDemo:`Ver demo`,scammer:`⚠ Estafador`,previewCap:`Así aparece la puntuación de confianza en el juego, al mirar a alguien.`,
-      trustline:`Protege a jugadores en Donut SMP, Hugo SMP y cualquier otro servidor.`,
-      featKicker:`Funciones`,featTitle:`Todo para comerciar seguro`,featSub:`Cuatro piezas que hacen visible el fraude en servidores de economía.`,
-      f1t:`Confianza en tiempo real`,f1d:`Ve al instante cómo de fiable es un jugador, justo sobre su cabeza.`,
-      f2t:`Lista negra comunitaria`,f2d:`Una lista compartida de estafadores conocidos, entre servidores, para todos.`,
-      f3t:`Avisos de estafadores`,f3d:`Aviso automático en cuanto un estafador marcado está cerca de ti.`,
-      f4t:`Reportar con interfaz`,f4d:`Reporta estafadores en pocos clics y recomienda a jugadores justos.`,
-      priceKicker:`Precio`,priceTitle:`Un precio, protección total`,priceSub:`Suscripción mensual, cancela cuando quieras. Cubre los costes del servidor.`,
-      saleBadge:`Oferta`,per:`/mes`,perOnce:`pago único`,
-      hint1:`Cancela cada mes`,hint2:`Clave de licencia al instante`,hint3:`Pago seguro con Stripe`,
-      fineprint:`Solo Stripe ve los datos de tu tarjeta, nunca este servidor.`,
+      ctaDemo:`Ver demo`,trustline:`Una comunidad, una lista negra – entre servidores.`,
+      tagSafe:`Socio de confianza`,scammer:`⚠ ESTAFADOR`,toast:`¡Estafador marcado cerca de ti!`,
+      previewCap:`En el juego: la puntuación aparece al mirar a alguien.`,
+      stat1t:`100 % del lado del cliente`,stat1d:`sin permisos de servidor`,
+      stat2t:`Puntuación en tiempo real`,stat2d:`al mirar a cualquier jugador`,
+      stat3t:`Canjea una vez`,stat3d:`después todo es automático`,
+      featKicker:`Funciones`,featTitle:`Todo para comerciar seguro`,
+      featSub:`Cuatro piezas que exponen el fraude en servidores de economía, antes de que te afecte.`,
+      f1t:`Confianza en tiempo real`,f1d:`Mira a un jugador y ve al instante cuán fiable es, calculado con los reportes y avales de toda la comunidad.`,
+      f2t:`Lista negra comunitaria`,f2d:`Una lista compartida de estafadores conocidos, mantenida por todos y válida en cualquier servidor. A prueba de manipulación gracias a la verificación de Mojang.`,
+      f3t:`Avisos de estafadores`,f3d:`Alerta automática en cuanto un estafador marcado aparece cerca de ti.`,
+      f4t:`Reportar con interfaz`,f4d:`Reporta estafadores en dos clics y avala a jugadores justos, dentro del juego.`,
+      chip1:`Estafa en trade por TP`,chip2:`Estafa de spawner`,chip3:`✓ Avalar`,
       stepsKicker:`Empieza`,stepsTitle:`Listo en 3 pasos`,
-      s1t:`Suscríbete`,s1d:`Inicia tu suscripción, de forma segura con Stripe.`,
-      s2t:`Recibe tu clave`,s2d:`Recibes tu clave justo después de la compra.`,
+      s1t:`Suscríbete`,s1d:`Paga seguro con Stripe – cancela cada mes.`,
+      s2t:`Recibe tu clave`,s2d:`Tu clave aparece justo después de la compra.`,
       s3t:`Canjea en el juego`,
-      faqKicker:`FAQ`,faqTitle:`Preguntas frecuentes`,
-      q1:`¿Qué pasa tras la compra?`,a1:`Recibes tu clave al instante y la canjeas una vez en el juego. Después todo está activo, no tienes que hacer nada más.`,
-      q2:`¿Puedo cancelar?`,a2:`Sí, cuando quieras con un clic en el portal de cliente. Tu acceso sigue activo hasta el final del mes pagado.`,
-      q3:`¿Qué servidores se admiten?`,a3:`Todos. SMP-Kit es del lado del cliente y funciona en cualquier servidor (p. ej. Donut SMP, Hugo SMP) sin necesitar permisos allí.`,
+      priceKicker:`Precio`,priceTitle:`Un precio, protección total`,
+      priceSub:`Tu suscripción cubre los costes del servidor y protege tu fortuna.`,
+      saleBadge:`Ahora en oferta`,per:`/mes`,perOnce:`pago único`,
+      hint1:`Cancela cada mes – sin riesgo`,hint2:`Clave de licencia al instante`,hint3:`Pago seguro con Stripe`,
+      fineprint:`Solo Stripe ve los datos de tu tarjeta, nunca este servidor.`,
+      faqTitle:`Preguntas frecuentes`,
+      q1:`¿Qué pasa tras la compra?`,a1:`Recibes tu clave al instante y la canjeas una vez en el juego. Mientras tu suscripción esté activa, no tienes que volver a escribir nada.`,
+      q2:`¿Puedo cancelar?`,a2:`Sí, cuando quieras con un clic en el portal de cliente. Tu acceso sigue hasta el final del mes pagado y termina automáticamente.`,
+      q3:`¿Qué servidores se admiten?`,a3:`Todos. SMP-Kit es del lado del cliente y funciona en cualquier servidor – p. ej. Donut SMP y Hugo SMP – sin permisos allí.`,
+      q4:`¿Es una ventaja injusta o motivo de baneo?`,a4:`No. SMP-Kit solo lee nametags visibles y tu propio chat: sin radar, sin auto-tótem, sin automatización de combate. Solo muestra información de la comunidad.`,
+      ctaTitle:`¿Listo para trades seguros?`,ctaSub:`Únete a la comunidad y no comercies a ciegas nunca más.`,
       footPrivacy:`Privacidad`,footImprint:`Aviso legal`,footMyData:`Mis datos`,footManage:`Gestionar suscripción`,
       footNote:`Herramienta comunitaria independiente, sin relación con Mojang.`,
-      redirecting:`Redirigiendo …`,errPrefix:`Error: `,previewNote:`Vista previa de diseño – en producción esto lleva al pago seguro de Stripe.`},
-    fr:{navFeatures:`Fonctions`,navPricing:`Prix`,navFaq:`FAQ`,ctaSubscribe:`S'abonner`,
-      eyebrow:`Système de confiance pour les SMP Minecraft`,h1:`Ne trade plus jamais à l'aveugle.`,
+      redirecting:`Redirigiendo …`,errPrefix:`Error: `,
+      devBanner:`⚙️ Modo dev: Stripe no está configurado – la compra se simula.`,
+      previewNote:`Vista previa de diseño – en producción esto lleva al pago seguro de Stripe.`},
+    fr:{navFeatures:`Fonctions`,navHow:`Fonctionnement`,navPricing:`Prix`,ctaSubscribe:`S'abonner`,
+      eyebrow:`En direct sur Donut SMP &amp; Hugo SMP`,
+      h1:`Ne trade plus jamais <span class="hl">à l'aveugle</span>.`,
       sub:`SMP-Kit affiche un score de confiance pour chaque joueur, t'avertit des arnaqueurs connus et te protège lors des trades en TP et de spawners.`,
-      ctaDemo:`Voir la démo`,scammer:`⚠ Arnaqueur`,previewCap:`Voici le score de confiance en jeu, dès que tu regardes quelqu'un.`,
-      trustline:`Protège les joueurs sur Donut SMP, Hugo SMP et tout autre serveur.`,
-      featKicker:`Fonctions`,featTitle:`Tout pour trader en sécurité`,featSub:`Quatre briques qui rendent la fraude visible sur les serveurs économie.`,
-      f1t:`Score de confiance en direct`,f1d:`Vois aussitôt à quel point un joueur est fiable, juste au-dessus de sa tête.`,
-      f2t:`Liste noire communautaire`,f2d:`Une liste partagée d'arnaqueurs connus, inter-serveurs, pour tous.`,
-      f3t:`Alertes d'arnaqueurs`,f3d:`Alerte automatique dès qu'un fraudeur signalé est près de toi.`,
-      f4t:`Signaler via une interface`,f4d:`Signale les arnaqueurs en quelques clics et recommande les joueurs fiables.`,
-      priceKicker:`Prix`,priceTitle:`Un prix, protection totale`,priceSub:`Abonnement mensuel, résiliable à tout moment. Couvre les frais de serveur.`,
-      saleBadge:`Promo`,per:`/mois`,perOnce:`paiement unique`,
-      hint1:`Résiliable chaque mois`,hint2:`Clé de licence immédiate`,hint3:`Paiement sécurisé Stripe`,
-      fineprint:`Seul Stripe voit les données de ta carte, jamais ce serveur.`,
+      ctaDemo:`Voir la démo`,trustline:`Une communauté, une liste noire – inter-serveurs.`,
+      tagSafe:`Partenaire fiable`,scammer:`⚠ ARNAQUEUR`,toast:`Arnaqueur signalé près de toi !`,
+      previewCap:`En jeu : le score apparaît dès que tu regardes quelqu'un.`,
+      stat1t:`100 % côté client`,stat1d:`aucun droit serveur requis`,
+      stat2t:`Score en direct`,stat2d:`en regardant n'importe quel joueur`,
+      stat3t:`1 seule activation`,stat3d:`ensuite tout est automatique`,
+      featKicker:`Fonctions`,featTitle:`Tout pour trader en sécurité`,
+      featSub:`Quatre briques qui exposent la fraude sur les serveurs économie, avant qu'elle ne te touche.`,
+      f1t:`Score de confiance en direct`,f1d:`Regarde un joueur et vois aussitôt sa fiabilité, calculée à partir des signalements et recommandations de toute la communauté.`,
+      f2t:`Liste noire communautaire`,f2d:`Une liste partagée d'arnaqueurs connus, entretenue par tous, valable sur chaque serveur. Inviolable grâce à la vérification Mojang.`,
+      f3t:`Alertes d'arnaqueurs`,f3d:`Alerte automatique dès qu'un fraudeur signalé apparaît près de toi.`,
+      f4t:`Signaler via l'interface`,f4d:`Signale les arnaqueurs en deux clics, recommande les joueurs fiables, en jeu.`,
+      chip1:`Arnaque en trade TP`,chip2:`Arnaque au spawner`,chip3:`✓ Recommander`,
       stepsKicker:`C'est parti`,stepsTitle:`Prêt en 3 étapes`,
-      s1t:`S'abonner`,s1d:`Lance ton abonnement, en sécurité via Stripe.`,
-      s2t:`Reçois ta clé`,s2d:`Tu reçois ta clé juste après l'achat.`,
-      s3t:`Utilise-la en jeu`,
-      faqKicker:`FAQ`,faqTitle:`Questions fréquentes`,
-      q1:`Que se passe-t-il après l'achat ?`,a1:`Tu reçois ta clé aussitôt et l'utilises une fois en jeu. Ensuite tout est actif, rien d'autre à faire.`,
-      q2:`Puis-je résilier ?`,a2:`Oui, à tout moment en un clic dans le portail client. Ton accès reste actif jusqu'à la fin du mois payé.`,
-      q3:`Quels serveurs sont pris en charge ?`,a3:`Tous. SMP-Kit est côté client et fonctionne sur n'importe quel serveur (ex. Donut SMP, Hugo SMP) sans y avoir de droits.`,
+      s1t:`S'abonner`,s1d:`Paiement sécurisé via Stripe – résiliable chaque mois.`,
+      s2t:`Reçois ta clé`,s2d:`Ta clé apparaît juste après l'achat.`,
+      s3t:`Active-la en jeu`,
+      priceKicker:`Prix`,priceTitle:`Un prix, protection totale`,
+      priceSub:`Ton abonnement couvre les frais de serveur et protège ta fortune.`,
+      saleBadge:`En promo`,per:`/mois`,perOnce:`paiement unique`,
+      hint1:`Résiliable chaque mois – sans risque`,hint2:`Clé de licence immédiate`,hint3:`Paiement sécurisé Stripe`,
+      fineprint:`Seul Stripe voit les données de ta carte, jamais ce serveur.`,
+      faqTitle:`Questions fréquentes`,
+      q1:`Que se passe-t-il après l'achat ?`,a1:`Tu reçois ta clé aussitôt et l'actives une fois en jeu. Tant que ton abonnement est actif, tu n'as plus rien à saisir.`,
+      q2:`Puis-je résilier ?`,a2:`Oui, à tout moment en un clic dans le portail client. Ton accès reste actif jusqu'à la fin du mois payé puis s'arrête automatiquement.`,
+      q3:`Quels serveurs sont pris en charge ?`,a3:`Tous. SMP-Kit est côté client et fonctionne sur n'importe quel serveur – ex. Donut SMP et Hugo SMP – sans droits sur le serveur.`,
+      q4:`Est-ce un avantage déloyal ou bannissable ?`,a4:`Non. SMP-Kit ne lit que les nametags visibles et ton propre chat : pas de radar, pas d'auto-totem, pas d'automatisation de combat. Il affiche seulement les infos de la communauté.`,
+      ctaTitle:`Prêt pour des trades sûrs ?`,ctaSub:`Rejoins la communauté et ne trade plus jamais à l'aveugle.`,
       footPrivacy:`Confidentialité`,footImprint:`Mentions légales`,footMyData:`Mes données`,footManage:`Gérer l'abonnement`,
       footNote:`Outil communautaire indépendant, sans lien avec Mojang.`,
-      redirecting:`Redirection …`,errPrefix:`Erreur : `,previewNote:`Aperçu du design – en production, ceci mène au paiement sécurisé Stripe.`},
-    pt:{navFeatures:`Recursos`,navPricing:`Preço`,navFaq:`FAQ`,ctaSubscribe:`Assinar agora`,
-      eyebrow:`Sistema de confiança para SMPs de Minecraft`,h1:`Nunca mais troque às cegas.`,
+      redirecting:`Redirection …`,errPrefix:`Erreur : `,
+      devBanner:`⚙️ Mode dev : Stripe n'est pas configuré – l'achat est simulé.`,
+      previewNote:`Aperçu du design – en production, ceci mène au paiement sécurisé Stripe.`},
+    pt:{navFeatures:`Recursos`,navHow:`Como funciona`,navPricing:`Preço`,ctaSubscribe:`Assinar agora`,
+      eyebrow:`Ao vivo no Donut SMP &amp; Hugo SMP`,
+      h1:`Nunca mais troque <span class="hl">às cegas</span>.`,
       sub:`O SMP-Kit mostra uma pontuação de confiança de cada jogador, avisa sobre golpistas conhecidos e te protege em trocas por TP e de spawners.`,
-      ctaDemo:`Ver demo`,scammer:`⚠ Golpista`,previewCap:`É assim que a pontuação aparece no jogo, ao olhar para alguém.`,
-      trustline:`Protege jogadores no Donut SMP, Hugo SMP e qualquer outro servidor.`,
-      featKicker:`Recursos`,featTitle:`Tudo para trocar com segurança`,featSub:`Quatro peças que tornam a fraude visível em servidores de economia.`,
-      f1t:`Confiança em tempo real`,f1d:`Veja na hora o quão confiável é um jogador, logo acima da cabeça.`,
-      f2t:`Lista negra da comunidade`,f2d:`Uma lista compartilhada de golpistas conhecidos, entre servidores, para todos.`,
-      f3t:`Avisos de golpistas`,f3d:`Aviso automático assim que um golpista sinalizado está perto de você.`,
-      f4t:`Denunciar pela interface`,f4d:`Denuncie golpistas em poucos cliques e recomende jogadores justos.`,
-      priceKicker:`Preço`,priceTitle:`Um preço, proteção total`,priceSub:`Assinatura mensal, cancele quando quiser. Cobre os custos do servidor.`,
-      saleBadge:`Promoção`,per:`/mês`,perOnce:`pagamento único`,
-      hint1:`Cancele mensalmente`,hint2:`Chave de licença imediata`,hint3:`Pagamento seguro via Stripe`,
-      fineprint:`Só o Stripe vê os dados do seu cartão, nunca este servidor.`,
+      ctaDemo:`Ver demo`,trustline:`Uma comunidade, uma lista negra – entre servidores.`,
+      tagSafe:`Parceiro confiável`,scammer:`⚠ GOLPISTA`,toast:`Golpista sinalizado perto de você!`,
+      previewCap:`No jogo: a pontuação aparece ao olhar para alguém.`,
+      stat1t:`100 % no cliente`,stat1d:`sem permissões de servidor`,
+      stat2t:`Pontuação em tempo real`,stat2d:`ao olhar para qualquer jogador`,
+      stat3t:`Resgate uma vez`,stat3d:`depois tudo é automático`,
+      featKicker:`Recursos`,featTitle:`Tudo para trocar com segurança`,
+      featSub:`Quatro peças que expõem a fraude em servidores de economia, antes que te atinja.`,
+      f1t:`Confiança em tempo real`,f1d:`Olhe para um jogador e veja na hora o quão confiável ele é, calculado com denúncias e recomendações de toda a comunidade.`,
+      f2t:`Lista negra da comunidade`,f2d:`Uma lista compartilhada de golpistas conhecidos, mantida por todos e válida em qualquer servidor. À prova de manipulação com verificação da Mojang.`,
+      f3t:`Avisos de golpistas`,f3d:`Alerta automático assim que um golpista sinalizado aparece perto de você.`,
+      f4t:`Denunciar pela interface`,f4d:`Denuncie golpistas em dois cliques e recomende jogadores justos, no jogo.`,
+      chip1:`Golpe em troca por TP`,chip2:`Golpe de spawner`,chip3:`✓ Recomendar`,
       stepsKicker:`Comece`,stepsTitle:`Pronto em 3 passos`,
-      s1t:`Assine`,s1d:`Inicie sua assinatura, com segurança via Stripe.`,
-      s2t:`Receba sua chave`,s2d:`Você recebe sua chave logo após a compra.`,
+      s1t:`Assine`,s1d:`Pague com segurança via Stripe – cancele mensalmente.`,
+      s2t:`Receba sua chave`,s2d:`Sua chave aparece logo após a compra.`,
       s3t:`Resgate no jogo`,
-      faqKicker:`FAQ`,faqTitle:`Perguntas frequentes`,
-      q1:`O que acontece após a compra?`,a1:`Você recebe sua chave na hora e a resgata uma vez no jogo. Depois tudo fica ativo, nada mais a fazer.`,
-      q2:`Posso cancelar?`,a2:`Sim, quando quiser com um clique no portal do cliente. Seu acesso fica ativo até o fim do mês pago.`,
-      q3:`Quais servidores são suportados?`,a3:`Todos. O SMP-Kit é do lado do cliente e funciona em qualquer servidor (ex. Donut SMP, Hugo SMP) sem precisar de permissões lá.`,
+      priceKicker:`Preço`,priceTitle:`Um preço, proteção total`,
+      priceSub:`Sua assinatura cobre os custos do servidor e protege sua fortuna.`,
+      saleBadge:`Em promoção`,per:`/mês`,perOnce:`pagamento único`,
+      hint1:`Cancele mensalmente – sem risco`,hint2:`Chave de licença imediata`,hint3:`Pagamento seguro via Stripe`,
+      fineprint:`Só o Stripe vê os dados do seu cartão, nunca este servidor.`,
+      faqTitle:`Perguntas frequentes`,
+      q1:`O que acontece após a compra?`,a1:`Você recebe sua chave na hora e a resgata uma vez no jogo. Enquanto sua assinatura estiver ativa, não precisa digitar mais nada.`,
+      q2:`Posso cancelar?`,a2:`Sim, quando quiser com um clique no portal do cliente. Seu acesso continua até o fim do mês pago e termina automaticamente.`,
+      q3:`Quais servidores são suportados?`,a3:`Todos. O SMP-Kit é do lado do cliente e funciona em qualquer servidor – ex. Donut SMP e Hugo SMP – sem permissões lá.`,
+      q4:`É vantagem injusta ou motivo de ban?`,a4:`Não. O SMP-Kit só lê nametags visíveis e o seu próprio chat: sem radar, sem auto-totem, sem automação de combate. Ele apenas exibe informações da comunidade.`,
+      ctaTitle:`Pronto para trocas seguras?`,ctaSub:`Junte-se à comunidade e nunca mais troque às cegas.`,
       footPrivacy:`Privacidade`,footImprint:`Informações legais`,footMyData:`Meus dados`,footManage:`Gerenciar assinatura`,
       footNote:`Ferramenta comunitária independente, sem ligação com a Mojang.`,
-      redirecting:`Redirecionando …`,errPrefix:`Erro: `,previewNote:`Prévia de design – em produção, isto leva ao pagamento seguro do Stripe.`}
+      redirecting:`Redirecionando …`,errPrefix:`Erro: `,
+      devBanner:`⚙️ Modo dev: o Stripe não está configurado – a compra é simulada.`,
+      previewNote:`Prévia de design – em produção, isto leva ao pagamento seguro do Stripe.`}
   };
   const SUPPORTED = ["de","en","es","fr","pt"];
   let CURRENT = "de";
@@ -535,27 +723,17 @@
       const k = el.getAttribute("data-i18n");
       if (d[k] != null) el.innerHTML = d[k];
     });
-    // buy buttons keep label + price
-    const priceEl = document.querySelector(".price");
-    const price = priceEl ? priceEl.textContent.trim() : "";
     document.querySelectorAll(".js-buy").forEach(b=>{ b.dataset.label = d.ctaSubscribe; });
-    // price wording + sale
     const per = document.getElementById("per");
     if (per) per.textContent = document.body.dataset.sub === "1" ? d.per : d.perOnce;
     const onSale = document.body.dataset.sale === "1";
     const reg = document.getElementById("regular"), badge = document.getElementById("salebadge");
     if (reg) reg.hidden = !onSale;
     if (badge) badge.hidden = !onSale;
-    // dev banner
     const dev = document.getElementById("dev");
-    if (dev){ if (document.body.dataset.dev === "1"){ dev.textContent = d.devBanner || d.previewNote; dev.hidden = false; } else dev.hidden = true; }
+    if (dev){ if (document.body.dataset.dev === "1"){ dev.textContent = d.devBanner; dev.hidden = false; } else dev.hidden = true; }
     try { localStorage.setItem("smpkit_lang", CURRENT); } catch(e){}
   }
-  I18N.de.devBanner = "⚙️ Dev-Modus: Stripe ist nicht konfiguriert – der Kauf wird simuliert.";
-  I18N.en.devBanner = "⚙️ Dev mode: Stripe isn't configured – the purchase is simulated.";
-  I18N.es.devBanner = "⚙️ Modo dev: Stripe no está configurado – la compra se simula.";
-  I18N.fr.devBanner = "⚙️ Mode dev : Stripe n'est pas configuré – l'achat est simulé.";
-  I18N.pt.devBanner = "⚙️ Modo dev: o Stripe não está configurado – a compra é simulada.";
 
   (function init(){
     let saved=null; try{ saved=localStorage.getItem("smpkit_lang"); }catch(e){}
@@ -567,10 +745,9 @@
     applyLang(sel.value);
   })();
 
-  // reveal on scroll
-  const io = new IntersectionObserver((entries)=>{
-    entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
-  }, {threshold:.12});
+  const io = new IntersectionObserver((es)=>{
+    es.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add("in"); io.unobserve(e.target); } });
+  },{threshold:.1});
   document.querySelectorAll(".reveal").forEach(el=>io.observe(el));
 </script>
 
@@ -580,7 +757,7 @@
     const T = (k)=> (typeof t==="function" ? t(k) : k);
     async function buy(btn){
       if(err){ err.textContent=""; }
-      const label = btn.dataset.label || btn.textContent;
+      const orig = btn.innerHTML;
       btn.disabled = true; btn.textContent = T("redirecting");
       try{
         const r = await fetch("/api/checkout", {method:"POST"});
@@ -589,7 +766,7 @@
         throw new Error(d.error || "error");
       }catch(e){
         if(err) err.textContent = T("errPrefix") + e.message;
-        btn.disabled = false; btn.textContent = label;
+        btn.disabled = false; btn.innerHTML = orig;
       }
     }
     document.querySelectorAll(".js-buy").forEach(b=>b.addEventListener("click", ()=>buy(b)));
