@@ -32,6 +32,10 @@ Environment=SMPKIT_MOJANG_AUTH=true
 # Environment=STRIPE_SECRET_KEY=sk_live_...
 # Environment=STRIPE_WEBHOOK_SECRET=whsec_...
 # Environment=SMPKIT_ADMIN_KEY=bitte-aendern
+# Impressum/Datenschutz (für /privacy und /gdpr):
+# Environment=SMPKIT_OPERATOR_NAME=Dein Name
+# Environment=SMPKIT_OPERATOR_EMAIL=du@example.com
+# Environment=SMPKIT_OPERATOR_ADDRESS=Straße Nr., PLZ Ort
 ExecStart=/usr/bin/python3 /opt/smpkit/trust_server.py
 Restart=on-failure
 RestartSec=3

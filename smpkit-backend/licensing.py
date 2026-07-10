@@ -147,6 +147,19 @@ class LicenseStore:
             ).fetchone()
             return row["redeemed_by_uuid"] if row else None
 
+    def delete_for(self, uuid: str | None = None, email: str | None = None) -> int:
+        """Löscht Lizenz-/Kaufdaten zu einer UUID oder E-Mail (DSGVO-Löschung)."""
+        n = 0
+        with self.lock:
+            if uuid:
+                n += self.db.execute(
+                    "DELETE FROM licenses WHERE redeemed_by_uuid=?", (uuid,)).rowcount
+            if email:
+                n += self.db.execute(
+                    "DELETE FROM licenses WHERE email=?", (email,)).rowcount
+            self.db.commit()
+        return n
+
     def count(self) -> int:
         with self.lock:
             return self.db.execute("SELECT COUNT(*) AS n FROM licenses").fetchone()["n"]

@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMP-Kit – Meine Daten</title>
+<style>
+  :root{--bg:#eef2ee;--panel:#fff;--panel2:#f5f8f4;--line:#d6ded6;--ink:#131a15;--muted:#5c6b60;--accent:#1f9d57;--accent-ink:#0c7a3f}
+  @media (prefers-color-scheme:dark){:root{--bg:#0d120f;--panel:#151d18;--panel2:#101711;--line:#26302a;--ink:#e9f0ea;--muted:#9fb0a4;--accent:#2fc46e;--accent-ink:#57d98c}}
+  :root[data-theme="dark"]{--bg:#0d120f;--panel:#151d18;--panel2:#101711;--line:#26302a;--ink:#e9f0ea;--muted:#9fb0a4;--accent:#2fc46e;--accent-ink:#57d98c}
+  :root[data-theme="light"]{--bg:#eef2ee;--panel:#fff;--panel2:#f5f8f4;--line:#d6ded6;--ink:#131a15;--muted:#5c6b60;--accent:#1f9d57;--accent-ink:#0c7a3f}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.6;
+       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:640px;margin:0 auto;padding:32px 20px 72px}
+  a{color:var(--accent-ink)}
+  h1{font-size:26px;margin:0 0 6px}
+  h2{font-size:17px;margin:30px 0 10px}
+  p,li{font-size:15px}.muted{color:var(--muted)}
+  .back{display:inline-block;margin-bottom:18px;font-size:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px}
+  .row{display:flex;gap:8px;margin-top:6px}
+  input{flex:1;font:inherit;padding:10px 12px;border:1px solid var(--line);border-radius:9px;
+        background:var(--panel2);color:var(--ink)}
+  button{font:inherit;font-weight:600;border:0;border-radius:9px;padding:10px 16px;cursor:pointer;
+         background:var(--accent);color:#fff}
+  button:hover{filter:brightness(1.06)}
+  pre{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:12px;
+      overflow-x:auto;font-size:13px;white-space:pre-wrap;word-break:break-word}
+  .out{margin-top:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← Zurück zum Shop</a>
+  <h1>Meine Daten (DSGVO)</h1>
+  <p class="muted">Sieh nach, welche Daten zu einem Minecraft-Namen gespeichert sind, und
+    erfahre, wie du die Löschung beantragst.</p>
+
+  <h2>1. Gespeicherte Daten ansehen (Auskunft)</h2>
+  <div class="card">
+    <label for="name">Minecraft-Name</label>
+    <div class="row">
+      <input id="name" placeholder="z. B. Notch" autocomplete="off" maxlength="16">
+      <button id="show">Anzeigen</button>
+    </div>
+    <div class="out" id="out"></div>
+  </div>
+
+  <h2>2. Löschung beantragen</h2>
+  <div class="card">
+    <p>Aus Missbrauchsschutz löschen wir nicht per Klick (sonst könnte jeder fremde – oder eigene
+      belastende – Einträge entfernen). Schick uns deine Anfrage, wir prüfen und löschen dann:</p>
+    <p>📧 <a href="mailto:{{OP_EMAIL}}?subject=DSGVO-L%C3%B6schung%20SMP-Kit">{{OP_EMAIL}}</a></p>
+    <p class="muted">Bitte deinen Minecraft-Namen (und, falls möglich, deine UUID sowie einen
+      Identitätsnachweis) angeben, damit wir sicher der richtigen Person zuordnen. Details in der
+      <a href="/privacy">Datenschutzerklärung</a>.</p>
+  </div>
+</div>
+
+<script>
+  const out = document.getElementById('out');
+  const name = document.getElementById('name');
+  async function show(){
+    const n = name.value.trim();
+    if(!n){ return; }
+    out.innerHTML = '<p class="muted">Lade …</p>';
+    try{
+      const r = await fetch('/api/gdpr/export?player=' + encodeURIComponent(n));
+      const d = await r.json();
+      if(!r.ok){ out.innerHTML = '<p class="muted">'+(d.error||'Fehler')+'</p>'; return; }
+      out.innerHTML = '<pre>' + JSON.stringify(d, null, 2) + '</pre>';
+    }catch(e){ out.innerHTML = '<p class="muted">Server nicht erreichbar.</p>'; }
+  }
+  document.getElementById('show').addEventListener('click', show);
+  name.addEventListener('keydown', e => { if(e.key === 'Enter') show(); });
+</script>
+</body>
+</html>

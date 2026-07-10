@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SMP-Kit – Datenschutz &amp; Impressum</title>
+<style>
+  :root{--bg:#eef2ee;--panel:#fff;--line:#d6ded6;--ink:#131a15;--muted:#5c6b60;--accent:#0c7a3f}
+  @media (prefers-color-scheme:dark){:root{--bg:#0d120f;--panel:#151d18;--line:#26302a;--ink:#e9f0ea;--muted:#9fb0a4;--accent:#57d98c}}
+  :root[data-theme="dark"]{--bg:#0d120f;--panel:#151d18;--line:#26302a;--ink:#e9f0ea;--muted:#9fb0a4;--accent:#57d98c}
+  :root[data-theme="light"]{--bg:#eef2ee;--panel:#fff;--line:#d6ded6;--ink:#131a15;--muted:#5c6b60;--accent:#0c7a3f}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);line-height:1.65;
+       font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  .wrap{max-width:720px;margin:0 auto;padding:32px 20px 72px}
+  a{color:var(--accent)}
+  h1{font-size:28px;letter-spacing:-.02em;margin:0 0 6px}
+  h2{font-size:18px;margin:32px 0 8px}
+  p,li{color:var(--ink);font-size:15px}
+  .muted{color:var(--muted)}
+  .note{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--accent);
+        border-radius:10px;padding:12px 16px;font-size:14px;color:var(--muted);margin:18px 0}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:10px 0}
+  code{background:rgba(127,127,127,.15);padding:1px 6px;border-radius:5px;font-size:13.5px}
+  .back{display:inline-block;margin-bottom:18px;font-size:14px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="/">← Zurück zum Shop</a>
+  <h1>Datenschutzerklärung &amp; Impressum</h1>
+  <p class="muted">Für den Trust-Dienst „SMP-Kit".</p>
+
+  <div class="note">⚠️ <b>Vorlage – keine Rechtsberatung.</b> Diese Seite ist ein Ausgangspunkt.
+    Lass sie vor dem öffentlichen Betrieb von einer fachkundigen Person prüfen und passe sie an
+    deine tatsächliche Verarbeitung an.</div>
+
+  <h2>1. Verantwortlicher (Impressum)</h2>
+  <div class="box">
+    {{OP_NAME}}<br>
+    {{OP_ADDRESS}}<br>
+    E-Mail: <a href="mailto:{{OP_EMAIL}}">{{OP_EMAIL}}</a>
+  </div>
+  <p class="muted">Angaben gemäß §5 DDG (ehem. TMG). Bitte mit deinen echten Daten befüllen
+    (über die Umgebungsvariablen <code>SMPKIT_OPERATOR_NAME</code>,
+    <code>SMPKIT_OPERATOR_ADDRESS</code>, <code>SMPKIT_OPERATOR_EMAIL</code>).</p>
+
+  <h2>2. Welche Daten wir verarbeiten</h2>
+  <ul>
+    <li><b>Minecraft-Name und -UUID</b> von Spielern, die gemeldet, empfohlen oder bewertet
+      werden – sowie von Nutzern der Mod.</li>
+    <li><b>Bewertungen:</b> Meldungen (Reports) und Empfehlungen (Vouches) inkl. Kategorie,
+      optionaler Notiz und Zeitstempel; daraus berechneter <b>Vertrauenswert</b>.</li>
+    <li><b>Kauf:</b> bei einem Lizenzkauf die <b>E-Mail-Adresse</b> (über Stripe) und ein
+      Lizenz-/Zahlungsbezug.</li>
+  </ul>
+
+  <h2>3. Zwecke &amp; Rechtsgrundlagen</h2>
+  <ul>
+    <li><b>Betrugsprävention / Community-Vertrauen:</b> Warnung vor Betrügern auf Minecraft-Servern
+      – berechtigtes Interesse, Art. 6 Abs. 1 lit. f DSGVO.</li>
+    <li><b>Kaufabwicklung / Lizenz:</b> Vertragserfüllung, Art. 6 Abs. 1 lit. b DSGVO.</li>
+  </ul>
+  <p class="muted">Betroffene können der Verarbeitung auf Grundlage berechtigter Interessen
+    jederzeit widersprechen (Art. 21 DSGVO). Wir prüfen dann, ob schutzwürdige Gründe für eine
+    weitere Speicherung (z. B. Betrugsprävention) überwiegen.</p>
+
+  <h2>4. Empfänger</h2>
+  <ul>
+    <li><b>Stripe</b> (Zahlungsabwicklung) – nur bei Kauf.</li>
+    <li><b>Mojang/Microsoft</b> – zur einmaligen Identitätsprüfung bei der Einlösung.</li>
+  </ul>
+
+  <h2>5. Speicherdauer</h2>
+  <p>Bewertungen bleiben gespeichert, solange sie für den Warnzweck erforderlich sind; ältere
+    Meldungen verlieren automatisch an Gewicht (Zeitverfall). Auf berechtigte Löschanträge hin
+    werden Daten entfernt (siehe Punkt 6).</p>
+
+  <h2>6. Deine Rechte</h2>
+  <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung und Widerspruch sowie
+    auf Beschwerde bei einer Aufsichtsbehörde.</p>
+  <ul>
+    <li><b>Auskunft &amp; Löschung anfragen:</b> auf der Seite <a href="/gdpr">„Meine Daten"</a>.</li>
+    <li>Oder per E-Mail an <a href="mailto:{{OP_EMAIL}}">{{OP_EMAIL}}</a>.</li>
+  </ul>
+
+  <p class="muted" style="margin-top:28px">Stand: automatisch generierte Vorlage. Bitte aktuell halten.</p>
+</div>
+</body>
+</html>

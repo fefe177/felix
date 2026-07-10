@@ -59,6 +59,29 @@ Ablauf: `/` (kaufen) → Stripe-Checkout → `/success` zeigt den Schlüssel `SM
 > ein Impressum, Widerrufs-/AGB-Hinweise und musst Umsatzsteuer beachten – kläre das je nach
 > Land/Umfang ab.
 
+## Datenschutz / DSGVO
+
+Da server-übergreifend Daten über identifizierbare Spieler (Name/UUID, Bewertungen, Vertrauen)
+gespeichert werden, bringt der Server die Betroffenenrechte gleich mit:
+
+- **`/privacy`** – Datenschutzerklärung **und** Impressum (Vorlage). Wird mit deinen Angaben aus
+  `SMPKIT_OPERATOR_NAME/EMAIL/ADDRESS` gefüllt. **Vor dem öffentlichen Betrieb prüfen lassen.**
+- **`/gdpr`** – Self-Service-Seite: Spieler sehen per Name, was gespeichert ist (Auskunft), und
+  erfahren, wie sie die Löschung beantragen.
+- **`/api/gdpr/export?player=Name`** – Auskunft als JSON (ohne Identitäten Dritter offenzulegen).
+- **`/api/gdpr/delete`** – Löschung; **nur mit Admin-Key** (`SMPKIT_ADMIN_KEY`). Bewusst nicht
+  per Klick für jeden, damit niemand fremde – oder eigene belastende – Einträge unbefugt löscht.
+  Der Betreiber prüft die Anfrage (Identität) und löscht dann, z. B.:
+  ```bash
+  curl -X POST -H "X-Api-Key: DEIN_ADMIN_KEY" \
+       https://deine-domain/api/gdpr/delete -d '{"player":"Name","email":"kunde@x.de"}'
+  ```
+  Gelöscht werden alle Bewertungen zu/von dem Spieler und (bei uuid/email) die Kaufdaten.
+
+> Kein Rechtsrat: Ob und wie du einer Löschung nachkommen musst, hängt vom Einzelfall ab
+> (Betrugsprävention kann ein berechtigtes Interesse an weiterer Speicherung sein). Im Zweifel
+> rechtlich beraten lassen.
+
 ## Endpunkte
 
 | Methode | Pfad | Zweck |
@@ -73,6 +96,8 @@ Ablauf: `/` (kaufen) → Stripe-Checkout → `/success` zeigt den Schlüssel `SM
 | POST | `/api/redeem` | einmalige Einlösung, liefert `{token}` (Felder je nach Mojang-Modus) |
 | GET  | `/api/auth/nonce` | serverId (Nonce) + `mojangAuth`-Flag für die Verifikation |
 | GET  | `/api/license/verify?token=…` | prüft ein laufendes Zugriffs-Token |
+| GET  | `/api/gdpr/export?player=Name` | Auskunft: was ist zu diesem Spieler gespeichert |
+| POST | `/api/gdpr/delete` | Löschung (Admin-Key nötig): `{player, uuid?, email?}` |
 
 ## Trust-Berechnung
 

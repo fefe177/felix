@@ -24,8 +24,12 @@ services:
       # Stripe-Schlüssel (aus dem Stripe-Dashboard). Ohne diese läuft der Dev-Modus:
       # STRIPE_SECRET_KEY: "sk_live_..."
       # STRIPE_WEBHOOK_SECRET: "whsec_..."
-      # Optionaler Admin-Schlüssel (voller Zugriff ohne Lizenz):
+      # Optionaler Admin-Schlüssel (voller Zugriff + nötig für DSGVO-Löschungen):
       # SMPKIT_ADMIN_KEY: "bitte-aendern"
+      # Impressum/Datenschutz (für /privacy und /gdpr):
+      # SMPKIT_OPERATOR_NAME: "Dein Name"
+      # SMPKIT_OPERATOR_EMAIL: "du@example.com"
+      # SMPKIT_OPERATOR_ADDRESS: "Straße Nr., PLZ Ort"
 
 volumes:
   smpkit-data:

@@ -269,6 +269,38 @@ class Store:
             ).fetchall()
             return {row["category"]: row["n"] for row in rows}
 
+    def activity_counts(self, name):
+        """Wie oft hat dieser Spieler selbst gemeldet/empfohlen (als Akteur)?"""
+        with self.lock:
+            rb = self.db.execute(
+                "SELECT COUNT(*) AS n FROM reports WHERE reporter_name=? COLLATE NOCASE",
+                (name,),
+            ).fetchone()["n"]
+            vb = self.db.execute(
+                "SELECT COUNT(*) AS n FROM vouches WHERE voucher_name=? COLLATE NOCASE",
+                (name,),
+            ).fetchone()["n"]
+            return rb, vb
+
+    def delete_player_data(self, name, uuid=None):
+        """Löscht alle Trust-Daten zu einem Spieler – als Ziel UND als Melder/Empfehler."""
+        with self.lock:
+            total = 0
+            for sql, param in (
+                ("DELETE FROM reports WHERE target_name=? COLLATE NOCASE", (name,)),
+                ("DELETE FROM reports WHERE reporter_name=? COLLATE NOCASE", (name,)),
+                ("DELETE FROM vouches WHERE target_name=? COLLATE NOCASE", (name,)),
+                ("DELETE FROM vouches WHERE voucher_name=? COLLATE NOCASE", (name,)),
+            ):
+                total += self.db.execute(sql, param).rowcount
+            if uuid:
+                total += self.db.execute(
+                    "DELETE FROM reports WHERE reporter_uuid=?", (uuid,)).rowcount
+                total += self.db.execute(
+                    "DELETE FROM vouches WHERE voucher_uuid=?", (uuid,)).rowcount
+            self.db.commit()
+            return total
+
     def blacklist(self):
         """Alle Spieler, die die Flag-Bedingung erfüllen."""
         with self.lock:
@@ -350,6 +382,13 @@ def compute_trust(store: Store, name: str) -> dict:
 
 # --- HTTP -------------------------------------------------------------------
 WEB_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "web")
+
+# Betreiber-Angaben für Impressum/Datenschutz (per Umgebungsvariablen).
+OPERATOR = {
+    "name": os.environ.get("SMPKIT_OPERATOR_NAME", "[Dein Name / Betreiber]"),
+    "email": os.environ.get("SMPKIT_OPERATOR_EMAIL", "[deine-email@example.com]"),
+    "address": os.environ.get("SMPKIT_OPERATOR_ADDRESS", "[Straße Nr., PLZ Ort]"),
+}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -434,6 +473,15 @@ class Handler(BaseHTTPRequestHandler):
             return self._serve_landing()
         if u.path == "/success":
             return self._serve_success(q.get("session_id", [""])[0])
+        if u.path == "/privacy":
+            return self._send_html(200, self._template("privacy.html", {
+                "OP_NAME": OPERATOR["name"], "OP_EMAIL": OPERATOR["email"],
+                "OP_ADDRESS": OPERATOR["address"]}))
+        if u.path == "/gdpr":
+            return self._send_html(200, self._template("gdpr.html", {
+                "OP_EMAIL": OPERATOR["email"]}))
+        if u.path == "/api/gdpr/export":
+            return self._gdpr_export((q.get("player", [""])[0]).strip())
         if u.path == "/api/license/verify":
             # Prüft ein laufendes Zugriffs-Token. Mit IP-Rate-Limit gegen Brute-Force.
             if not ip_rate_ok(self.client_address[0]):
@@ -476,6 +524,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._handle_webhook()
         if u.path == "/api/redeem":
             return self._handle_redeem()
+        if u.path == "/api/gdpr/delete":
+            return self._gdpr_delete()
 
         if not self._auth_ok():
             return self._send(401, {"error": "unauthorized", "needLicense": self.license_required})
@@ -585,6 +635,46 @@ class Handler(BaseHTTPRequestHandler):
             if licensing.session_is_paid(session):
                 self.licenses.issue_for_session(session["id"], licensing.session_email(session))
         return self._send(200, {"received": True})
+
+    # -- DSGVO --
+    def _gdpr_export(self, name):
+        """Auskunft: welche Daten sind zu diesem Spieler gespeichert? (Art. 15 DSGVO)"""
+        if not self._valid_name(name):
+            return self._send(400, {"error": "gültigen Minecraft-Namen angeben (?player=Name)"})
+        about = compute_trust(self.store, name)
+        rb, vb = self.store.activity_counts(name)
+        return self._send(200, {
+            "player": name,
+            "storedAboutYou": {
+                "trust": about["trust"],
+                "reportsAgainstYou": about["reports"],
+                "vouchesForYou": about["vouches"],
+                "flagged": about["flagged"],
+                "categories": about["categories"],
+            },
+            "yourActivity": {"reportsYouMade": rb, "vouchesYouMade": vb},
+            "note": "Die Identitäten anderer Melder werden zum Schutz Dritter nicht "
+                    "offengelegt. Zur Löschung siehe /gdpr.",
+        })
+
+    def _gdpr_delete(self):
+        """Löschung (Art. 17 DSGVO). Admin-geschützt: der Betreiber führt geprüfte
+        Anfragen aus, damit niemand fremde (oder eigene belastende) Daten unbefugt löscht."""
+        key = self._presented_key()
+        if not self.admin_key or key != self.admin_key:
+            return self._send(403, {"error": "Admin-Schlüssel erforderlich (SMPKIT_ADMIN_KEY)."})
+        data = self._read_json()
+        if data is None:
+            return self._send(400, {"error": "invalid json"})
+        player = str(data.get("player", "")).strip()
+        uuid = str(data.get("uuid", "")).strip() or None
+        email = str(data.get("email", "")).strip() or None
+        if not player and not uuid and not email:
+            return self._send(400, {"error": "player, uuid oder email angeben"})
+        trust_deleted = self.store.delete_player_data(player, uuid)
+        lic_deleted = self.licenses.delete_for(uuid, email)
+        return self._send(200, {"ok": True, "deletedTrustRows": trust_deleted,
+                                "deletedLicenses": lic_deleted})
 
     def _handle_report(self, d):
         ru = str(d.get("reporterUuid", "")).strip()
