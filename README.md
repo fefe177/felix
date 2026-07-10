@@ -6,7 +6,7 @@ ausdrücklich erlaubt ist und der Server nicht eingreift.
 
 | Ordner | Was |
 |---|---|
-| [`smpkit-backend/`](smpkit-backend/) | Trust-Server **inkl. Verkaufs-Website** (Python-Standardbibliothek, kein pip). Speichert Reports/Vouches, berechnet den Vertrauenswert, liefert die geteilte Blacklist – und verkauft Lizenz-Zugänge für **4,99 €** über Stripe. **Getestet & lauffähig.** |
+| [`smpkit-backend/`](smpkit-backend/) | Trust-Server **inkl. Verkaufs-Website** (Python-Standardbibliothek, kein pip). Speichert Reports/Vouches, berechnet den Vertrauenswert, liefert die geteilte Blacklist – und verkauft Abo-Zugänge (**1,99 €/Monat**, regulär 2,99 €) über Stripe. **Getestet & lauffähig.** |
 | [`smpkit-mod/`](smpkit-mod/) | Fabric-Client-Mod (MC 1.21.1). Report-/Vouch-GUI, Trust-Anzeige in %, Blacklist-Fenster, Nähe-Warnung, dazu SafeTrade (`/pay`-Doppelbestätigung) und Economy-/Grind-HUD. |
 
 ## 👉 Server auf dem eigenen PC starten
@@ -18,10 +18,12 @@ erreichbar via Cloudflare-Tunnel (ein Befehl, kein Router-Setup).
 
 ## Serverkosten decken
 
-Der Server bringt einen **eingebauten Shop** mit (`/`): Spieler kaufen für **4,99 €** einen
-dauerhaften Lizenzschlüssel; ohne gültige Lizenz ist die Trust-API gesperrt
-(`SMPKIT_LICENSE_REQUIRED=true`). Bezahlung über **Stripe**; ohne Stripe-Keys läuft ein
-Dev-/Simulationsmodus zum Testen. Details in [`smpkit-backend/README.md`](smpkit-backend/README.md).
+Der Server bringt einen **eingebauten Shop** mit (`/`): Spieler schließen ein **Abo** ab
+(**1,99 €/Monat**, regulär 2,99 €); der Zugang bleibt gültig, solange bezahlt wird, und wird bei
+Kündigung/Zahlungsausfall automatisch ungültig. Ohne gültige Lizenz ist die Trust-API gesperrt
+(`SMPKIT_LICENSE_REQUIRED=true`). Bezahlung über **Stripe** (Abo + Kundenportal zum Kündigen);
+ohne Stripe-Keys läuft ein Dev-/Simulationsmodus zum Testen. Details in
+[`smpkit-backend/README.md`](smpkit-backend/README.md).
 
 ## Idee in einem Satz
 

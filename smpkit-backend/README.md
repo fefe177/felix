@@ -24,7 +24,8 @@ python3 test_licensing.py  # Unit-Tests: Lizenzausstellung + Idempotenz
 ## Verkauf / Lizenzen (Serverkosten decken)
 
 Der Server bringt einen **eingebauten Shop** mit: unter `/` liegt eine Verkaufsseite, auf der
-Spieler für **4,99 €** einen dauerhaften Lizenzschlüssel kaufen. Ist `SMPKIT_LICENSE_REQUIRED=true`,
+Spieler ein **Abo** abschließen – regulär **2,99 €/Monat**, aktuell im Angebot **1,99 €/Monat**
+(monatlich kündbar). Ist `SMPKIT_LICENSE_REQUIRED=true`,
 funktioniert die Trust-API nur mit einem gültigen **Token**. Der Spieler löst seinen gekauften
 Schlüssel im Client **einmalig** per `/smpkit redeem <schlüssel>` ein; die Mod speichert das
 zurückgegebene Token automatisch und schickt es fortan als `X-Api-Key` mit.
@@ -37,12 +38,25 @@ Ablauf: `/` (kaufen) → Stripe-Checkout → `/success` zeigt den Schlüssel `SM
 | Env-Variable | Zweck |
 |---|---|
 | `STRIPE_SECRET_KEY` | Stripe Secret Key (`sk_live_…`). **Fehlt er → Dev-Modus** (simulierter Kauf). |
-| `STRIPE_WEBHOOK_SECRET` | für die Webhook-Signaturprüfung (`whsec_…`), optional |
+| `STRIPE_WEBHOOK_SECRET` | Webhook-Signaturprüfung (`whsec_…`). **Für Abos erforderlich** (Status-Updates). |
 | `SMPKIT_PUBLIC_URL` | öffentliche Basis-URL (für Stripe-Redirects) |
-| `SMPKIT_PRICE_CENTS` | Preis in Cent (Standard `499`) |
+| `SMPKIT_BILLING_MODE` | `subscription` (Abo, Standard) oder `onetime` |
+| `SMPKIT_INTERVAL` | `month` (Standard) oder `year` |
+| `SMPKIT_PRICE_CENTS` | aktueller Preis in Cent (Standard `199`) |
+| `SMPKIT_REGULAR_PRICE_CENTS` | regulärer Preis (durchgestrichen, Standard `299`) |
 | `SMPKIT_CURRENCY` | Währung (Standard `eur`) |
 | `SMPKIT_LICENSE_REQUIRED` | `true` = Trust-API nur mit Lizenz |
-| `SMPKIT_ADMIN_KEY` | optionaler Voll-Zugriff ohne Lizenz |
+| `SMPKIT_ADMIN_KEY` | optionaler Voll-Zugriff + DSGVO-Löschungen |
+
+**Abo-Ablauf:** Kauf → Stripe-Abo → Schlüssel → im Spiel **einmal** `/smpkit redeem`. Der Zugang
+bleibt gültig, **solange das Abo bezahlt ist** – der Spieler muss nichts weiter tun. Bei Kündigung
+oder Zahlungsausfall wird das Token automatisch ungültig (gesteuert per Stripe-Webhook). Verwalten/
+kündigen unter `/manage` (Stripe-Kundenportal; im Stripe-Dashboard einmalig aktivieren).
+
+**Wichtig für Abos:** Richte den **Webhook** auf `…/api/stripe-webhook` ein (Events:
+`checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`,
+`invoice.payment_failed`) und setze `STRIPE_WEBHOOK_SECRET`. Ohne Webhook erfährt der Server
+Kündigungen/Zahlungsausfälle nicht.
 
 **Stripe einrichten (Kurzfassung):**
 1. Kostenloses Stripe-Konto anlegen, im Dashboard den **Secret Key** kopieren.
@@ -98,6 +112,8 @@ gespeichert werden, bringt der Server die Betroffenenrechte gleich mit:
 | GET  | `/api/license/verify?token=…` | prüft ein laufendes Zugriffs-Token |
 | GET  | `/api/gdpr/export?player=Name` | Auskunft: was ist zu diesem Spieler gespeichert |
 | POST | `/api/gdpr/delete` | Löschung (Admin-Key nötig): `{player, uuid?, email?}` |
+| POST | `/api/portal` | `{key}` → Stripe-Kundenportal-Link (Abo verwalten/kündigen) |
+| POST | `/api/stripe-webhook` | Stripe-Events (Abo-Status), signaturgeprüft |
 
 ## Trust-Berechnung
 

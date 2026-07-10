@@ -480,6 +480,9 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/gdpr":
             return self._send_html(200, self._template("gdpr.html", {
                 "OP_EMAIL": OPERATOR["email"]}))
+        if u.path == "/manage":
+            return self._send_html(200, self._template("manage.html", {
+                "SUB": "1" if licensing.is_subscription() else "0"}))
         if u.path == "/api/gdpr/export":
             return self._gdpr_export((q.get("player", [""])[0]).strip())
         if u.path == "/api/license/verify":
@@ -526,6 +529,8 @@ class Handler(BaseHTTPRequestHandler):
             return self._handle_redeem()
         if u.path == "/api/gdpr/delete":
             return self._gdpr_delete()
+        if u.path == "/api/portal":
+            return self._handle_portal()
 
         if not self._auth_ok():
             return self._send(401, {"error": "unauthorized", "needLicense": self.license_required})
@@ -545,6 +550,9 @@ class Handler(BaseHTTPRequestHandler):
     def _serve_landing(self):
         html = self._template("index.html", {
             "PRICE": licensing.price_display(),
+            "REGULAR_PRICE": licensing.regular_price_display(),
+            "SALE": "1" if licensing.on_sale() else "0",
+            "SUB": "1" if licensing.is_subscription() else "0",
             "DEV": "1" if not licensing.stripe_enabled() else "0",
         })
         return self._send_html(200, html)
@@ -568,20 +576,34 @@ class Handler(BaseHTTPRequestHandler):
 
         email = None
         paid = False
+        sub_id = cust_id = None
+        status = "active"
+        period_end = None
         if session_id.startswith("dev_") and not licensing.stripe_enabled():
             paid = True                       # Dev-Modus: als bezahlt behandeln
+            if licensing.is_subscription():
+                period_end = time.time() + 100 * 365 * 86400   # Dev: quasi unbegrenzt aktiv
         else:
             try:
                 session = licensing.retrieve_session(session_id)
                 paid = licensing.session_is_paid(session)
                 email = licensing.session_email(session)
+                sub_id = session.get("subscription")
+                cust_id = session.get("customer")
+                if sub_id and licensing.is_subscription():
+                    try:
+                        sub = licensing.retrieve_subscription(sub_id)
+                        status = sub.get("status", "active")
+                        period_end = sub.get("current_period_end")
+                    except Exception:         # noqa: BLE001
+                        pass
             except Exception:                 # noqa: BLE001
                 paid = False
 
         if not paid:
             return self._send_html(402, "<p>Zahlung nicht bestätigt. Bitte erneut versuchen.</p>")
 
-        key = self.licenses.issue_for_session(session_id, email)
+        key = self.licenses.issue_for_session(session_id, email, sub_id, cust_id, status, period_end)
         html = self._template("success.html", {
             "KEY": key,
             "PUBLIC_URL": licensing.PUBLIC_URL,
@@ -623,6 +645,31 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(409, {"error": "Dieser Schlüssel wurde bereits eingelöst."})
         return self._send(404, {"error": "Ungültiger Schlüssel."})
 
+    def _handle_portal(self):
+        """Erzeugt einen Stripe-Kundenportal-Link (Abo verwalten/kündigen).
+        Der Kunde weist sich über seinen Schlüssel (SMPK-…) aus."""
+        if not ip_rate_ok(self.client_address[0]):
+            return self._send(429, {"error": "Zu viele Versuche – bitte später erneut."})
+        data = self._read_json()
+        if data is None:
+            return self._send(400, {"error": "invalid json"})
+        key = str(data.get("key", "")).strip()
+        if not key:
+            return self._send(400, {"error": "Schlüssel erforderlich."})
+        if not licensing.is_subscription():
+            return self._send(400, {"error": "Kein Abo – nichts zu verwalten."})
+        customer = self.licenses.customer_for_key(key)
+        if not licensing.stripe_enabled():
+            return self._send(200, {"dev": True,
+                                    "message": "Dev-Modus: hier ginge es zum Stripe-Kundenportal."})
+        if not customer:
+            return self._send(404, {"error": "Zu diesem Schlüssel wurde kein Abo gefunden."})
+        try:
+            sess = licensing.create_portal_session(customer, licensing.PUBLIC_URL + "/manage")
+            return self._send(200, {"url": sess["url"]})
+        except Exception as e:  # noqa: BLE001
+            return self._send(502, {"error": f"Portal konnte nicht erstellt werden: {e}"})
+
     def _handle_webhook(self):
         length = int(self.headers.get("Content-Length", 0) or 0)
         payload = self.rfile.read(length) if length > 0 else b""
@@ -630,10 +677,25 @@ class Handler(BaseHTTPRequestHandler):
         event = licensing.verify_webhook(payload, sig)
         if event is None:
             return self._send(400, {"error": "invalid signature"})
-        if event.get("type") == "checkout.session.completed":
-            session = event["data"]["object"]
-            if licensing.session_is_paid(session):
-                self.licenses.issue_for_session(session["id"], licensing.session_email(session))
+
+        et = event.get("type")
+        obj = event.get("data", {}).get("object", {})
+
+        if et == "checkout.session.completed":
+            if licensing.session_is_paid(obj):
+                self.licenses.issue_for_session(
+                    obj.get("id"), licensing.session_email(obj),
+                    obj.get("subscription"), obj.get("customer"), "active", None)
+        elif et in ("customer.subscription.updated", "customer.subscription.created"):
+            self.licenses.update_subscription(
+                obj.get("id"), obj.get("status", "active"), obj.get("current_period_end"))
+        elif et == "customer.subscription.deleted":
+            self.licenses.update_subscription(
+                obj.get("id"), "canceled", obj.get("current_period_end"))
+        elif et == "invoice.payment_failed":
+            if obj.get("subscription"):
+                self.licenses.update_subscription(obj["subscription"], "past_due", None)
+
         return self._send(200, {"received": True})
 
     # -- DSGVO --

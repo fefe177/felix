@@ -15,7 +15,10 @@ services:
       # --- Verkauf / Lizenz ---
       # Öffentliche Basis-URL des Shops (für Stripe-Redirects & Erfolgsseite):
       SMPKIT_PUBLIC_URL: "https://trust.deine-domain.de"
-      SMPKIT_PRICE_CENTS: "499"          # 4,99 €
+      SMPKIT_BILLING_MODE: "subscription"   # Abo (monatlich)
+      SMPKIT_INTERVAL: "month"
+      SMPKIT_PRICE_CENTS: "199"             # aktuell 1,99 €/Monat (Angebot)
+      SMPKIT_REGULAR_PRICE_CENTS: "299"     # regulär 2,99 € (durchgestrichen)
       SMPKIT_CURRENCY: "eur"
       # Trust-API nur mit gekaufter Lizenz zugänglich:
       SMPKIT_LICENSE_REQUIRED: "true"

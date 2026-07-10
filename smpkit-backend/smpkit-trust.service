@@ -25,7 +25,10 @@ Environment=SMPKIT_PORT=8080
 Environment=SMPKIT_DB=/var/lib/smpkit/trust.db
 # Verkauf / Lizenz:
 Environment=SMPKIT_PUBLIC_URL=https://trust.deine-domain.de
-Environment=SMPKIT_PRICE_CENTS=499
+Environment=SMPKIT_BILLING_MODE=subscription
+Environment=SMPKIT_INTERVAL=month
+Environment=SMPKIT_PRICE_CENTS=199
+Environment=SMPKIT_REGULAR_PRICE_CENTS=299
 Environment=SMPKIT_LICENSE_REQUIRED=true
 Environment=SMPKIT_MOJANG_AUTH=true
 # Stripe (ohne diese: Dev-Modus / simulierter Kauf):

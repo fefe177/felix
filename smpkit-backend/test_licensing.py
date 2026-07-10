@@ -41,6 +41,30 @@ def test_single_use():
         os.remove(path)
 
 
+def test_subscription_status():
+    import time
+    path = tempfile.mktemp(suffix=".db")
+    store = licensing.LicenseStore(path)
+    try:
+        key = store.issue_for_session("s", None, subscription_id="sub_1",
+                                      customer_id="cus_1", status="active",
+                                      period_end=time.time() + 3600)
+        _, token = store.redeem(key, "uuid-x")
+        assert store.token_valid(token) is True                 # aktiv -> gültig
+        store.update_subscription("sub_1", "canceled", None)
+        assert store.token_valid(token) is False                # gekündigt -> ungültig
+        store.update_subscription("sub_1", "active", time.time() + 3600)
+        assert store.token_valid(token) is True                 # wieder bezahlt -> gültig
+        store.update_subscription("sub_1", "past_due", None)
+        assert store.token_valid(token) is False                # Zahlung fehlt -> ungültig
+        store.update_subscription("sub_1", "active", time.time() - 10 * 86400)
+        assert store.token_valid(token) is False                # Periode + Karenz abgelaufen
+        assert store.customer_for_key(key) == "cus_1"
+        print("subscription status ... OK  (aktiv/gekündigt/past_due/abgelaufen)")
+    finally:
+        os.remove(path)
+
+
 def test_idempotent_per_session():
     path = tempfile.mktemp(suffix=".db")
     store = licensing.LicenseStore(path)
@@ -63,6 +87,7 @@ def test_price_display():
 if __name__ == "__main__":
     test_issue_and_redeem()
     test_single_use()
+    test_subscription_status()
     test_idempotent_per_session()
     test_price_display()
     print("\nAlle Lizenz-Tests bestanden.")

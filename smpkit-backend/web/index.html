@@ -80,9 +80,13 @@
 
   .buycard{margin-top:34px;background:var(--panel);border:1px solid var(--line);
            border-radius:18px;padding:28px;box-shadow:var(--shadow)}
-  .pricerow{display:flex;align-items:baseline;gap:12px}
+  .pricerow{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
   .price{font-size:46px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
   .per{color:var(--muted);font-size:15px}
+  .regular{color:var(--muted);text-decoration:line-through;font-size:22px;font-weight:600;
+           font-variant-numeric:tabular-nums}
+  .salebadge{background:var(--good);color:#fff;font-size:12px;font-weight:700;padding:3px 9px;
+             border-radius:999px;align-self:center;letter-spacing:.02em}
   .tagline{color:var(--muted);font-size:14px;margin:2px 0 20px}
   .feat{list-style:none;padding:0;margin:0 0 24px;display:grid;gap:13px}
   .feat li{display:flex;gap:12px;align-items:flex-start;font-size:15.5px}
@@ -116,7 +120,7 @@
   footer{margin-top:40px;text-align:center;color:var(--faint);font-size:12.5px;line-height:1.7}
 </style>
 </head>
-<body data-dev="{{DEV}}">
+<body data-dev="{{DEV}}" data-sale="{{SALE}}" data-sub="{{SUB}}">
 <div class="wrap">
   <div class="topbar">
     <span class="brand mono">SMP-Kit</span>
@@ -158,10 +162,14 @@
     du jemanden anschaust.</p>
 
   <div class="buycard">
-    <div class="pricerow"><span class="price">{{PRICE}}</span>
-      <span class="per" data-i18n="per">einmalig · Lifetime</span></div>
-    <p class="tagline" data-i18n="tagline">Kein Abo. Ein Schlüssel pro Kauf. Deckt die
-      Serverkosten der Community.</p>
+    <div class="pricerow">
+      <span class="regular" id="regular" hidden>{{REGULAR_PRICE}}</span>
+      <span class="price">{{PRICE}}</span>
+      <span class="per" id="per">/Monat</span>
+      <span class="salebadge" id="salebadge" data-i18n="saleBadge" hidden>Angebot</span>
+    </div>
+    <p class="tagline" data-i18n="tagline">Monatlich kündbar. Deckt die Serverkosten der
+      Community. Ein Schlüssel – einmal eintragen, fertig.</p>
     <ul class="feat">
       <li><span class="tick">✓</span><span data-i18n="feat1">Zugang zur geteilten
         Scammer-Blacklist aller Nutzer</span></li>
@@ -203,6 +211,8 @@
     <a href="/privacy" data-i18n="legalPrivacy" style="color:var(--good-ink)">Datenschutz &amp; Impressum</a>
     &nbsp;·&nbsp;
     <a href="/gdpr" data-i18n="legalMyData" style="color:var(--good-ink)">Meine Daten</a>
+    &nbsp;·&nbsp;
+    <a href="/manage" data-i18n="manageLink" style="color:var(--good-ink)">Abo verwalten</a>
   </p>
 </div>
 
@@ -213,13 +223,13 @@
       lede:`Beim TP-Trade abgezogen? SMP-Kit zeigt dir zu jedem Spieler einen Vertrauenswert, warnt vor bekannten Scammern und lässt dich Betrüger für alle melden.`,
       stageAria:`Beispiel: ein Spieler mit 92 Prozent Vertrauen, ein Scammer mit 4 Prozent`,
       stageCap:`So sieht's im Spiel aus – der Wert erscheint, sobald du jemanden anschaust.`,
-      per:`einmalig · Lifetime`,
-      tagline:`Kein Abo. Ein Schlüssel pro Kauf. Deckt die Serverkosten der Community.`,
+      per:`/Monat · monatlich kündbar`,perOnce:`einmalig`,saleBadge:`Angebot`,manageLink:`Abo verwalten`,
+      tagline:`Monatlich kündbar. Deckt die Serverkosten der Community. Ein Schlüssel – einmal eintragen, fertig.`,
       feat1:`Zugang zur geteilten Scammer-Blacklist aller Nutzer`,
       feat2:`Vertrauenswert in % zu jedem Spieler, den du anschaust`,
       feat3:`Melden &amp; Empfehlen per GUI, Warnung bei Scammern in der Nähe`,
       feat4:`Sofort-Schlüssel nach dem Kauf, dauerhaft gültig`,
-      buy:`Jetzt kaufen`,
+      buy:`Jetzt abonnieren`,
       fine:`Sichere Zahlung über Stripe · Kartendaten sieht nur Stripe, nie dieser Server.`,
       devBanner:`⚙️ Dev-Modus: Stripe ist nicht konfiguriert – der Kauf wird simuliert (keine echte Zahlung).`,
       howTitle:`In 3 Schritten startklar`,
@@ -235,13 +245,13 @@
       lede:`Got scammed on a TP trade? SMP-Kit shows a trust score for every player, warns you about known scammers, and lets you report cheaters for everyone.`,
       stageAria:`Example: a player with 92 percent trust, a scammer with 4 percent`,
       stageCap:`This is how it looks in game – the score appears as soon as you look at someone.`,
-      per:`one-time · lifetime`,
-      tagline:`No subscription. One key per purchase. Covers the community's server costs.`,
+      per:`/month · cancel anytime`,perOnce:`one-time`,saleBadge:`Sale`,manageLink:`Manage subscription`,
+      tagline:`Cancel monthly. Covers the community's server costs. One key – enter it once, done.`,
       feat1:`Access to the shared scammer blacklist of all users`,
       feat2:`Trust score in % for every player you look at`,
       feat3:`Report &amp; vouch via GUI, warning when scammers are nearby`,
       feat4:`Instant key after purchase, valid forever`,
-      buy:`Buy now`,
+      buy:`Subscribe now`,
       fine:`Secure payment via Stripe · only Stripe sees your card details, never this server.`,
       devBanner:`⚙️ Dev mode: Stripe isn't configured – the purchase is simulated (no real payment).`,
       howTitle:`Ready in 3 steps`,
@@ -257,13 +267,13 @@
       lede:`¿Te estafaron en un intercambio por TP? SMP-Kit te muestra una puntuación de confianza de cada jugador, te avisa de estafadores conocidos y te deja reportar tramposos para todos.`,
       stageAria:`Ejemplo: un jugador con 92 por ciento de confianza, un estafador con 4 por ciento`,
       stageCap:`Así se ve en el juego – la puntuación aparece en cuanto miras a alguien.`,
-      per:`pago único · de por vida`,
-      tagline:`Sin suscripción. Una clave por compra. Cubre los costes del servidor de la comunidad.`,
+      per:`/mes · cancela cuando quieras`,perOnce:`pago único`,saleBadge:`Oferta`,manageLink:`Gestionar suscripción`,
+      tagline:`Cancela cada mes. Cubre los costes del servidor de la comunidad. Una clave: introdúcela una vez y listo.`,
       feat1:`Acceso a la lista negra de estafadores compartida por todos los usuarios`,
       feat2:`Puntuación de confianza en % de cada jugador que miras`,
       feat3:`Reportar y recomendar desde una interfaz, aviso si hay estafadores cerca`,
       feat4:`Clave instantánea tras la compra, válida para siempre`,
-      buy:`Comprar ahora`,
+      buy:`Suscríbete ahora`,
       fine:`Pago seguro con Stripe · solo Stripe ve los datos de tu tarjeta, nunca este servidor.`,
       devBanner:`⚙️ Modo dev: Stripe no está configurado – la compra se simula (sin pago real).`,
       howTitle:`Listo en 3 pasos`,
@@ -279,13 +289,13 @@
       lede:`Arnaqué lors d'un échange en TP ? SMP-Kit affiche un score de confiance pour chaque joueur, t'avertit des arnaqueurs connus et te permet de signaler les tricheurs pour tout le monde.`,
       stageAria:`Exemple : un joueur avec 92 pour cent de confiance, un arnaqueur avec 4 pour cent`,
       stageCap:`Voici à quoi ça ressemble en jeu – le score apparaît dès que tu regardes quelqu'un.`,
-      per:`paiement unique · à vie`,
-      tagline:`Sans abonnement. Une clé par achat. Couvre les frais de serveur de la communauté.`,
+      per:`/mois · résiliable à tout moment`,perOnce:`paiement unique`,saleBadge:`Promo`,manageLink:`Gérer l'abonnement`,
+      tagline:`Résiliable chaque mois. Couvre les frais de serveur de la communauté. Une clé : saisie une fois, c'est tout.`,
       feat1:`Accès à la liste noire d'arnaqueurs partagée par tous les utilisateurs`,
       feat2:`Score de confiance en % pour chaque joueur que tu regardes`,
       feat3:`Signaler et recommander via une interface, alerte si des arnaqueurs sont proches`,
       feat4:`Clé instantanée après l'achat, valable à vie`,
-      buy:`Acheter`,
+      buy:`S'abonner`,
       fine:`Paiement sécurisé via Stripe · seul Stripe voit les données de ta carte, jamais ce serveur.`,
       devBanner:`⚙️ Mode dev : Stripe n'est pas configuré – l'achat est simulé (aucun paiement réel).`,
       howTitle:`Prêt en 3 étapes`,
@@ -301,13 +311,13 @@
       lede:`Foi enganado numa troca por TP? O SMP-Kit mostra uma pontuação de confiança de cada jogador, avisa sobre golpistas conhecidos e deixa você denunciar trapaceiros para todos.`,
       stageAria:`Exemplo: um jogador com 92 por cento de confiança, um golpista com 4 por cento`,
       stageCap:`É assim que aparece no jogo – a pontuação surge assim que você olha para alguém.`,
-      per:`pagamento único · vitalício`,
-      tagline:`Sem assinatura. Uma chave por compra. Cobre os custos de servidor da comunidade.`,
+      per:`/mês · cancele quando quiser`,perOnce:`pagamento único`,saleBadge:`Promoção`,manageLink:`Gerenciar assinatura`,
+      tagline:`Cancele mensalmente. Cobre os custos de servidor da comunidade. Uma chave: insira uma vez e pronto.`,
       feat1:`Acesso à lista negra de golpistas compartilhada por todos os usuários`,
       feat2:`Pontuação de confiança em % de cada jogador que você olha`,
       feat3:`Denunciar e recomendar por interface, aviso quando há golpistas por perto`,
       feat4:`Chave imediata após a compra, válida para sempre`,
-      buy:`Comprar agora`,
+      buy:`Assinar agora`,
       fine:`Pagamento seguro via Stripe · só o Stripe vê os dados do seu cartão, nunca este servidor.`,
       devBanner:`⚙️ Modo dev: o Stripe não está configurado – a compra é simulada (sem pagamento real).`,
       howTitle:`Pronto em 3 passos`,
@@ -343,6 +353,14 @@
     }
     const stage = document.getElementById("stage");
     if (stage) stage.setAttribute("aria-label", dict.stageAria);
+    // Preis-Zusatz (Abo vs. einmalig) und Angebots-Anzeige
+    const per = document.getElementById("per");
+    if (per) per.textContent = document.body.dataset.sub === "1" ? dict.per : dict.perOnce;
+    const onSale = document.body.dataset.sale === "1";
+    const reg = document.getElementById("regular");
+    const badge = document.getElementById("salebadge");
+    if (reg) reg.hidden = !onSale;
+    if (badge) badge.hidden = !onSale;
     try { localStorage.setItem("smpkit_lang", CURRENT); } catch(e){}
   }
 
