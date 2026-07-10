@@ -119,7 +119,9 @@ public final class TrustApi {
                         }
                     }
                     if (r.statusCode() == 429) return ApiResult.error("Rate-Limit erreicht – bitte kurz warten.");
-                    if (r.statusCode() == 401) return ApiResult.error("Nicht autorisiert (API-Key?).");
+                    if (r.statusCode() == 401) return ApiResult.error(
+                            "Kein Zugang: Abo abgelaufen oder Schlüssel nicht eingelöst. "
+                                    + "Nutze /smpkit redeem <schlüssel> bzw. verlängere dein Abo.");
                     String msg = "Backend-Fehler (HTTP " + r.statusCode() + ")";
                     try {
                         JsonObject obj = GSON.fromJson(r.body(), JsonObject.class);
@@ -154,6 +156,28 @@ public final class TrustApi {
         b.addProperty("reporterUuid", reporterUuid);
         b.addProperty("target", target);
         return postJson("/api/unreport", b);
+    }
+
+    /**
+     * Prüft das gespeicherte Zugriffs-Token beim Backend (Abo aktiv?).
+     * true = gültig, false = ungültig/abgelaufen, null = Backend nicht erreichbar.
+     */
+    public static CompletableFuture<Boolean> verifyToken(String token) {
+        if (token == null || token.isBlank()) {
+            return CompletableFuture.completedFuture(false);
+        }
+        HttpRequest req = base("/api/license/verify?token=" + enc(token)).GET().build();
+        return HTTP.sendAsync(req, HttpResponse.BodyHandlers.ofString())
+                .thenApply(r -> {
+                    if (r.statusCode() == 200) {
+                        try {
+                            JsonObject o = GSON.fromJson(r.body(), JsonObject.class);
+                            return o.has("valid") && o.get("valid").getAsBoolean();
+                        } catch (RuntimeException ignored) { }
+                    }
+                    return (Boolean) null;
+                })
+                .exceptionally(e -> null);
     }
 
     /** Kurzlebige serverId (Nonce) für die Mojang-Verifikation anfordern. */

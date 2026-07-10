@@ -17,6 +17,7 @@ public class ReportScreen extends Screen {
     /** Kategorien – müssen mit den Backend-Kategorien übereinstimmen. */
     private enum Category {
         SCAM_TPTRADE("scam_tptrade", "Beim TP-Trade betrogen"),
+        SPAWNER_SCAM("spawner_scam", "Beim Spawner-Trade betrogen"),
         TP_KILL("tp_kill", "Beim Hinteleportieren getötet"),
         ITEM_SWITCH("item_switch", "Item beim Handeln getauscht"),
         PAY_FIRST("pay_first_scam", "\"Zahl zuerst\"-Masche"),
@@ -41,11 +42,12 @@ public class ReportScreen extends Screen {
     @Override
     protected void init() {
         int cx = this.width / 2;
-        int y = this.height / 2 - 70;
+        int y = this.height / 2 - 82;
 
-        // Kategorie-Buttons (zwei Spalten)
+        // Kategorie-Buttons (zwei Spalten, Zeilenzahl dynamisch)
         Category[] cats = Category.values();
         int bw = 150, bh = 20, gap = 4;
+        int rows = (cats.length + 1) / 2;
         for (int i = 0; i < cats.length; i++) {
             Category c = cats[i];
             int col = i % 2;
@@ -57,7 +59,7 @@ public class ReportScreen extends Screen {
                     .dimensions(bx, by, bw, bh).build());
         }
 
-        int noteY = y + 3 * (bh + gap) + 14;
+        int noteY = y + rows * (bh + gap) + 14;
         this.noteField = new TextFieldWidget(this.textRenderer, cx - 152, noteY, 304, 20,
                 Text.literal("Notiz (optional)"));
         this.noteField.setMaxLength(280);
@@ -134,12 +136,13 @@ public class ReportScreen extends Screen {
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
         super.render(context, mouseX, mouseY, delta);
         int cx = this.width / 2;
+        int top = this.height / 2 - 82;
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("Spieler melden").formatted(Formatting.AQUA, Formatting.BOLD),
-                cx, this.height / 2 - 92, 0xFFFFFF);
+                cx, top - 26, 0xFFFFFF);
         context.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("Ziel: " + target).formatted(Formatting.WHITE),
-                cx, this.height / 2 - 80, 0xFFFFFF);
+                cx, top - 14, 0xFFFFFF);
 
         PlayerTrust pt = TrustCache.peek(target);
         if (pt != null && pt.rated) {
@@ -147,7 +150,7 @@ public class ReportScreen extends Screen {
                     Text.literal("Aktueller Trust: " + pt.trust + "%  (" + pt.reports
                             + " Reports, " + pt.vouches + " Vouches)")
                             .formatted(TrustFormat.color(pt)),
-                    cx, this.height / 2 + 64, 0xFFFFFF);
+                    cx, this.height / 2 + 78, 0xFFFFFF);
         }
     }
 

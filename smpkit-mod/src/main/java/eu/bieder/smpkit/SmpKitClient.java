@@ -55,9 +55,11 @@ public class SmpKitClient implements ClientModInitializer {
         // Chat (SafeTrade + Ledger)
         ChatBus.register();
 
-        // Blacklist beim Serverbeitritt laden
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
-                TrustCache.refreshBlacklistIfStale());
+        // Beim Serverbeitritt: Blacklist laden + Lizenz prüfen
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            TrustCache.refreshBlacklistIfStale();
+            checkLicenseOnJoin();
+        });
 
         registerKeybinds();
         registerCommands();
@@ -202,6 +204,11 @@ public class SmpKitClient implements ClientModInitializer {
                         .then(ClientCommandManager.literal("ledger").executes(ctx -> toggleLedger()))
                         .then(ClientCommandManager.literal("grind").executes(ctx -> toggleGrind()))
                         .then(ClientCommandManager.literal("trust").executes(ctx -> toggleTrust())))
+                .then(ClientCommandManager.literal("status")
+                        .executes(ctx -> {
+                            showStatus();
+                            return 1;
+                        }))
                 .then(ClientCommandManager.literal("grindstart")
                         .then(ClientCommandManager.argument("activity", StringArgumentType.greedyString())
                                 .executes(ctx -> {
@@ -212,11 +219,23 @@ public class SmpKitClient implements ClientModInitializer {
                                 })))
                 .executes(ctx -> {
                     ctx.getSource().sendFeedback(Text.literal(
-                            "SMP-Kit: /smpkit redeem <schlüssel> · check|report|vouch|unreport <spieler> · "
-                                    + "list · seturl <url> · hud ledger|grind|trust")
+                            "SMP-Kit: /smpkit redeem <schlüssel> · status · check|report|vouch|unreport "
+                                    + "<spieler> · list · seturl <url> · hud ledger|grind|trust")
                             .formatted(Formatting.AQUA));
                     return 1;
                 });
+    }
+
+    private void checkLicenseOnJoin() {
+        SmpKitConfig cfg = SmpKitConfig.get();
+        if (cfg.apiKey == null || cfg.apiKey.isBlank()) return;   // offener Server / noch nicht eingelöst
+        TrustApi.verifyToken(cfg.apiKey).thenAccept(valid -> {
+            if (Boolean.FALSE.equals(valid)) {
+                Msg.warn("Dein SMP-Kit-Zugang ist abgelaufen (Abo gekündigt oder Zahlung offen). "
+                        + "Verlängere dein Abo oder löse einen neuen Schlüssel ein: /smpkit redeem <schlüssel>");
+            }
+            // null = Backend nicht erreichbar -> still bleiben, nicht nerven.
+        });
     }
 
     private void redeemKey(String key) {
@@ -245,6 +264,28 @@ public class SmpKitClient implements ClientModInitializer {
                 Msg.success("Lizenz aktiviert! Zugang ist jetzt freigeschaltet.");
             } else {
                 Msg.error("Einlösung fehlgeschlagen: " + (res != null ? res.error : "keine Antwort"));
+            }
+        });
+    }
+
+    private void showStatus() {
+        SmpKitConfig cfg = SmpKitConfig.get();
+        Msg.info("Backend: " + (cfg.baseUrl().isBlank() ? "nicht gesetzt" : cfg.baseUrl()));
+        Msg.info("HUDs – Trust: " + (cfg.trustHudEnabled ? "an" : "aus")
+                + " · Ledger: " + (cfg.ledgerHudEnabled ? "an" : "aus")
+                + " · Grind: " + (cfg.grindHudEnabled ? "an" : "aus"));
+        if (cfg.apiKey == null || cfg.apiKey.isBlank()) {
+            Msg.warn("Lizenz: kein Token gespeichert – /smpkit redeem <schlüssel>");
+            return;
+        }
+        Msg.info("Lizenz: prüfe …");
+        TrustApi.verifyToken(cfg.apiKey).thenAccept(valid -> {
+            if (Boolean.TRUE.equals(valid)) {
+                Msg.success("Lizenz: aktiv ✔ (Abo läuft)");
+            } else if (Boolean.FALSE.equals(valid)) {
+                Msg.error("Lizenz: abgelaufen oder ungültig – Abo verlängern oder neuen Schlüssel einlösen.");
+            } else {
+                Msg.warn("Lizenz: Backend nicht erreichbar – später erneut versuchen.");
             }
         });
     }

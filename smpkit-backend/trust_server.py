@@ -66,6 +66,7 @@ CRED_MIN = 0.3
 CRED_MAX = 1.4
 VALID_CATEGORIES = {
     "scam_tptrade",      # betrogen beim TP-Trade
+    "spawner_scam",      # betrogen beim Spawner-Trade
     "tp_kill",           # beim Hinteleportieren getötet/gefallen gelassen
     "item_switch",       # Item beim Handeln getauscht
     "pay_first_scam",    # "zahl zuerst"-Masche

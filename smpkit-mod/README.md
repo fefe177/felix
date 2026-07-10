@@ -2,10 +2,12 @@
 
 Client-seitige Fabric-Mod für Economy-SMPs (Donut SMP, Hugo SMP) mit drei Modulen:
 
-1. **Reputation / Trust** – Spieler per GUI melden (Report) oder empfehlen (Vouch). Jeder
-   Spieler bekommt einen **Vertrauenswert in %**, der beim Anschauen eingeblendet wird. Ab
-   genügend Meldern landet jemand auf einer **geteilten Blacklist**, die alle Mod-Nutzer sehen.
-   Warnung, wenn ein geflaggter Spieler in der Nähe ist.
+1. **Reputation / Trust** – Spieler per GUI melden (Report) oder empfehlen (Vouch), mit
+   Kategorien wie **TP-Trade-Scam** und **Spawner-Trade-Scam**. Jeder Spieler bekommt einen
+   **Vertrauenswert in %**, der beim Anschauen eingeblendet wird. Ab genügend Meldern landet
+   jemand auf einer **geteilten Blacklist**, die alle Mod-Nutzer sehen. Warnung, wenn ein
+   geflaggter Spieler in der Nähe ist. Beim Serverbeitritt prüft die Mod dein Abo und warnt,
+   falls der Zugang abgelaufen ist.
 2. **SafeTrade** – Doppelbestätigung für große `/pay`-Beträge (Schutz vor dem „eine Null zu
    viel"-Vertipper).
 3. **Ledger + Grind** – persönliches Economy-HUD (Kontostand, Netto/Sitzung, Einkommen/h) und
@@ -44,6 +46,7 @@ Alles rein client-seitig und ohne Kampf-/Radar-Vorteil (siehe „Regelkonformit�
 | Befehl | Wirkung |
 |---|---|
 | `redeem <schlüssel>` | gekauften Schlüssel **einmalig** einlösen → speichert dein Token automatisch |
+| `status` | Backend, HUDs und Abo-/Lizenzstatus anzeigen |
 | `check <spieler>` | Trust-Wert abfragen |
 | `report <spieler>` | Report-GUI öffnen |
 | `vouch <spieler>` | Spieler empfehlen |
