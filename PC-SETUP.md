@@ -3,6 +3,12 @@
 Schritt-für-Schritt. Für **Windows** geschrieben (Mac/Linux-Hinweise stehen dabei).
 Du brauchst nichts zu programmieren – nur herunterladen, starten, fertig.
 
+> ⚡ **Schnellster Weg:** Im Projektordner **`setup-pc.bat`** doppelklicken (Mac/Linux:
+> `./setup-pc.sh`). Das Skript startet den Server, baut die Mod **und** kopiert sie
+> automatisch in deinen Minecraft-mods-Ordner. Voraussetzungen: Python (Schritt 1) und
+> für den Mod-Build ein **JDK 21** (https://adoptium.net/temurin/releases/?version=21).
+> Die Schritte unten erklären dasselbe manuell.
+
 ---
 
 ## Schritt 1 – Python installieren (einmalig)
