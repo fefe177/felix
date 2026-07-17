@@ -8,14 +8,23 @@ walls. Stylized-realistic, game-ready, 100 % quad topology.
 ![Hero render](renders/watchtower_hero.png)
 ![Detail render](renders/watchtower_detail.png)
 
+Also included: a giant Nordic forest diorama in the same style — a winding
+path through ~130 stylized conifers ends at the watchtower on a knoll.
+
+![Forest path render](renders/forest_path.png)
+![Forest aerial render](renders/forest_aerial.png)
+
 ## Contents
 
 | Path | Description |
 | --- | --- |
-| `generate_watchtower.py` | The generator. Rebuilds everything (geometry, textures, materials, lights, camera, exports, renders) deterministically from a fixed seed. |
-| `exports/watchtower.blend` | Full scene: model, PBR node materials (textures packed), neutral three-point studio lighting, hero + detail cameras, Cycles render settings, transparent film. |
+| `generate_watchtower.py` | The tower generator. Rebuilds everything (geometry, textures, materials, lights, camera, exports, renders) deterministically from a fixed seed. |
+| `generate_forest_scene.py` | The forest diorama generator. Builds the terrain island, path, trees, rocks and bushes, then appends the tower from `exports/watchtower.blend` and places it at the end of the path. |
+| `exports/watchtower.blend` | Full tower scene: model, PBR node materials (textures packed), neutral three-point studio lighting, hero + detail cameras, Cycles render settings, transparent film. |
 | `exports/watchtower.glb` | Game-ready glTF binary: 8 meshes, 6 materials, 12 embedded PBR maps. No lights/cameras — isolated object. |
-| `textures/*.png` | Generated PBR maps: baseColor (sRGB), ORM (occlusion/roughness/metallic, non-color), normal (OpenGL-style, non-color) for stone, wood, shingles, iron. |
+| `exports/forest_watchtower.blend` | Forest diorama scene with the tower, neutral sun-based studio lighting, path + aerial cameras. |
+| `exports/forest_watchtower.glb` | Forest + tower as glTF binary: 217 nodes instancing 17 unique meshes, 12 materials, 27 embedded maps (~5.6 MB). |
+| `textures/*.png` | Generated PBR maps: baseColor (sRGB), ORM (occlusion/roughness/metallic, non-color), normal (OpenGL-style, non-color) for stone, wood, shingles, iron, terrain, foliage, bark, rock. |
 | `renders/*.png` | Cycles preview renders, transparent background. |
 
 ## Regenerating
@@ -23,13 +32,15 @@ walls. Stylized-realistic, game-ready, 100 % quad topology.
 ```sh
 # with Blender:
 blender --background --python generate_watchtower.py
+blender --background --python generate_forest_scene.py   # needs the tower .blend
 
 # or with the pip bpy module (Python 3.11):
 pip install bpy numpy
 python3 generate_watchtower.py
+python3 generate_forest_scene.py
 ```
 
-Set `WT_SKIP_RENDER=1` to skip the two preview renders.
+Set `WT_SKIP_RENDER=1` to skip the preview renders.
 
 ## Asset details
 
@@ -59,3 +70,19 @@ Set `WT_SKIP_RENDER=1` to skip the two preview renders.
 - **Scene:** neutral white three-point studio lighting (key/fill/rim area
   lights), transparent background, no ground plane, camera framing the full
   model. Renders with Cycles CPU + OpenImageDenoise.
+
+## Forest diorama details
+
+- **Terrain:** 70 m x 46 m displaced quad grid with a skirt and capped
+  bottom (diorama slab). Height, path, textures and object placement all
+  derive from one shared heightfield; a winding dirt path is painted into
+  the terrain texture and flattened into the height data.
+- **Vegetation:** 4 quad-only conifer archetypes (lathed trunks + layered
+  foliage skirts, 8 segments, jittered) instanced 130 times with random
+  scale/rotation, plus 40 bushes and 22 rocks (subdivided, noise-displaced
+  cubes) and stepping stones along the path — 215 instances sharing 17
+  unique meshes, 100 % quads.
+- **The tower at the end:** appended from `exports/watchtower.blend` onto a
+  knoll at the path's end, door and ivy turned toward the approach.
+- **Lighting:** neutral white key/fill/rim sun rig, transparent background —
+  the same studio look as the tower asset.
