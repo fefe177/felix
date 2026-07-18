@@ -9,9 +9,11 @@ walls. Stylized-realistic, game-ready, 100 % quad topology.
 ![Detail render](renders/watchtower_detail.png)
 
 Also included: a giant Nordic forest diorama in the same style — a winding
-path through ~130 stylized conifers ends at the watchtower on a knoll.
+path through 150 stylized trees ends at the watchtower on a knoll, and a
+pond with a large weeping willow sits beside the path halfway along.
 
 ![Forest path render](renders/forest_path.png)
+![Forest pond render](renders/forest_pond.png)
 ![Forest aerial render](renders/forest_aerial.png)
 
 ## Contents
@@ -23,7 +25,7 @@ path through ~130 stylized conifers ends at the watchtower on a knoll.
 | `exports/watchtower.blend` | Full tower scene: model, PBR node materials (textures packed), neutral three-point studio lighting, hero + detail cameras, Cycles render settings, transparent film. |
 | `exports/watchtower.glb` | Game-ready glTF binary: 8 meshes, 6 materials, 12 embedded PBR maps. No lights/cameras — isolated object. |
 | `exports/forest_watchtower.blend` | Forest diorama scene with the tower, neutral sun-based studio lighting, path + aerial cameras. |
-| `exports/forest_watchtower.glb` | Forest + tower as glTF binary: 217 nodes instancing 17 unique meshes, 12 materials, 27 embedded maps (~5.6 MB). |
+| `exports/forest_watchtower.glb` | Forest + tower as glTF binary: ~700 nodes instancing 29 unique meshes, 20 materials, 37 embedded maps (~10 MB). |
 | `textures/*.png` | Generated PBR maps: baseColor (sRGB), ORM (occlusion/roughness/metallic, non-color), normal (OpenGL-style, non-color) for stone, wood, shingles, iron, terrain, foliage, bark, rock. |
 | `renders/*.png` | Cycles preview renders, transparent background. |
 
@@ -74,15 +76,23 @@ Set `WT_SKIP_RENDER=1` to skip the preview renders.
 ## Forest diorama details
 
 - **Terrain:** 70 m x 46 m displaced quad grid with a skirt and capped
-  bottom (diorama slab). Height, path, textures and object placement all
-  derive from one shared heightfield; a winding dirt path is painted into
-  the terrain texture and flattened into the height data.
-- **Vegetation:** 4 quad-only conifer archetypes (lathed trunks + layered
-  foliage skirts, 8 segments, jittered) instanced 130 times with random
-  scale/rotation, plus 40 bushes and 22 rocks (subdivided, noise-displaced
-  cubes) and stepping stones along the path — 215 instances sharing 17
-  unique meshes, 100 % quads.
+  bottom (diorama slab). Height, path, pond, textures and object placement
+  all derive from one shared heightfield; the winding dirt path is painted
+  into the terrain texture and flattened into the height data, and the
+  forest floor darkens to needle litter under the tree canopies (a density
+  map splatted from the actual tree placements).
+- **Vegetation:** 7 quad-only tree archetypes — three spruces, two pines
+  (lathed trunks + drooping, jittered foliage skirts), white-barked birches
+  with leaf-cluster blobs, and dead snags — instanced 150 times with random
+  scale, rotation and lean; plus bushes, mossy rocks, fallen logs, stumps,
+  380 grass tufts and small flowers. ~700 instances share 29 unique meshes,
+  100 % quads.
+- **The weeping willow ("die Weide"):** a giant willow with rounded,
+  drooping canopy domes and 36 hanging leaf strands stands on the shore of
+  a pond carved into the heightfield beside the path, with a flat lathed
+  water disc.
 - **The tower at the end:** appended from `exports/watchtower.blend` onto a
   knoll at the path's end, door and ivy turned toward the approach.
 - **Lighting:** neutral white key/fill/rim sun rig, transparent background —
-  the same studio look as the tower asset.
+  the same studio look as the tower asset. Three cameras: path view, pond
+  view, aerial.
