@@ -9,9 +9,10 @@ walls. Stylized-realistic, game-ready, 100 % quad topology.
 ![Detail render](renders/watchtower_detail.png)
 
 Also included: a giant Nordic forest diorama in the same style — a winding
-path through 230 stylized trees ends at the watchtower, a pond with a large
-weeping willow sits beside the path halfway along, and a giant snow-capped
-mountain rises directly behind the tower.
+path through 280 stylized trees ends at the watchtower, a pond with a large
+weeping willow sits beside the path halfway along, a giant angular
+snow-capped mountain rises directly behind the tower, and a castle with
+four watchtower corner towers stands on a plateau behind the mountain.
 
 ![Forest path render](renders/forest_path.png)
 ![Forest pond render](renders/forest_pond.png)
@@ -100,6 +101,13 @@ Set `WT_SKIP_RENDER=1` to skip the preview renders.
   water disc.
 - **The tower at the end:** appended from `exports/watchtower.blend` onto a
   knoll at the path's end, door and ivy turned toward the approach.
+- **The castle:** on a levelled plateau behind the mountain — four linked
+  clones of the watchtower as corner towers (doors turned into the
+  courtyard), crenellated curtain walls, a gatehouse with a plank gate and
+  iron straps, and a square keep with a parapet, four-sided shingle
+  pyramid roof and a red banner. All castle stonework reuses the tower's
+  PBR materials with height-mapped UVs (moss only at the wall base); a
+  spur of the path rounds the mountain's south side to the gate.
 - **Lighting:** neutral white key/fill/rim sun rig, transparent background —
   the same studio look as the tower asset. Three cameras: path view, pond
   view, aerial.

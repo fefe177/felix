@@ -37,11 +37,13 @@ for d in (TEX_DIR, EXPORT_DIR, RENDER_DIR):
 
 rng = random.Random(21)
 
-SX, SY = 110.0, 46.0
+SX, SY = 150.0, 46.0
 TOWER_POS = Vector((25.0, 0.0, 0.0))
 MNT_POS = Vector((37.0, 3.0, 0.0))   # giant mountain behind the tower
 MNT2_POS = Vector((32.0, 10.0, 0.0))  # secondary peak
 MNT_R = 17.0
+CASTLE_POS = Vector((62.0, -1.0, 0.0))  # castle on the plateau behind the mountain
+CASTLE_Z = 2.1                          # courtyard plateau height
 BASE_Z = -2.0  # diorama slab bottom
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -194,6 +196,13 @@ def merge_into(acc, piece, matrix=None):
     bpy.data.meshes.remove(tmp)
 
 
+def add_box(bm, size, matrix):
+    res = bmesh.ops.create_cube(bm, size=1.0)
+    m = matrix @ Matrix.Diagonal((size[0], size[1], size[2], 1.0))
+    bmesh.ops.transform(bm, matrix=m, verts=res["verts"])
+    return res["verts"]
+
+
 def box_uv(bm, scale=0.35, offset=(0.0, 0.0), faces=None):
     uvl = bm.loops.layers.uv.get("UVMap") or bm.loops.layers.uv.new("UVMap")
     for f in (faces if faces is not None else bm.faces):
@@ -254,7 +263,7 @@ def instance(mesh, name, loc, rot, scale):
 # ----------------------------------------------------------------------------
 
 print("Computing terrain heightfield ...")
-HW, HH = 2560, 1072
+HW, HH = 2560, 784
 Xw = np.linspace(-SX / 2, SX / 2, HW)[None, :].repeat(HH, axis=0)
 Yw = np.linspace(-SY / 2, SY / 2, HH)[:, None].repeat(HW, axis=1)
 
@@ -262,8 +271,16 @@ P_T = np.linspace(0.0, 1.0, 140)
 P_X = -50.0 + (TOWER_POS.x + 2.0 - -50.0) * P_T
 P_Y = (5.5 * np.sin(P_T * 3.4 + 0.4) - 1.2) * (1 - P_T ** 2.2)
 
+# spur: branches off the main path and rounds the mountain south to the castle
+_sc = np.array([[10.0, 1.3], [30.0, -16.0], [48.0, -12.5], [51.5, -1.0]])
+_st = np.linspace(0, 1, 70)
+S_X = np.interp(_st, np.linspace(0, 1, len(_sc)), _sc[:, 0])
+S_Y = np.interp(_st, np.linspace(0, 1, len(_sc)), _sc[:, 1])
+PD_X = np.concatenate([P_X, S_X])
+PD_Y = np.concatenate([P_Y, S_Y])
+
 d_path = np.full((HH, HW), 1e9)
-for px, py in zip(P_X, P_Y):
+for px, py in zip(PD_X, PD_Y):
     d_path = np.minimum(d_path, np.hypot(Xw - px, Yw - py))
 w_path = sstep((2.1 - d_path) / 1.4)
 
@@ -293,6 +310,10 @@ HF = (n_macro - 0.5) * 2.1 * (1 - 0.75 * w_path) + knoll + hill1 + hill2 + mount
 edge = sstep((SX / 2 - np.abs(Xw) - 1.0) / 5.0) * sstep((SY / 2 - np.abs(Yw) - 1.0) / 5.0)
 HF *= 0.25 + 0.75 * edge
 HF -= 0.35 * w_path * edge  # sunken, worn path
+# level plateau for the castle behind the mountain
+w_c = sstep((13.0 - np.abs(Xw - CASTLE_POS.x)) / 2.5) \
+    * sstep((11.0 - np.abs(Yw - CASTLE_POS.y)) / 2.5)
+HF = HF * (1 - w_c) + CASTLE_Z * w_c
 pond_center_h = float(HF[np.argmin(np.abs(np.linspace(-SY / 2, SY / 2, HH) - POND.y)),
                         np.argmin(np.abs(np.linspace(-SX / 2, SX / 2, HW) - POND.x))])
 HF -= 1.6 * np.exp(-(d_pond ** 2) / (2 * 4.4 ** 2))
@@ -311,7 +332,12 @@ def h_at(x, y):
 
 
 def path_dist(x, y):
-    return float(np.min(np.hypot(P_X - x, P_Y - y)))
+    return float(np.min(np.hypot(PD_X - x, PD_Y - y)))
+
+
+def in_castle(x, y, margin=0.0):
+    return (abs(x - CASTLE_POS.x) < 13.0 + margin
+            and abs(y - CASTLE_POS.y) < 10.5 + margin)
 
 
 # ----------------------------------------------------------------------------
@@ -330,7 +356,7 @@ def clear_of(x, y, pts, r):
 
 tree_places = []
 attempts = 0
-while len(tree_places) < 230 and attempts < 60000:
+while len(tree_places) < 280 and attempts < 80000:
     attempts += 1
     x = rng.uniform(-SX / 2 + 2.5, SX / 2 - 2.5)
     y = rng.uniform(-SY / 2 + 2.5, SY / 2 - 2.5)
@@ -351,6 +377,8 @@ while len(tree_places) < 230 and attempts < 60000:
     if math.hypot(x - MNT_POS.x, y - MNT_POS.y) < 17.5:  # rock footprint
         continue
     if math.hypot(x - MNT2_POS.x, y - MNT2_POS.y) < 11.5:
+        continue
+    if in_castle(x, y, margin=2.0):
         continue
     if not clear_of(x, y, tree_places, 2.2):
         continue
@@ -396,6 +424,8 @@ def scatter(n, min_path, min_tower, min_pond, min_edge, spacing=0.0, near_path=N
             continue
         if math.hypot(x - MNT2_POS.x, y - MNT2_POS.y) < 12.0:
             continue
+        if in_castle(x, y, margin=1.0):
+            continue
         if spacing and not clear_of(x, y, out, spacing):
             continue
         out.append((x, y))
@@ -406,8 +436,8 @@ rock_places = scatter(36, 2.4, 6.0, 5.9, 2.0, spacing=2.5, max_h=13.0)
 bush_places = scatter(60, 2.4, 7.0, 6.2, 2.0, spacing=1.6)
 log_places = scatter(3, 3.2, 10.0, 7.0, 4.0, spacing=8.0, near_path=8.0)
 stump_places = scatter(8, 2.8, 8.0, 6.5, 3.0, spacing=5.0)
-tuft_places = scatter(500, 1.7, 4.0, 5.8, 1.5)
-flower_places = scatter(90, 2.0, 5.0, 5.8, 1.5)
+tuft_places = scatter(550, 1.7, 4.0, 5.8, 1.5)
+flower_places = scatter(100, 2.0, 5.0, 5.8, 1.5)
 
 # ----------------------------------------------------------------------------
 # textures
@@ -978,6 +1008,148 @@ tower_root.location = (TOWER_POS.x, TOWER_POS.y, tz - 0.10)
 tower_root.rotation_euler = (0, 0, math.radians(225))  # door (local -45 deg) faces the path
 
 # ----------------------------------------------------------------------------
+# the castle behind the mountain: four watchtower clones as corner towers,
+# crenellated curtain walls, a gatehouse and a square keep with a banner
+# ----------------------------------------------------------------------------
+
+print("Building castle ...")
+MS_STONE = bpy.data.materials["WT_Stone"]
+MS_WOOD = bpy.data.materials["WT_Wood"]
+MS_SHINGLE = bpy.data.materials["WT_Shingles"]
+MS_IRON = bpy.data.materials["WT_Iron"]
+MAT_FLAG = pbr_material("F_Banner", None, base=(0.55, 0.12, 0.10, 1), rough=0.7)
+
+CX, CY = CASTLE_POS.x, CASTLE_POS.y
+HALF_X, HALF_Y = 9.0, 7.0  # tower corner offsets
+WALL_H, WALL_T = 7.2, 1.7
+
+
+def clone_tower(name, x, y, scale):
+    root = bpy.data.objects.new(name, None)
+    COL.objects.link(root)
+    root.parent = ROOT
+    root.location = (x, y, CASTLE_Z - 0.15)
+    # the tower's door sits at local -45 deg; turn it toward the courtyard
+    root.rotation_euler = (0, 0, math.atan2(CY - y, CX - x) + math.pi / 4)
+    root.scale = (scale, scale, scale)
+    for ob in tower_col.objects:
+        if ob.type != "MESH":
+            continue
+        dup = bpy.data.objects.new(f"{name}_{ob.name}", ob.data)
+        COL.objects.link(dup)
+        dup.parent = root
+    return root
+
+
+for i, (sx_, sy_) in enumerate(((-1, -1), (-1, 1), (1, -1), (1, 1))):
+    clone_tower(f"Castle_Tower{i}", CX + sx_ * HALF_X, CY + sy_ * HALF_Y, 0.8)
+
+
+def castle_uv(bm):
+    """Masonry UVs: v follows height like the tower (moss only at the base)."""
+    uvl = bm.loops.layers.uv.get("UVMap") or bm.loops.layers.uv.new("UVMap")
+    for f in bm.faces:
+        n = f.normal
+        for l in f.loops:
+            co = l.vert.co
+            if abs(n.z) > 0.6:
+                l[uvl].uv = (co.x * 0.1 + 0.4, co.y * 0.1 + 0.6)
+            else:
+                # offset v so only the very base dips into the moss band,
+                # and the tall keep never wraps past v=1
+                u = co.y if abs(n.x) > abs(n.y) else co.x
+                l[uvl].uv = (u * 0.22, 0.25 + (co.z - CASTLE_Z) / 17.0)
+
+
+cs = bmesh.new()  # stone parts
+B = CASTLE_Z
+
+
+def wall_run(x0, y0, x1, y1):
+    """Curtain wall with merlons between two points (axis-aligned)."""
+    L = math.hypot(x1 - x0, y1 - y0)
+    ang = math.atan2(y1 - y0, x1 - x0)
+    mid = ((x0 + x1) / 2, (y0 + y1) / 2)
+    m = Matrix.Translation((mid[0], mid[1], 0)) @ Matrix.Rotation(ang, 4, "Z")
+    add_box(cs, (L, WALL_T, WALL_H), m @ Matrix.Translation((0, 0, B + WALL_H / 2 - 0.4)))
+    n_mer = int(L / 1.6)
+    for k in range(n_mer + 1):
+        t = -L / 2 + 0.8 + k * (L - 1.6) / max(n_mer, 1)
+        add_box(cs, (0.85, WALL_T + 0.15, 0.85),
+                m @ Matrix.Translation((t, 0, B + WALL_H + 0.02)))
+
+
+wall_run(CX - HALF_X, CY - HALF_Y, CX + HALF_X, CY - HALF_Y)
+wall_run(CX - HALF_X, CY + HALF_Y, CX + HALF_X, CY + HALF_Y)
+wall_run(CX - HALF_X, CY - HALF_Y, CX - HALF_X, CY + HALF_Y)
+wall_run(CX + HALF_X, CY - HALF_Y, CX + HALF_X, CY + HALF_Y)
+
+# gatehouse on the west wall, facing the spur path
+GH = Matrix.Translation((CX - HALF_X, CY, 0))
+add_box(cs, (3.4, 7.0, 9.6), GH @ Matrix.Translation((0, 0, B + 4.4)))
+for k in range(4):
+    add_box(cs, (3.55, 0.85, 0.85),
+            GH @ Matrix.Translation((0, -2.9 + k * 1.93, B + 9.25)))
+add_box(cs, (0.8, 5.0, 0.6), GH @ Matrix.Translation((-1.75, 0, B + 6.1)))  # lintel
+
+# square keep with parapet
+add_box(cs, (6.4, 6.4, 12.0), Matrix.Translation((CX + 2.0, CY, B + 5.6)))
+for k in range(5):
+    t = -2.8 + k * 1.4
+    add_box(cs, (0.8, 0.8, 0.8), Matrix.Translation((CX + 2.0 + t, CY - 3.0, B + 11.9)))
+    add_box(cs, (0.8, 0.8, 0.8), Matrix.Translation((CX + 2.0 + t, CY + 3.0, B + 11.9)))
+    add_box(cs, (0.8, 0.8, 0.8), Matrix.Translation((CX - 1.0, CY + t, B + 11.9)))
+    add_box(cs, (0.8, 0.8, 0.8), Matrix.Translation((CX + 5.0, CY + t, B + 11.9)))
+castle_uv(cs)
+to_object("Castle_Stone", cs, MS_STONE, smooth_angle=0.9)
+
+# wooden gate: dark backing + stepped planks + iron straps, on the outer face
+cw = bmesh.new()
+gate_x = CX - HALF_X - 1.72
+add_box(cw, (0.22, 4.2, 5.6), Matrix.Translation((gate_x + 0.10, CY, B + 2.8)))
+s_line = 3.6
+for i in range(6):
+    yc = -1.9 + (i + 0.5) * 3.8 / 6
+    top = s_line + math.sqrt(max(0.0, 2.1 ** 2 - (abs(yc) + 0.3) ** 2))
+    add_box(cw, (0.16, 0.60, top),
+            Matrix.Translation((gate_x - 0.02, CY + yc, B + top / 2)))
+box_uv(cw, scale=0.5)
+to_object("Castle_Gate", cw, MS_WOOD, smooth_angle=0.9)
+
+ci = bmesh.new()
+for sz in (1.3, 3.1):
+    add_box(ci, (0.14, 3.7, 0.35), Matrix.Translation((gate_x - 0.12, CY, B + sz)))
+box_uv(ci, scale=0.6)
+to_object("Castle_GateIron", ci, MS_IRON, smooth_angle=0.9)
+
+# keep roof: four-sided shingle pyramid, rotated to sit square on the keep
+roof = spin([(5.0, B + 11.6), (0.30, B + 15.6)], segments=4)
+cap_ring(roof, B + 15.6)
+bmesh.ops.transform(roof, matrix=Matrix.Translation((CX + 2.0, CY, 0))
+                    @ Matrix.Rotation(math.pi / 4, 4, "Z"), verts=roof.verts[:])
+box_uv(roof, scale=0.4)
+to_object("Castle_KeepRoof", roof, MS_SHINGLE, smooth_angle=0.2)
+
+# banner on the keep
+pole = spin([(0.05, B + 15.3), (0.035, B + 18.0)], segments=6)
+cap_ring(pole, B + 18.0)
+bmesh.ops.transform(pole, matrix=Matrix.Translation((CX + 2.0, CY, 0)), verts=pole.verts[:])
+box_uv(pole, scale=0.6)
+to_object("Castle_Pole", pole, MS_IRON, smooth_angle=0.2)
+
+flag = bmesh.new()
+fx = CX + 2.0
+prev = None
+for k, (dy, dz) in enumerate(((0.0, 0.0), (0.55, 0.06), (1.05, -0.05), (1.5, 0.04))):
+    v0 = flag.verts.new((fx, CY + 0.05 + dy, B + 17.8 + dz))
+    v1 = flag.verts.new((fx, CY + 0.05 + dy, B + 17.0 + dz))
+    if prev:
+        flag.faces.new((prev[0], prev[1], v1, v0))
+    prev = (v0, v1)
+box_uv(flag, scale=0.5)
+to_object("Castle_Banner", flag, MAT_FLAG, smooth_angle=1.5)
+
+# ----------------------------------------------------------------------------
 # neutral lighting + cameras
 # ----------------------------------------------------------------------------
 
@@ -1028,7 +1200,8 @@ cam = add_camera("Camera_Path", (px, py, h_at(px, py) + 3.0),
                  (TOWER_POS.x, TOWER_POS.y, tz + 5.0), 36)
 cam3 = add_camera("Camera_Pond", (CAM3_POS.x, CAM3_POS.y, h_at(CAM3_POS.x, CAM3_POS.y) + 3.4),
                   (WILLOW_POS.x, WILLOW_POS.y, WATER_Z + 3.2), 32)
-cam2 = add_camera("Camera_Aerial", (-52, 42, 44), (8, -2, 6.0), 38)
+cam2 = add_camera("Camera_Aerial", (-60, 48, 52), (14, -2, 5.0), 36)
+cam4 = add_camera("Camera_Castle", (86, -30, 17), (58, 1, CASTLE_Z + 6.5), 40)
 scene.camera = cam
 
 # ----------------------------------------------------------------------------
@@ -1094,6 +1267,7 @@ print(f"Exported {glb_path}")
 if os.environ.get("WT_SKIP_RENDER") != "1":
     for camera, fname, res in ((cam, "forest_path.png", (1600, 1000)),
                                (cam3, "forest_pond.png", (1600, 1000)),
+                               (cam4, "forest_castle.png", (1600, 1000)),
                                (cam2, "forest_aerial.png", (1600, 1100))):
         scene.camera = camera
         scene.render.resolution_x, scene.render.resolution_y = res
