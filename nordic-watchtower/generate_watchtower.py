@@ -184,15 +184,15 @@ def build_stone_textures(size=1024):
     height = hb * (0.82 + 0.28 * b2) + n_fine * 0.30 * hb + n_soft * 0.06
     hn = height / max(height.max(), 1e-6)
 
-    gray = 0.50 + 0.24 * b1
+    gray = 0.52 + 0.15 * b1
     tint = b3 - 0.5
     col = np.stack([
-        gray * (1 + 0.10 * tint) * 0.99,
+        gray * (1 + 0.06 * tint) * 0.99,
         gray,
-        gray * (1 - 0.08 * tint) * 1.03,
+        gray * (1 - 0.05 * tint) * 1.02,
     ], axis=-1)
     col *= (0.90 + 0.20 * fbm(sh, 6, 6, 4, 23))[..., None]
-    mortar = np.full_like(col, 0.38)
+    mortar = np.full_like(col, 0.40)
     mortar[..., 2] *= 0.96
     mm = sstep((d - 0.010) / 0.020)
     col = lerp(mortar, col, mm[..., None])

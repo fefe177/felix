@@ -447,20 +447,20 @@ print("Generating forest textures ...")
 sh = (HH, HW)
 g_var = fbm(sh, 9, 6, 4, 72)
 g_fine = fbm(sh, 60, 40, 4, 73)
-grass = lerp(np.array([0.270, 0.400, 0.140])[None, None, :],
-             np.array([0.460, 0.580, 0.230])[None, None, :],
+grass = lerp(np.array([0.240, 0.420, 0.115])[None, None, :],
+             np.array([0.470, 0.630, 0.210])[None, None, :],
              (0.25 + 0.75 * g_var)[..., None])
 grass *= (0.84 + 0.28 * g_fine)[..., None]
 
 # forest floor (needle litter) under the tree canopies
-floor_col = lerp(np.array([0.300, 0.235, 0.150])[None, None, :],
-                 np.array([0.440, 0.360, 0.230])[None, None, :],
+floor_col = lerp(np.array([0.360, 0.275, 0.170])[None, None, :],
+                 np.array([0.500, 0.400, 0.250])[None, None, :],
                  (fbm(sh, 26, 17, 4, 77))[..., None])
 canopy = sstep((D - 0.12) / 0.35)
 ter_col = lerp(grass, floor_col, (canopy * 0.7)[..., None])
 
-dirt = lerp(np.array([0.50, 0.385, 0.260])[None, None, :],
-            np.array([0.62, 0.50, 0.35])[None, None, :],
+dirt = lerp(np.array([0.56, 0.435, 0.285])[None, None, :],
+            np.array([0.68, 0.55, 0.38])[None, None, :],
             (fbm(sh, 20, 13, 4, 74))[..., None])
 worn = sstep((3.6 - d_path) / 1.8) * (1 - w_path) * (1 - canopy)
 ter_col = lerp(ter_col, np.array([0.44, 0.50, 0.22])[None, None, :], (worn * 0.2)[..., None])
@@ -502,7 +502,8 @@ TER_IMGS = (
 )
 
 
-def foliage_textures(name, col_a, col_b, seed):
+def foliage_textures(name, col_a, col_b, seed, dark=0.66):
+    """Returns (light_imgs, dark_imgs) — dark variant for lower canopy layers."""
     s2 = (512, 512)
     mottle = fbm(s2, 12, 12, 4, seed)
     fine = fbm(s2, 60, 60, 3, seed + 7)
@@ -510,18 +511,18 @@ def foliage_textures(name, col_a, col_b, seed):
                (0.15 + 0.85 * mottle)[..., None])
     col *= (0.80 + 0.38 * fine)[..., None]
     rough = 0.72 + 0.22 * mottle
-    orm = np.stack([np.full(s2, 0.85), rough, np.zeros(s2)], axis=-1)
-    return (
-        make_image(name + "_col", col, "sRGB"),
-        make_image(name + "_orm", orm, "Non-Color"),
-        make_image(name + "_nrm", normal_map(mottle * 0.5 + fine * 0.4, 1.3), "Non-Color"),
-    )
+    orm = make_image(name + "_orm",
+                     np.stack([np.full(s2, 0.85), rough, np.zeros(s2)], axis=-1), "Non-Color")
+    nrm = make_image(name + "_nrm",
+                     normal_map(mottle * 0.5 + fine * 0.4, 1.3), "Non-Color")
+    return ((make_image(name + "_col", col, "sRGB"), orm, nrm),
+            (make_image(name + "_dark_col", col * dark, "sRGB"), orm, nrm))
 
 
-FOL_A = foliage_textures("forest_spruce", (0.200, 0.360, 0.190), (0.400, 0.570, 0.280), 81)
-FOL_B = foliage_textures("forest_pine", (0.240, 0.400, 0.150), (0.460, 0.600, 0.230), 85)
-LEAFY = foliage_textures("forest_leafy", (0.270, 0.430, 0.150), (0.520, 0.640, 0.260), 87)
-WILLOW_FOL = foliage_textures("forest_willow", (0.320, 0.460, 0.170), (0.560, 0.640, 0.280), 89)
+FOL_A, FOL_A_D = foliage_textures("forest_spruce", (0.200, 0.380, 0.190), (0.420, 0.600, 0.290), 81)
+FOL_B, FOL_B_D = foliage_textures("forest_pine", (0.250, 0.420, 0.150), (0.500, 0.640, 0.240), 85)
+LEAFY, LEAFY_D = foliage_textures("forest_leafy", (0.290, 0.460, 0.160), (0.560, 0.680, 0.280), 87)
+WILLOW_FOL, _ = foliage_textures("forest_willow", (0.340, 0.490, 0.180), (0.600, 0.680, 0.300), 89)
 
 s3 = (256, 256)
 bark_g = fbm(s3, 18, 4, 4, 91)
@@ -589,15 +590,18 @@ MAT_TERRAIN = pbr_material("F_Terrain", TER_IMGS, rough=0.88)
 MAT_MOUNTAIN = pbr_material("F_Mountain", MNT_IMGS, rough=0.85)
 MAT_BASE = pbr_material("F_DioramaBase", None, base=(0.11, 0.095, 0.082, 1), rough=0.9)
 MAT_FOL_A = pbr_material("F_SpruceFoliage", FOL_A, rough=0.8)
+MAT_FOL_A_D = pbr_material("F_SpruceFoliageDark", FOL_A_D, rough=0.82)
 MAT_FOL_B = pbr_material("F_PineFoliage", FOL_B, rough=0.8)
+MAT_FOL_B_D = pbr_material("F_PineFoliageDark", FOL_B_D, rough=0.82)
 MAT_LEAFY = pbr_material("F_LeafyFoliage", LEAFY, rough=0.78)
+MAT_LEAFY_D = pbr_material("F_LeafyFoliageDark", LEAFY_D, rough=0.8)
 MAT_WILLOW = pbr_material("F_WillowFoliage", WILLOW_FOL, rough=0.78)
 MAT_BARK = pbr_material("F_Bark", BARK_IMGS, rough=0.75)
 MAT_GRAY = pbr_material("F_DeadWood", GRAY_BARK_IMGS, rough=0.8)
 MAT_BIRCH = pbr_material("F_BirchBark", BIRCH_IMGS, rough=0.6)
 MAT_ROCK = pbr_material("F_Rock", ROCK_IMGS, rough=0.8)
-MAT_WATER = pbr_material("F_Water", None, base=(0.125, 0.175, 0.185, 1), rough=0.2)
-MAT_TUFT = pbr_material("F_GrassTuft", None, base=(0.34, 0.50, 0.18, 1), rough=0.75)
+MAT_WATER = pbr_material("F_Water", None, base=(0.05, 0.09, 0.10, 1), rough=0.06)
+MAT_TUFT = pbr_material("F_GrassTuft", None, base=(0.36, 0.55, 0.17, 1), rough=0.75)
 MAT_FLOWER_W = pbr_material("F_FlowerWhite", None, base=(0.88, 0.87, 0.80, 1), rough=0.5)
 MAT_FLOWER_P = pbr_material("F_FlowerPurple", None, base=(0.58, 0.38, 0.78, 1), rough=0.5)
 
@@ -695,7 +699,8 @@ to_object("Forest_Mountain", mnt_bm, MAT_MOUNTAIN, smooth_angle=0.01)
 # ----------------------------------------------------------------------------
 
 
-def conifer_mesh(name, layers, trunk_top, tip, fol_mat, seed, droop=0.16):
+def conifer_mesh(name, layers, trunk_top, tip, fol_mats, seed, droop=0.16):
+    """fol_mats: (dark, light) — lower canopy dark, upper layers + tip light."""
     trng = random.Random(seed)
     bm = bmesh.new()
     trunk = spin([(0.30, -0.5), (0.22, 0.4), (0.16, trunk_top * 0.6), (0.11, trunk_top)],
@@ -718,8 +723,12 @@ def conifer_mesh(name, layers, trunk_top, tip, fol_mat, seed, droop=0.16):
     cap_ring(tip_bm, tz)
     merge_into(bm, tip_bm)
     trunk_set = set(trunk_faces)
+    z_split = layers[len(layers) // 2][0]
     for f in bm.faces:
-        f.material_index = 0 if f in trunk_set else 1
+        if f in trunk_set:
+            f.material_index = 0
+        else:
+            f.material_index = 1 if f.calc_center_median().z < z_split else 2
     for v in bm.verts:
         if v.co.z > 0.4 and Vector((v.co.x, v.co.y)).length > 0.3:
             s = 1.0 + trng.uniform(-0.09, 0.09)
@@ -727,7 +736,8 @@ def conifer_mesh(name, layers, trunk_top, tip, fol_mat, seed, droop=0.16):
             v.co.y *= s
             v.co.z += trng.uniform(-0.07, 0.07)
     box_uv(bm, scale=0.4)
-    return to_object(name, bm, [MAT_BARK, fol_mat], smooth_angle=0.6, link=False)
+    return to_object(name, bm, [MAT_BARK, fol_mats[0], fol_mats[1]],
+                     smooth_angle=0.6, link=False)
 
 
 def blob(bm, center, radius, seed, squash=0.8):
@@ -791,21 +801,22 @@ TREE_MESHES = {
     "spruce_tall": conifer_mesh("Tree_SpruceTall",
                                 [(0.9, 2.35, 2.1), (2.3, 1.95, 1.9), (3.6, 1.55, 1.8),
                                  (4.8, 1.20, 1.6), (5.9, 0.90, 1.5), (6.9, 0.65, 1.3)],
-                                2.0, (7.6, 0.50, 1.7), MAT_FOL_A, 101),
+                                2.0, (7.6, 0.50, 1.7), (MAT_FOL_A_D, MAT_FOL_A), 101),
     "spruce_slim": conifer_mesh("Tree_SpruceSlim",
                                 [(0.8, 1.55, 1.7), (2.0, 1.25, 1.6), (3.1, 1.00, 1.5),
                                  (4.1, 0.75, 1.4), (5.0, 0.55, 1.2)],
-                                1.6, (5.7, 0.40, 1.5), MAT_FOL_A, 102),
+                                1.6, (5.7, 0.40, 1.5), (MAT_FOL_A_D, MAT_FOL_A), 102),
     "spruce_wide": conifer_mesh("Tree_SpruceWide",
                                 [(0.8, 2.75, 2.3), (2.4, 2.2, 2.0), (3.9, 1.65, 1.8),
                                  (5.2, 1.15, 1.6)],
-                                1.7, (6.1, 0.75, 1.6), MAT_FOL_A, 103, droop=0.20),
+                                1.7, (6.1, 0.75, 1.6), (MAT_FOL_A_D, MAT_FOL_A), 103,
+                                droop=0.20),
     "pine": conifer_mesh("Tree_Pine",
                          [(2.2, 2.3, 1.9), (3.6, 1.75, 1.7), (4.8, 1.15, 1.5)],
-                         3.0, (5.8, 0.75, 1.2), MAT_FOL_B, 104, droop=0.10),
+                         3.0, (5.8, 0.75, 1.2), (MAT_FOL_B_D, MAT_FOL_B), 104, droop=0.10),
     "young": conifer_mesh("Tree_Young",
                           [(0.5, 1.15, 1.3), (1.5, 0.85, 1.2), (2.4, 0.60, 1.0)],
-                          1.1, (3.0, 0.40, 1.1), MAT_FOL_B, 105),
+                          1.1, (3.0, 0.40, 1.1), (MAT_FOL_B_D, MAT_FOL_B), 105),
     "birch": birch_mesh("Tree_Birch", 106),
     "snag": snag_mesh("Tree_Snag", 107),
 }
@@ -838,7 +849,7 @@ blob(bush_bm, (0, 0, 0.35), 0.55, 131, squash=0.7)
 blob(bush_bm, (0.45, 0.2, 0.25), 0.4, 132, squash=0.7)
 blob(bush_bm, (-0.35, -0.25, 0.28), 0.45, 133, squash=0.7)
 box_uv(bush_bm, scale=0.6)
-BUSH = to_object("Bush", bush_bm, MAT_LEAFY, smooth_angle=0.7, link=False)
+BUSH = to_object("Bush", bush_bm, MAT_LEAFY_D, smooth_angle=0.7, link=False)
 
 
 def log_mesh(name, seed):
@@ -1161,10 +1172,11 @@ def aim(obj, target):
     obj.rotation_euler = d.to_track_quat("-Z", "Y").to_euler()
 
 
-def add_sun(name, loc, energy):
+def add_sun(name, loc, energy, color=(1.0, 1.0, 1.0)):
     ld = bpy.data.lights.new(name, "SUN")
     ld.energy = energy
-    ld.angle = math.radians(4)
+    ld.color = color
+    ld.angle = math.radians(3)
     lo = bpy.data.objects.new(name, ld)
     scene.collection.objects.link(lo)
     lo.location = loc
@@ -1172,16 +1184,39 @@ def add_sun(name, loc, energy):
     return lo
 
 
-add_sun("Studio_Key", (45, -35, 60), 3.2)
-add_sun("Studio_Fill", (-55, -25, 30), 1.4)
-add_sun("Studio_Rim", (-10, 55, 45), 1.6)
+# late-afternoon rig: warm key from the south, cool sky fill, warm back rim
+add_sun("Sun_Key", (20, -45, 30), 3.8, (1.0, 0.90, 0.72))
+add_sun("Sun_Fill", (-50, 20, 35), 1.0, (0.72, 0.80, 1.0))
+add_sun("Sun_Rim", (30, 50, 25), 1.6, (1.0, 0.95, 0.85))
 
-world = bpy.data.worlds.new("Studio_World")
+# gradient sky dome: warm haze at the horizon, deep blue overhead
+world = bpy.data.worlds.new("Sky_World")
 scene.world = world
 world.use_nodes = True
-bg = world.node_tree.nodes["Background"]
-bg.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
-bg.inputs["Strength"].default_value = 0.25
+nt = world.node_tree
+nt.nodes.clear()
+w_out = nt.nodes.new("ShaderNodeOutputWorld")
+w_bg = nt.nodes.new("ShaderNodeBackground")
+w_bg.inputs["Strength"].default_value = 1.0
+w_tc = nt.nodes.new("ShaderNodeTexCoord")
+w_sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+w_map = nt.nodes.new("ShaderNodeMapRange")
+w_map.inputs["From Min"].default_value = -1.0
+w_map.inputs["From Max"].default_value = 1.0
+w_ramp = nt.nodes.new("ShaderNodeValToRGB")
+w_ramp.color_ramp.elements[0].position = 0.0
+w_ramp.color_ramp.elements[0].color = (0.30, 0.33, 0.38, 1.0)
+w_ramp.color_ramp.elements[1].position = 0.52
+w_ramp.color_ramp.elements[1].color = (0.74, 0.78, 0.88, 1.0)
+e2 = w_ramp.color_ramp.elements.new(0.62)
+e2.color = (0.42, 0.60, 0.86, 1.0)
+e3 = w_ramp.color_ramp.elements.new(1.0)
+e3.color = (0.15, 0.32, 0.62, 1.0)
+nt.links.new(w_tc.outputs["Generated"], w_sep.inputs["Vector"])
+nt.links.new(w_sep.outputs["Z"], w_map.inputs["Value"])
+nt.links.new(w_map.outputs["Result"], w_ramp.inputs["Fac"])
+nt.links.new(w_ramp.outputs["Color"], w_bg.inputs["Color"])
+nt.links.new(w_bg.outputs["Background"], w_out.inputs["Surface"])
 
 
 def add_camera(name, loc, target, lens):
@@ -1196,8 +1231,11 @@ def add_camera(name, loc, target, lens):
 
 
 px, py = float(P_X[10]), float(P_Y[10])
-cam = add_camera("Camera_Path", (px, py, h_at(px, py) + 3.0),
-                 (TOWER_POS.x, TOWER_POS.y, tz + 5.0), 36)
+cam = add_camera("Camera_Path", (px, py, h_at(px, py) + 2.7),
+                 (TOWER_POS.x, TOWER_POS.y, tz + 6.0), 33)
+cam.data.dof.use_dof = True
+cam.data.dof.focus_distance = (Vector((TOWER_POS.x, TOWER_POS.y, tz + 6)) - cam.location).length
+cam.data.dof.aperture_fstop = 5.0
 cam3 = add_camera("Camera_Pond", (CAM3_POS.x, CAM3_POS.y, h_at(CAM3_POS.x, CAM3_POS.y) + 3.4),
                   (WILLOW_POS.x, WILLOW_POS.y, WATER_Z + 3.2), 32)
 cam2 = add_camera("Camera_Aerial", (-60, 48, 52), (14, -2, 5.0), 36)
@@ -1210,13 +1248,13 @@ scene.camera = cam
 
 scene.render.engine = "CYCLES"
 scene.cycles.device = "CPU"
-scene.cycles.samples = 96
+scene.cycles.samples = 128
 scene.cycles.use_denoising = True
 try:
     scene.cycles.denoiser = "OPENIMAGEDENOISE"
 except TypeError:
     pass
-scene.render.film_transparent = True
+scene.render.film_transparent = False  # the gradient sky is part of the look
 scene.render.image_settings.color_mode = "RGBA"
 for vt in ("Filmic", "AgX", "Standard"):
     try:
@@ -1229,7 +1267,7 @@ if scene.view_settings.view_transform == "Filmic":
         scene.view_settings.look = "Medium High Contrast"
     except TypeError:
         pass
-scene.view_settings.exposure = 0.4
+scene.view_settings.exposure = 0.15
 
 # ----------------------------------------------------------------------------
 # stats
@@ -1265,10 +1303,10 @@ bpy.ops.export_scene.gltf(filepath=glb_path, export_format="GLB")
 print(f"Exported {glb_path}")
 
 if os.environ.get("WT_SKIP_RENDER") != "1":
-    for camera, fname, res in ((cam, "forest_path.png", (1600, 1000)),
-                               (cam3, "forest_pond.png", (1600, 1000)),
-                               (cam4, "forest_castle.png", (1600, 1000)),
-                               (cam2, "forest_aerial.png", (1600, 1100))):
+    for camera, fname, res in ((cam, "forest_path.png", (1920, 1150)),
+                               (cam3, "forest_pond.png", (1920, 1150)),
+                               (cam4, "forest_castle.png", (1920, 1150)),
+                               (cam2, "forest_aerial.png", (1920, 1280))):
         scene.camera = camera
         scene.render.resolution_x, scene.render.resolution_y = res
         scene.render.filepath = os.path.join(RENDER_DIR, fname)
