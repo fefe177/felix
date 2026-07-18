@@ -37,8 +37,10 @@ for d in (TEX_DIR, EXPORT_DIR, RENDER_DIR):
 
 rng = random.Random(21)
 
-SX, SY = 70.0, 46.0
+SX, SY = 110.0, 46.0
 TOWER_POS = Vector((25.0, 0.0, 0.0))
+MNT_POS = Vector((40.0, 4.0, 0.0))  # giant mountain behind the tower
+MNT_R = 19.0
 BASE_Z = -2.0  # diorama slab bottom
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -251,12 +253,12 @@ def instance(mesh, name, loc, rot, scale):
 # ----------------------------------------------------------------------------
 
 print("Computing terrain heightfield ...")
-HW, HH = 2048, 1344
+HW, HH = 2560, 1072
 Xw = np.linspace(-SX / 2, SX / 2, HW)[None, :].repeat(HH, axis=0)
 Yw = np.linspace(-SY / 2, SY / 2, HH)[:, None].repeat(HW, axis=1)
 
 P_T = np.linspace(0.0, 1.0, 140)
-P_X = -34.0 + (TOWER_POS.x + 2.0 - -34.0) * P_T
+P_X = -50.0 + (TOWER_POS.x + 2.0 - -50.0) * P_T
 P_Y = (5.5 * np.sin(P_T * 3.4 + 0.4) - 1.2) * (1 - P_T ** 2.2)
 
 d_path = np.full((HH, HW), 1e9)
@@ -274,12 +276,18 @@ POND = Vector((float(P_X[k_p]), float(P_Y[k_p]), 0.0)) + p_norm * 7.6
 WILLOW_POS = POND - p_dir * 6.6
 d_pond = np.hypot(Xw - POND.x, Yw - POND.y)
 
-n_macro = fbm((HH, HW), 7, 5, 5, 71)
+n_macro = fbm((HH, HW), 10, 5, 5, 71)
 d_tower = np.hypot(Xw - TOWER_POS.x, Yw - TOWER_POS.y)
 knoll = 1.8 * np.exp(-(d_tower ** 2) / (2 * 9.0 ** 2))
 hill1 = 1.5 * np.exp(-((Xw + 20) ** 2 + (Yw - 15) ** 2) / (2 * 10.0 ** 2))
 hill2 = 1.2 * np.exp(-((Xw - 4) ** 2 + (Yw + 17) ** 2) / (2 * 9.0 ** 2))
-HF = (n_macro - 0.5) * 2.1 * (1 - 0.75 * w_path) + knoll + hill1 + hill2
+# the giant mountain: ridged cone rising right behind the tower knoll
+d_mnt = np.hypot(Xw - MNT_POS.x, Yw - MNT_POS.y)
+m_base = np.clip(1 - d_mnt / MNT_R, 0, 1)
+m_ridge = fbm((HH, HW), 14, 9, 4, 78)
+m_crag = fbm((HH, HW), 34, 22, 4, 79)
+mountain = 28.0 * m_base ** 1.65 * (0.70 + 0.55 * m_ridge) + m_base ** 1.2 * m_crag * 4.0
+HF = (n_macro - 0.5) * 2.1 * (1 - 0.75 * w_path) + knoll + hill1 + hill2 + mountain
 edge = sstep((SX / 2 - np.abs(Xw) - 1.0) / 5.0) * sstep((SY / 2 - np.abs(Yw) - 1.0) / 5.0)
 HF *= 0.25 + 0.75 * edge
 HF -= 0.35 * w_path * edge  # sunken, worn path
@@ -320,7 +328,7 @@ def clear_of(x, y, pts, r):
 
 tree_places = []
 attempts = 0
-while len(tree_places) < 150 and attempts < 30000:
+while len(tree_places) < 230 and attempts < 60000:
     attempts += 1
     x = rng.uniform(-SX / 2 + 2.5, SX / 2 - 2.5)
     y = rng.uniform(-SY / 2 + 2.5, SY / 2 - 2.5)
@@ -335,6 +343,8 @@ while len(tree_places) < 150 and attempts < 30000:
     if math.hypot(x - CAM3_POS.x, y - CAM3_POS.y) < 5.0:
         continue
     if math.hypot(x - float(P_X[10]), y - float(P_Y[10])) < 6.0:  # path camera
+        continue
+    if h_at(x, y) > 6.0:  # treeline on the mountain
         continue
     if not clear_of(x, y, tree_places, 2.2):
         continue
@@ -359,10 +369,11 @@ for x, y, kind, s in tree_places:
 D = np.clip(D, 0, 1.6) / 1.6
 
 
-def scatter(n, min_path, min_tower, min_pond, min_edge, spacing=0.0, near_path=None):
+def scatter(n, min_path, min_tower, min_pond, min_edge, spacing=0.0, near_path=None,
+            max_h=5.0):
     out = []
     tries = 0
-    while len(out) < n and tries < 25000:
+    while len(out) < n and tries < 40000:
         tries += 1
         x = rng.uniform(-SX / 2 + min_edge, SX / 2 - min_edge)
         y = rng.uniform(-SY / 2 + min_edge, SY / 2 - min_edge)
@@ -373,18 +384,20 @@ def scatter(n, min_path, min_tower, min_pond, min_edge, spacing=0.0, near_path=N
             continue
         if math.hypot(x - POND.x, y - POND.y) < min_pond:
             continue
+        if h_at(x, y) > max_h:
+            continue
         if spacing and not clear_of(x, y, out, spacing):
             continue
         out.append((x, y))
     return out
 
 
-rock_places = scatter(24, 2.4, 6.0, 5.9, 2.0, spacing=2.5)
-bush_places = scatter(45, 2.4, 7.0, 6.2, 2.0, spacing=1.6)
+rock_places = scatter(36, 2.4, 6.0, 5.9, 2.0, spacing=2.5, max_h=13.0)
+bush_places = scatter(60, 2.4, 7.0, 6.2, 2.0, spacing=1.6)
 log_places = scatter(3, 3.2, 10.0, 7.0, 4.0, spacing=8.0, near_path=8.0)
-stump_places = scatter(7, 2.8, 8.0, 6.5, 3.0, spacing=5.0)
-tuft_places = scatter(380, 1.7, 4.0, 5.8, 1.5)
-flower_places = scatter(80, 2.0, 5.0, 5.8, 1.5)
+stump_places = scatter(8, 2.8, 8.0, 6.5, 3.0, spacing=5.0)
+tuft_places = scatter(500, 1.7, 4.0, 5.8, 1.5)
+flower_places = scatter(90, 2.0, 5.0, 5.8, 1.5)
 
 # ----------------------------------------------------------------------------
 # textures
@@ -422,6 +435,15 @@ r_mask = sstep((slope - 0.30) / 0.20) * (1 - p_mask)
 ter_col = lerp(ter_col, np.array([0.44, 0.435, 0.42])[None, None, :] *
                (0.75 + 0.45 * g_fine)[..., None], r_mask[..., None] * 0.8)
 
+# the mountain: bare rock above the treeline, snow on the upper reaches
+alt_rock = sstep((HF - 6.5 - 2.5 * (g_var - 0.5)) / 3.0) * (1 - p_mask)
+ter_col = lerp(ter_col, np.array([0.46, 0.45, 0.44])[None, None, :] *
+               (0.70 + 0.50 * g_fine)[..., None], (alt_rock * 0.92)[..., None])
+snow_n = fbm(sh, 18, 12, 3, 68)
+snow = sstep((HF - (13.0 + 3.5 * snow_n)) / 2.4) * sstep((0.95 - slope * 0.30) / 0.45)
+snow_col = np.array([0.85, 0.87, 0.92])[None, None, :] * (0.93 + 0.07 * g_fine)[..., None]
+ter_col = lerp(ter_col, snow_col, snow[..., None])
+
 # pond shore: mud ring and dark sediment under water
 uw = sstep((WATER_Z + 0.06 - HF) / 0.25)
 shore = sstep((6.6 - d_pond) / 1.6) * (1 - uw)
@@ -429,9 +451,10 @@ ter_col = lerp(ter_col, np.array([0.46, 0.375, 0.255])[None, None, :]
                * (0.82 + 0.3 * g_fine)[..., None], (shore * 0.75)[..., None])
 ter_col = lerp(ter_col, np.array([0.23, 0.20, 0.145])[None, None, :], uw[..., None])
 
-ter_rough = 0.88 - 0.10 * p_mask + 0.05 * g_fine - 0.15 * uw
+ter_rough = 0.88 - 0.10 * p_mask + 0.05 * g_fine - 0.15 * uw - 0.20 * snow
 ter_orm = np.stack([np.full(sh, 0.85), ter_rough, np.zeros(sh)], axis=-1)
-ter_h = g_fine * 0.5 + p_mask * -0.3 + fbm(sh, 130, 85, 2, 76) * 0.35 - canopy * 0.15
+ter_h = (g_fine * 0.5 + p_mask * -0.3 + fbm(sh, 130, 85, 2, 76) * 0.35
+         - canopy * 0.15 + alt_rock * m_crag * 0.8)
 TER_IMGS = (
     make_image("forest_terrain_col", ter_col, "sRGB"),
     make_image("forest_terrain_orm", ter_orm, "Non-Color"),
@@ -518,7 +541,7 @@ MAT_FLOWER_P = pbr_material("F_FlowerPurple", None, base=(0.58, 0.38, 0.78, 1), 
 # ----------------------------------------------------------------------------
 
 print("Building terrain ...")
-NX, NY = 84, 55
+NX, NY = 132, 55
 ter = bmesh.new()
 grid = [[ter.verts.new((-SX / 2 + i * SX / NX, -SY / 2 + j * SY / NY,
                         h_at(-SX / 2 + i * SX / NX, -SY / 2 + j * SY / NY)))
@@ -839,6 +862,8 @@ for idx, (x, y, kind, s) in enumerate(tree_places):
              (s * rng.uniform(0.9, 1.1), s * rng.uniform(0.9, 1.1), s))
 for idx, (x, y) in enumerate(rock_places):
     s = rng.uniform(0.35, 1.5)
+    if h_at(x, y) > 4.0:  # bigger boulders strewn on the mountain slopes
+        s *= rng.uniform(1.4, 2.4)
     instance(ROCKS[idx % 3], f"Rock.{idx:03d}", (x, y, h_at(x, y) - 0.25 * s),
              (0, 0, rng.uniform(0, math.tau)),
              (s, s * rng.uniform(0.8, 1.2), s * rng.uniform(0.7, 1.1)))
@@ -929,7 +954,7 @@ cam = add_camera("Camera_Path", (px, py, h_at(px, py) + 3.0),
                  (TOWER_POS.x, TOWER_POS.y, tz + 5.0), 36)
 cam3 = add_camera("Camera_Pond", (CAM3_POS.x, CAM3_POS.y, h_at(CAM3_POS.x, CAM3_POS.y) + 3.4),
                   (WILLOW_POS.x, WILLOW_POS.y, WATER_Z + 3.2), 32)
-cam2 = add_camera("Camera_Aerial", (-36, 32, 28), (6, -2, 1.5), 40)
+cam2 = add_camera("Camera_Aerial", (-52, 42, 44), (8, -2, 6.0), 38)
 scene.camera = cam
 
 # ----------------------------------------------------------------------------

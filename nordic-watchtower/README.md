@@ -9,8 +9,9 @@ walls. Stylized-realistic, game-ready, 100 % quad topology.
 ![Detail render](renders/watchtower_detail.png)
 
 Also included: a giant Nordic forest diorama in the same style — a winding
-path through 150 stylized trees ends at the watchtower on a knoll, and a
-pond with a large weeping willow sits beside the path halfway along.
+path through 230 stylized trees ends at the watchtower, a pond with a large
+weeping willow sits beside the path halfway along, and a giant snow-capped
+mountain rises directly behind the tower.
 
 ![Forest path render](renders/forest_path.png)
 ![Forest pond render](renders/forest_pond.png)
@@ -75,17 +76,21 @@ Set `WT_SKIP_RENDER=1` to skip the preview renders.
 
 ## Forest diorama details
 
-- **Terrain:** 70 m x 46 m displaced quad grid with a skirt and capped
-  bottom (diorama slab). Height, path, pond, textures and object placement
-  all derive from one shared heightfield; the winding dirt path is painted
-  into the terrain texture and flattened into the height data, and the
-  forest floor darkens to needle litter under the tree canopies (a density
-  map splatted from the actual tree placements).
+- **Terrain:** 110 m x 46 m displaced quad grid with a skirt and capped
+  bottom (diorama slab). Height, path, pond, mountain, textures and object
+  placement all derive from one shared heightfield; the winding dirt path
+  is painted into the terrain texture and flattened into the height data,
+  and the forest floor darkens to needle litter under the tree canopies (a
+  density map splatted from the actual tree placements).
+- **The giant mountain:** a ~28 m ridged, craggy peak rises straight behind
+  the tower knoll — bare rock above the treeline, noisy snow cap on the
+  upper reaches, oversized boulders strewn on its slopes, trees kept below
+  6 m elevation.
 - **Vegetation:** 7 quad-only tree archetypes — three spruces, two pines
   (lathed trunks + drooping, jittered foliage skirts), white-barked birches
-  with leaf-cluster blobs, and dead snags — instanced 150 times with random
+  with leaf-cluster blobs, and dead snags — instanced 230 times with random
   scale, rotation and lean; plus bushes, mossy rocks, fallen logs, stumps,
-  380 grass tufts and small flowers. ~700 instances share 29 unique meshes,
+  500 grass tufts and small flowers. ~950 instances share 29 unique meshes,
   100 % quads.
 - **The weeping willow ("die Weide"):** a giant willow with rounded,
   drooping canopy domes and 36 hanging leaf strands stands on the shore of
