@@ -39,8 +39,9 @@ rng = random.Random(21)
 
 SX, SY = 110.0, 46.0
 TOWER_POS = Vector((25.0, 0.0, 0.0))
-MNT_POS = Vector((40.0, 4.0, 0.0))  # giant mountain behind the tower
-MNT_R = 19.0
+MNT_POS = Vector((37.0, 3.0, 0.0))   # giant mountain behind the tower
+MNT2_POS = Vector((32.0, 10.0, 0.0))  # secondary peak
+MNT_R = 17.0
 BASE_Z = -2.0  # diorama slab bottom
 
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -281,12 +282,13 @@ d_tower = np.hypot(Xw - TOWER_POS.x, Yw - TOWER_POS.y)
 knoll = 1.8 * np.exp(-(d_tower ** 2) / (2 * 9.0 ** 2))
 hill1 = 1.5 * np.exp(-((Xw + 20) ** 2 + (Yw - 15) ** 2) / (2 * 10.0 ** 2))
 hill2 = 1.2 * np.exp(-((Xw - 4) ** 2 + (Yw + 17) ** 2) / (2 * 9.0 ** 2))
-# the giant mountain: ridged cone rising right behind the tower knoll
+# foothill mound only — the angular mountain itself is a separate faceted
+# mesh that grows out of this rise
 d_mnt = np.hypot(Xw - MNT_POS.x, Yw - MNT_POS.y)
 m_base = np.clip(1 - d_mnt / MNT_R, 0, 1)
 m_ridge = fbm((HH, HW), 14, 9, 4, 78)
 m_crag = fbm((HH, HW), 34, 22, 4, 79)
-mountain = 28.0 * m_base ** 1.65 * (0.70 + 0.55 * m_ridge) + m_base ** 1.2 * m_crag * 4.0
+mountain = 9.0 * m_base ** 1.4 * (0.80 + 0.30 * m_ridge) + m_base ** 1.2 * m_crag * 2.0
 HF = (n_macro - 0.5) * 2.1 * (1 - 0.75 * w_path) + knoll + hill1 + hill2 + mountain
 edge = sstep((SX / 2 - np.abs(Xw) - 1.0) / 5.0) * sstep((SY / 2 - np.abs(Yw) - 1.0) / 5.0)
 HF *= 0.25 + 0.75 * edge
@@ -346,6 +348,10 @@ while len(tree_places) < 230 and attempts < 60000:
         continue
     if h_at(x, y) > 6.0:  # treeline on the mountain
         continue
+    if math.hypot(x - MNT_POS.x, y - MNT_POS.y) < 17.5:  # rock footprint
+        continue
+    if math.hypot(x - MNT2_POS.x, y - MNT2_POS.y) < 11.5:
+        continue
     if not clear_of(x, y, tree_places, 2.2):
         continue
     kind = rng.choices(range(len(TREE_KINDS)), TREE_WEIGHTS)[0]
@@ -385,6 +391,10 @@ def scatter(n, min_path, min_tower, min_pond, min_edge, spacing=0.0, near_path=N
         if math.hypot(x - POND.x, y - POND.y) < min_pond:
             continue
         if h_at(x, y) > max_h:
+            continue
+        if math.hypot(x - MNT_POS.x, y - MNT_POS.y) < 18.0:
+            continue
+        if math.hypot(x - MNT2_POS.x, y - MNT2_POS.y) < 12.0:
             continue
         if spacing and not clear_of(x, y, out, spacing):
             continue
@@ -521,7 +531,32 @@ ROCK_IMGS = (
     make_image("forest_rock_nrm", normal_map(rock_g, 2.2), "Non-Color"),
 )
 
+# mountain rock: strata bands with a noisy snowline (v runs bottom -> top,
+# matching the peak meshes' cylindrical height UVs)
+s4 = (512, 512)
+Vv = np.broadcast_to(((np.arange(512) + 0.5) / 512)[:, None], s4)
+m_strata = fbm(s4, 3, 18, 4, 63)
+m_cragt = fbm(s4, 14, 14, 4, 64)
+m_rock = lerp(np.array([0.35, 0.345, 0.34])[None, None, :],
+              np.array([0.56, 0.55, 0.53])[None, None, :],
+              (0.3 + 0.7 * m_strata)[..., None])
+m_rock *= (0.78 + 0.40 * m_cragt)[..., None]
+snowline = 0.58 + 0.13 * (fbm(s4, 6, 6, 3, 65) - 0.5)
+smask = sstep((Vv - snowline) / 0.05)
+smask = np.maximum(smask, sstep((m_cragt - 0.70) / 0.08)
+                   * sstep((Vv - snowline + 0.12) / 0.08))
+m_col = lerp(m_rock, np.array([0.86, 0.88, 0.93])[None, None, :]
+             * (0.94 + 0.06 * m_cragt)[..., None], smask[..., None])
+MNT_IMGS = (
+    make_image("forest_mountain_col", m_col, "sRGB"),
+    make_image("forest_mountain_orm",
+               np.stack([np.full(s4, 0.9), 0.80 + 0.12 * m_cragt - 0.25 * smask,
+                         np.zeros(s4)], -1), "Non-Color"),
+    make_image("forest_mountain_nrm", normal_map(m_cragt * 0.6, 1.4), "Non-Color"),
+)
+
 MAT_TERRAIN = pbr_material("F_Terrain", TER_IMGS, rough=0.88)
+MAT_MOUNTAIN = pbr_material("F_Mountain", MNT_IMGS, rough=0.85)
 MAT_BASE = pbr_material("F_DioramaBase", None, base=(0.11, 0.095, 0.082, 1), rough=0.9)
 MAT_FOL_A = pbr_material("F_SpruceFoliage", FOL_A, rough=0.8)
 MAT_FOL_B = pbr_material("F_PineFoliage", FOL_B, rough=0.8)
@@ -585,6 +620,45 @@ for f in water.faces:
         f.normal_flip()
 box_uv(water, scale=0.1)
 to_object("Forest_Pond", water, MAT_WATER)
+
+# the giant angular mountain: two coarse, heavily jittered lathed peaks,
+# flat-shaded so the big facets read as sheer rock faces
+
+
+def cyl_uv_bm(bm, tiles_u, z0, z1):
+    uvl = bm.loops.layers.uv.get("UVMap") or bm.loops.layers.uv.new("UVMap")
+    for f in bm.faces:
+        ths = [math.atan2(l.vert.co.y, l.vert.co.x) for l in f.loops]
+        if max(ths) - min(ths) > math.pi:
+            ths = [t + math.tau if t < 0 else t for t in ths]
+        for l, t in zip(f.loops, ths):
+            l[uvl].uv = (t / math.tau * tiles_u, (l.vert.co.z - z0) / (z1 - z0))
+
+
+def peak_bmesh(height, radius, seed):
+    prng = random.Random(seed)
+    rf = [1.0, 0.74, 0.53, 0.36, 0.22, 0.11, 0.035]
+    zf = [-0.08, 0.14, 0.34, 0.55, 0.73, 0.88, 1.0]
+    bm = spin([(radius * r, height * z) for r, z in zip(rf, zf)], segments=12)
+    cap_ring(bm, height)
+    for v in bm.verts:
+        if v.co.z > 0.2:
+            fac = v.co.z / height
+            s = 1.0 + prng.uniform(-0.15, 0.15)
+            v.co.x *= s
+            v.co.y *= s
+            v.co.z += prng.uniform(-0.5, 0.5) * (0.35 + 0.9 * fac)
+    cyl_uv_bm(bm, 3.0, 0.0, height)
+    return bm
+
+
+print("Building the angular mountain ...")
+mnt_bm = bmesh.new()
+merge_into(mnt_bm, peak_bmesh(30.0, 17.5, 181),
+           Matrix.Translation((MNT_POS.x, MNT_POS.y, 0)))
+merge_into(mnt_bm, peak_bmesh(17.0, 11.0, 182),
+           Matrix.Translation((MNT2_POS.x, MNT2_POS.y, 0)))
+to_object("Forest_Mountain", mnt_bm, MAT_MOUNTAIN, smooth_angle=0.01)
 
 # ----------------------------------------------------------------------------
 # tree archetypes v2 (quad-only, 10-segment lathes, drooping jittered skirts)
@@ -862,7 +936,7 @@ for idx, (x, y, kind, s) in enumerate(tree_places):
              (s * rng.uniform(0.9, 1.1), s * rng.uniform(0.9, 1.1), s))
 for idx, (x, y) in enumerate(rock_places):
     s = rng.uniform(0.35, 1.5)
-    if h_at(x, y) > 4.0:  # bigger boulders strewn on the mountain slopes
+    if h_at(x, y) > 2.5:  # bigger boulders strewn on the foothill
         s *= rng.uniform(1.4, 2.4)
     instance(ROCKS[idx % 3], f"Rock.{idx:03d}", (x, y, h_at(x, y) - 0.25 * s),
              (0, 0, rng.uniform(0, math.tau)),

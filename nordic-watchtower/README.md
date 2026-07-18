@@ -82,10 +82,12 @@ Set `WT_SKIP_RENDER=1` to skip the preview renders.
   is painted into the terrain texture and flattened into the height data,
   and the forest floor darkens to needle litter under the tree canopies (a
   density map splatted from the actual tree placements).
-- **The giant mountain:** a ~28 m ridged, craggy peak rises straight behind
-  the tower knoll — bare rock above the treeline, noisy snow cap on the
-  upper reaches, oversized boulders strewn on its slopes, trees kept below
-  6 m elevation.
+- **The giant mountain:** a deliberately angular, low-poly massif — two
+  coarse lathed peaks (30 m and 17 m) with heavily jittered vertices and
+  flat shading, so the big quad facets read as sheer rock faces. A
+  height-mapped texture puts strata-banded rock below and a noisy snow cap
+  above the snowline. The peaks grow out of a smooth foothill mound in the
+  terrain; boulders dot the slopes and trees stay below the treeline.
 - **Vegetation:** 7 quad-only tree archetypes — three spruces, two pines
   (lathed trunks + drooping, jittered foliage skirts), white-barked birches
   with leaf-cluster blobs, and dead snags — instanced 230 times with random
