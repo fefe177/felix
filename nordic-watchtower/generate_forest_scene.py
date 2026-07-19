@@ -41,6 +41,7 @@ SX, SY = 150.0, 46.0
 TOWER_POS = Vector((25.0, 0.0, 0.0))
 MNT_POS = Vector((37.0, 3.0, 0.0))   # giant mountain behind the tower
 MNT2_POS = Vector((32.0, 10.0, 0.0))  # secondary peak
+MNT3_POS = Vector((43.0, -5.0, 0.0))  # low shoulder, forms a saddle
 MNT_R = 17.0
 CASTLE_POS = Vector((62.0, -1.0, 0.0))  # castle on the plateau behind the mountain
 CASTLE_Z = 2.1                          # courtyard plateau height
@@ -378,6 +379,8 @@ while len(tree_places) < 280 and attempts < 80000:
         continue
     if math.hypot(x - MNT2_POS.x, y - MNT2_POS.y) < 11.5:
         continue
+    if math.hypot(x - MNT3_POS.x, y - MNT3_POS.y) < 9.5:
+        continue
     if in_castle(x, y, margin=2.0):
         continue
     if not clear_of(x, y, tree_places, 2.2):
@@ -423,6 +426,8 @@ def scatter(n, min_path, min_tower, min_pond, min_edge, spacing=0.0, near_path=N
         if math.hypot(x - MNT_POS.x, y - MNT_POS.y) < 18.0:
             continue
         if math.hypot(x - MNT2_POS.x, y - MNT2_POS.y) < 12.0:
+            continue
+        if math.hypot(x - MNT3_POS.x, y - MNT3_POS.y) < 9.5:
             continue
         if in_castle(x, y, margin=1.0):
             continue
@@ -502,7 +507,7 @@ TER_IMGS = (
 )
 
 
-def foliage_textures(name, col_a, col_b, seed, dark=0.66):
+def foliage_textures(name, col_a, col_b, seed, dark=0.78):
     """Returns (light_imgs, dark_imgs) — dark variant for lower canopy layers."""
     s2 = (512, 512)
     mottle = fbm(s2, 12, 12, 4, seed)
@@ -600,7 +605,18 @@ MAT_BARK = pbr_material("F_Bark", BARK_IMGS, rough=0.75)
 MAT_GRAY = pbr_material("F_DeadWood", GRAY_BARK_IMGS, rough=0.8)
 MAT_BIRCH = pbr_material("F_BirchBark", BIRCH_IMGS, rough=0.6)
 MAT_ROCK = pbr_material("F_Rock", ROCK_IMGS, rough=0.8)
-MAT_WATER = pbr_material("F_Water", None, base=(0.05, 0.09, 0.10, 1), rough=0.06)
+MAT_WATER = pbr_material("F_Water", None, base=(0.05, 0.09, 0.10, 1), rough=0.08)
+_wn = fbm((256, 256), 10, 10, 3, 55)
+WATER_NRM = make_image("forest_water_nrm", normal_map(_wn * 0.5, 0.8), "Non-Color")
+_wt = MAT_WATER.node_tree
+_wtex = _wt.nodes.new("ShaderNodeTexImage")
+_wtex.image = WATER_NRM
+_wtex.location = (-560, -280)
+_wnm = _wt.nodes.new("ShaderNodeNormalMap")
+_wnm.location = (-260, -280)
+_wnm.inputs["Strength"].default_value = 0.35
+_wt.links.new(_wtex.outputs["Color"], _wnm.inputs["Color"])
+_wt.links.new(_wnm.outputs["Normal"], _wt.nodes["Principled BSDF"].inputs["Normal"])
 MAT_TUFT = pbr_material("F_GrassTuft", None, base=(0.36, 0.55, 0.17, 1), rough=0.75)
 MAT_FLOWER_W = pbr_material("F_FlowerWhite", None, base=(0.88, 0.87, 0.80, 1), rough=0.5)
 MAT_FLOWER_P = pbr_material("F_FlowerPurple", None, base=(0.58, 0.38, 0.78, 1), rough=0.5)
@@ -670,15 +686,19 @@ def cyl_uv_bm(bm, tiles_u, z0, z1):
 
 
 def peak_bmesh(height, radius, seed):
+    """Coarse jittered lathe; per-ring radial pushes carve terraced ledges."""
     prng = random.Random(seed)
     rf = [1.0, 0.74, 0.53, 0.36, 0.22, 0.11, 0.035]
     zf = [-0.08, 0.14, 0.34, 0.55, 0.73, 0.88, 1.0]
+    ring_push = [1.0] + [prng.uniform(0.90, 1.16) for _ in range(len(rf) - 2)] + [1.0]
+    ring_z = [height * z for z in zf]
     bm = spin([(radius * r, height * z) for r, z in zip(rf, zf)], segments=12)
     cap_ring(bm, height)
     for v in bm.verts:
         if v.co.z > 0.2:
+            i_r = min(range(len(ring_z)), key=lambda k: abs(ring_z[k] - v.co.z))
             fac = v.co.z / height
-            s = 1.0 + prng.uniform(-0.15, 0.15)
+            s = ring_push[i_r] * (1.0 + prng.uniform(-0.15, 0.15))
             v.co.x *= s
             v.co.y *= s
             v.co.z += prng.uniform(-0.5, 0.5) * (0.35 + 0.9 * fac)
@@ -692,6 +712,8 @@ merge_into(mnt_bm, peak_bmesh(30.0, 17.5, 181),
            Matrix.Translation((MNT_POS.x, MNT_POS.y, 0)))
 merge_into(mnt_bm, peak_bmesh(17.0, 11.0, 182),
            Matrix.Translation((MNT2_POS.x, MNT2_POS.y, 0)))
+merge_into(mnt_bm, peak_bmesh(13.0, 8.5, 183),
+           Matrix.Translation((MNT3_POS.x, MNT3_POS.y, 0)))
 to_object("Forest_Mountain", mnt_bm, MAT_MOUNTAIN, smooth_angle=0.01)
 
 # ----------------------------------------------------------------------------
@@ -982,6 +1004,43 @@ for idx, (x, y) in enumerate(rock_places):
     instance(ROCKS[idx % 3], f"Rock.{idx:03d}", (x, y, h_at(x, y) - 0.25 * s),
              (0, 0, rng.uniform(0, math.tau)),
              (s, s * rng.uniform(0.8, 1.2), s * rng.uniform(0.7, 1.1)))
+# scree field at the mountain foot (visible from the path side)
+n_scree = 0
+for k in range(60):
+    if n_scree >= 14:
+        break
+    a = math.radians(rng.uniform(110, 300))
+    r = rng.uniform(14.5, 20.5)
+    x = MNT_POS.x + r * math.cos(a)
+    y = MNT_POS.y + r * math.sin(a)
+    if in_castle(x, y, 1.0) or path_dist(x, y) < 2.6 or abs(y) > SY / 2 - 2:
+        continue
+    s = rng.uniform(0.5, 1.6)
+    instance(ROCKS[k % 3], f"Scree.{n_scree:02d}", (x, y, h_at(x, y) - 0.22 * s),
+             (0, 0, rng.uniform(0, math.tau)),
+             (s, s * rng.uniform(0.8, 1.2), s * rng.uniform(0.6, 1.0)))
+    n_scree += 1
+
+# pond shore: stones and reeds at the water's edge
+for k in range(10):
+    a = rng.uniform(0, math.tau)
+    r = rng.uniform(5.6, 6.4)
+    x, y = POND.x + r * math.cos(a), POND.y + r * math.sin(a)
+    if path_dist(x, y) < 2.2:
+        continue
+    s = rng.uniform(0.22, 0.45)
+    instance(ROCKS[k % 3], f"ShoreStone.{k}", (x, y, h_at(x, y) - 0.15 * s),
+             (0, 0, rng.uniform(0, math.tau)), (s, s, s * 0.8))
+for k in range(18):
+    a = rng.uniform(0, math.tau)
+    r = rng.uniform(5.1, 6.1)
+    x, y = POND.x + r * math.cos(a), POND.y + r * math.sin(a)
+    if path_dist(x, y) < 2.2 or math.hypot(x - WILLOW_POS.x, y - WILLOW_POS.y) < 1.5:
+        continue
+    s = rng.uniform(0.7, 1.1)
+    instance(TUFTS[k % 2], f"Reed.{k}", (x, y, h_at(x, y) - 0.05),
+             (0, 0, rng.uniform(0, math.tau)), (s * 0.8, s * 0.8, s * rng.uniform(2.0, 3.0)))
+
 for idx, (x, y) in enumerate(bush_places):
     s = rng.uniform(0.5, 1.2)
     instance(BUSH, f"Bush.{idx:03d}", (x, y, h_at(x, y) - 0.1 * s),
@@ -1160,6 +1219,38 @@ for k, (dy, dz) in enumerate(((0.0, 0.0), (0.55, 0.06), (1.05, -0.05), (1.5, 0.0
 box_uv(flag, scale=0.5)
 to_object("Castle_Banner", flag, MAT_FLAG, smooth_angle=1.5)
 
+# courtyard props: a stone well with a shingle roof, and a few barrels
+well_x, well_y = CX - 3.5, CY + 2.5
+wp = bmesh.new()
+ring_prof = [(0.95, 0.0), (1.05, 0.15), (1.05, 0.85), (0.80, 0.85), (0.72, 0.15)]
+merge_into(wp, spin(ring_prof, segments=12, close=True),
+           Matrix.Translation((well_x, well_y, B)))
+for sx_ in (-0.95, 0.95):
+    add_box(wp, (0.14, 0.14, 1.7), Matrix.Translation((well_x + sx_, well_y, B + 1.4)))
+box_uv(wp, scale=0.06, offset=(0.35, 0.62))
+to_object("Castle_Well", wp, MS_STONE, smooth_angle=0.7)
+
+wroof = spin([(1.35, B + 2.15), (0.08, B + 2.75)], segments=4)
+cap_ring(wroof, B + 2.75)
+bmesh.ops.transform(wroof, matrix=Matrix.Translation((well_x, well_y, 0))
+                    @ Matrix.Rotation(math.pi / 4, 4, "Z"), verts=wroof.verts[:])
+box_uv(wroof, scale=0.4)
+to_object("Castle_WellRoof", wroof, MS_SHINGLE, smooth_angle=0.2)
+
+barrels = bmesh.new()
+barrel_prof = [(0.28, 0.0), (0.35, 0.25), (0.37, 0.45), (0.35, 0.65), (0.28, 0.9)]
+for bx, by, tip in ((CX - 5.2, CY - 3.2, False), (CX - 4.4, CY - 3.7, False),
+                    (CX - 4.9, CY - 2.5, True)):
+    b_bm = spin(barrel_prof, segments=10)
+    cap_ring(b_bm, 0.0)
+    cap_ring(b_bm, 0.9)
+    m = Matrix.Translation((bx, by, B + (0.37 if tip else 0.0)))
+    if tip:
+        m = m @ Matrix.Rotation(math.pi / 2, 4, "X")
+    merge_into(barrels, b_bm, m)
+box_uv(barrels, scale=0.5)
+to_object("Castle_Barrels", barrels, MS_WOOD, smooth_angle=0.7)
+
 # ----------------------------------------------------------------------------
 # neutral lighting + cameras
 # ----------------------------------------------------------------------------
@@ -1184,9 +1275,9 @@ def add_sun(name, loc, energy, color=(1.0, 1.0, 1.0)):
     return lo
 
 
-# late-afternoon rig: warm key from the south, cool sky fill, warm back rim
-add_sun("Sun_Key", (20, -45, 30), 3.8, (1.0, 0.90, 0.72))
-add_sun("Sun_Fill", (-50, 20, 35), 1.0, (0.72, 0.80, 1.0))
+# late-afternoon rig: warm low key from the south, cool sky fill, warm rim
+add_sun("Sun_Key", (25, -48, 20), 3.8, (1.0, 0.87, 0.65))
+add_sun("Sun_Fill", (-50, 20, 35), 1.1, (0.72, 0.80, 1.0))
 add_sun("Sun_Rim", (30, 50, 25), 1.6, (1.0, 0.95, 0.85))
 
 # gradient sky dome: warm haze at the horizon, deep blue overhead
@@ -1268,6 +1359,35 @@ if scene.view_settings.view_transform == "Filmic":
     except TypeError:
         pass
 scene.view_settings.exposure = 0.15
+
+# depth haze via mist pass: distant trees and peaks fade into the sky
+scene.view_layers[0].use_pass_mist = True
+world.mist_settings.start = 26.0
+world.mist_settings.depth = 140.0
+world.mist_settings.falloff = "LINEAR"
+ct = bpy.data.node_groups.new("SceneCompositor", "CompositorNodeTree")
+scene.compositing_node_group = ct
+ct.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+c_rl = ct.nodes.new("CompositorNodeRLayers")
+c_out = ct.nodes.new("NodeGroupOutput")
+mist_sock = c_rl.outputs.get("Mist")
+if mist_sock is not None:
+    c_mix = ct.nodes.new("ShaderNodeMix")
+    c_mix.data_type = "RGBA"
+    mix_cols = [i for i in c_mix.inputs if i.type == "RGBA"]
+    mix_res = [o for o in c_mix.outputs if o.type == "RGBA"][0]
+    c_fog = ct.nodes.new("CompositorNodeRGB")
+    c_fog.outputs[0].default_value = (0.70, 0.77, 0.90, 1.0)
+    c_math = ct.nodes.new("ShaderNodeMath")
+    c_math.operation = "MULTIPLY"
+    c_math.inputs[1].default_value = 0.30
+    ct.links.new(mist_sock, c_math.inputs[0])
+    ct.links.new(c_math.outputs[0], c_mix.inputs[0])
+    ct.links.new(c_rl.outputs["Image"], mix_cols[0])
+    ct.links.new(c_fog.outputs[0], mix_cols[1])
+    ct.links.new(mix_res, c_out.inputs[0])
+else:
+    ct.links.new(c_rl.outputs["Image"], c_out.inputs[0])
 
 # ----------------------------------------------------------------------------
 # stats
