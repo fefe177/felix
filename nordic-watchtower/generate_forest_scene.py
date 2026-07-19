@@ -1574,11 +1574,19 @@ if os.environ.get("WT_SKIP_RENDER") != "1":
                                (cam3, "forest_pond.png", (1920, 1150)),
                                (cam4, "forest_castle.png", (1920, 1150)),
                                (cam2, "forest_aerial.png", (1920, 1280))):
+        # the aerial looks through the whole fog slab at a grazing angle,
+        # which would wash everything out — disable fog and soften mist
+        is_aerial = camera is cam2
+        FOG_OB.hide_render = is_aerial
+        world.mist_settings.start = 60.0 if is_aerial else 26.0
+        world.mist_settings.depth = 220.0 if is_aerial else 140.0
         scene.camera = camera
         scene.render.resolution_x, scene.render.resolution_y = res
         scene.render.filepath = os.path.join(RENDER_DIR, fname)
         bpy.ops.render.render(write_still=True)
         print(f"Rendered {scene.render.filepath}")
+    FOG_OB.hide_render = False
+    world.mist_settings.start, world.mist_settings.depth = 26.0, 140.0
     scene.camera = cam
 
 print("Done.")
