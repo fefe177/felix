@@ -1251,6 +1251,104 @@ for bx, by, tip in ((CX - 5.2, CY - 3.2, False), (CX - 4.4, CY - 3.7, False),
 box_uv(barrels, scale=0.5)
 to_object("Castle_Barrels", barrels, MS_WOOD, smooth_angle=0.7)
 
+# small banners on the four corner towers (shared mesh, instanced)
+fb = bmesh.new()
+pole = spin([(0.035, 0.0), (0.022, 1.7)], segments=6)
+cap_ring(pole, 1.7)
+merge_into(fb, pole)
+pole_faces = list(fb.faces)
+prev = None
+for dy, dz in ((0.0, 0.0), (0.35, 0.04), (0.65, -0.03), (0.95, 0.03)):
+    v0 = fb.verts.new((0.0, 0.04 + dy, 1.62 + dz))
+    v1 = fb.verts.new((0.0, 0.04 + dy, 1.15 + dz))
+    if prev:
+        fb.faces.new((prev[0], prev[1], v1, v0))
+    prev = (v0, v1)
+pf = set(pole_faces)
+for f in fb.faces:
+    f.material_index = 0 if f in pf else 1
+box_uv(fb, scale=0.6)
+FLAG_MESH = to_object("TowerBanner", fb, [MS_IRON, MAT_FLAG], smooth_angle=1.5, link=False)
+for i, (sx_, sy_) in enumerate(((-1, -1), (-1, 1), (1, -1), (1, 1))):
+    instance(FLAG_MESH, f"Castle_TowerBanner{i}",
+             (CX + sx_ * HALF_X, CY + sy_ * HALF_Y, CASTLE_Z - 0.15 + 0.8 * 13.55),
+             (0, 0, rng.uniform(0, math.tau)), (1, 1, 1))
+
+# a thin smoke plume from a chimney on the watchtower roof
+chimney = bmesh.new()
+add_box(chimney, (0.5, 0.5, 1.7),
+        Matrix.Translation((TOWER_POS.x - 1.55, TOWER_POS.y + 0.55, tz + 11.2)))
+box_uv(chimney, scale=0.06, offset=(0.35, 0.62))
+to_object("Tower_Chimney", chimney, MS_STONE, smooth_angle=0.9)
+
+MAT_SMOKE = pbr_material("F_Smoke", None, base=(0.80, 0.80, 0.84, 1), rough=1.0)
+smoke = bmesh.new()
+for k, (dz, dx, dy, s) in enumerate(((0.35, 0.0, 0.0, 0.26), (1.0, -0.08, 0.25, 0.38),
+                                     (1.75, -0.15, 0.55, 0.52), (2.6, -0.2, 0.95, 0.68))):
+    blob(smoke, (TOWER_POS.x - 1.55 + dx, TOWER_POS.y + 0.55 + dy, tz + 12.1 + dz),
+         s, 191 + k, squash=0.85)
+box_uv(smoke, scale=0.8)
+to_object("Tower_Smoke", smoke, MAT_SMOKE, smooth_angle=0.8)
+
+# a few birds circling tower and peaks — simple bent-wing silhouettes
+MAT_BIRD = pbr_material("F_Bird", None, base=(0.05, 0.05, 0.06, 1), rough=0.9)
+bird_bm = bmesh.new()
+for side in (-1, 1):
+    v = [bird_bm.verts.new((0.0, -0.06, 0.0)), bird_bm.verts.new((0.0, 0.06, 0.0)),
+         bird_bm.verts.new((side * 0.45, 0.02, 0.17)),
+         bird_bm.verts.new((side * 0.45, -0.10, 0.17))]
+    bird_bm.faces.new(v if side > 0 else list(reversed(v)))
+box_uv(bird_bm, scale=1.0)
+BIRD = to_object("Bird", bird_bm, MAT_BIRD, smooth_angle=1.5, link=False)
+for k in range(9):
+    if k < 6:
+        a = rng.uniform(0, math.tau)
+        r = rng.uniform(6, 12)
+        bx, by = TOWER_POS.x + r * math.cos(a), TOWER_POS.y + r * math.sin(a)
+        bz = tz + rng.uniform(15, 19)
+    else:
+        a = rng.uniform(0, math.tau)
+        r = rng.uniform(8, 14)
+        bx, by = MNT_POS.x + r * math.cos(a), MNT_POS.y + r * math.sin(a)
+        bz = rng.uniform(22, 28)
+    s = rng.uniform(0.8, 1.3)
+    instance(BIRD, f"Bird.{k}", (bx, by, bz),
+             (rng.uniform(-0.2, 0.2), rng.uniform(-0.2, 0.2), rng.uniform(0, math.tau)),
+             (s, s, s))
+
+# extra flower clusters lining the path
+n_pf = 0
+for k in range(200):
+    if n_pf >= 40:
+        break
+    i = rng.randrange(4, len(PD_X) - 4)
+    a = rng.uniform(0, math.tau)
+    r = rng.uniform(2.0, 4.2)
+    x = float(PD_X[i]) + r * math.cos(a)
+    y = float(PD_Y[i]) + r * math.sin(a)
+    if path_dist(x, y) < 1.9 or in_castle(x, y, 1.0):
+        continue
+    if math.hypot(x - POND.x, y - POND.y) < 5.8 or abs(x) > SX / 2 - 2 or abs(y) > SY / 2 - 2:
+        continue
+    s = rng.uniform(0.8, 1.3)
+    instance(FLOWERS[k % 2], f"PathFlower.{n_pf}", (x, y, h_at(x, y) - 0.02),
+             (0, 0, rng.uniform(0, math.tau)), (s, s, s))
+    n_pf += 1
+
+# ground fog slab: low scatter volume over the forest floor (kept out of GLB)
+fog_mat = bpy.data.materials.new("F_GroundFog")
+fog_mat.use_nodes = True
+fnt = fog_mat.node_tree
+fnt.nodes.clear()
+f_out = fnt.nodes.new("ShaderNodeOutputMaterial")
+f_vol = fnt.nodes.new("ShaderNodeVolumeScatter")
+f_vol.inputs["Density"].default_value = 0.0034
+f_vol.inputs["Anisotropy"].default_value = 0.45
+fnt.links.new(f_vol.outputs[0], f_out.inputs["Volume"])
+fog_bm = bmesh.new()
+add_box(fog_bm, (SX - 6, SY - 6, 4.0), Matrix.Translation((0, 0, 1.6)))
+FOG_OB = to_object("Forest_GroundFog", fog_bm, fog_mat, smooth_angle=1.5)
+
 # ----------------------------------------------------------------------------
 # neutral lighting + cameras
 # ----------------------------------------------------------------------------
@@ -1329,8 +1427,17 @@ cam.data.dof.focus_distance = (Vector((TOWER_POS.x, TOWER_POS.y, tz + 6)) - cam.
 cam.data.dof.aperture_fstop = 5.0
 cam3 = add_camera("Camera_Pond", (CAM3_POS.x, CAM3_POS.y, h_at(CAM3_POS.x, CAM3_POS.y) + 3.4),
                   (WILLOW_POS.x, WILLOW_POS.y, WATER_Z + 3.2), 32)
+cam3.data.dof.use_dof = True
+cam3.data.dof.focus_distance = (WILLOW_POS - Vector((CAM3_POS.x, CAM3_POS.y, 0))).length
+cam3.data.dof.aperture_fstop = 4.5
 cam2 = add_camera("Camera_Aerial", (-60, 48, 52), (14, -2, 5.0), 36)
+cam2.data.dof.use_dof = True  # shallow focus for a tilt-shift miniature feel
+cam2.data.dof.focus_distance = (Vector((14, -2, 5)) - Vector((-60, 48, 52))).length
+cam2.data.dof.aperture_fstop = 2.4
 cam4 = add_camera("Camera_Castle", (86, -30, 17), (58, 1, CASTLE_Z + 6.5), 40)
+cam4.data.dof.use_dof = True
+cam4.data.dof.focus_distance = (Vector((58, 1, CASTLE_Z + 6.5)) - Vector((86, -30, 17))).length
+cam4.data.dof.aperture_fstop = 5.6
 scene.camera = cam
 
 # ----------------------------------------------------------------------------
@@ -1380,14 +1487,52 @@ if mist_sock is not None:
     c_fog.outputs[0].default_value = (0.70, 0.77, 0.90, 1.0)
     c_math = ct.nodes.new("ShaderNodeMath")
     c_math.operation = "MULTIPLY"
-    c_math.inputs[1].default_value = 0.30
+    c_math.inputs[1].default_value = 0.22
     ct.links.new(mist_sock, c_math.inputs[0])
     ct.links.new(c_math.outputs[0], c_mix.inputs[0])
     ct.links.new(c_rl.outputs["Image"], mix_cols[0])
     ct.links.new(c_fog.outputs[0], mix_cols[1])
-    ct.links.new(mix_res, c_out.inputs[0])
+    cur = mix_res
 else:
-    ct.links.new(c_rl.outputs["Image"], c_out.inputs[0])
+    cur = c_rl.outputs["Image"]
+
+# subtle glare on highlights, gentle corner vignette (skip on API mismatch)
+try:
+    c_glare = ct.nodes.new("CompositorNodeGlare")
+    c_glare.glare_type = "FOG_GLOW"
+    for attr, val in (("threshold", 1.1), ("mix", -0.55), ("quality", "MEDIUM")):
+        try:
+            setattr(c_glare, attr, val)
+        except (AttributeError, TypeError):
+            pass
+    for sname, val in (("Threshold", 1.1), ("Strength", 0.15)):
+        if sname in c_glare.inputs:
+            c_glare.inputs[sname].default_value = val
+    ct.links.new(cur, c_glare.inputs[0])
+    cur = c_glare.outputs[0]
+except Exception:
+    pass
+try:
+    c_ell = ct.nodes.new("CompositorNodeEllipseMask")
+    c_ell.mask_width = 1.5
+    c_ell.mask_height = 1.35
+    c_blur = ct.nodes.new("CompositorNodeBlur")
+    c_blur.use_relative = True
+    c_blur.factor_x = 18.0
+    c_blur.factor_y = 18.0
+    c_vig = ct.nodes.new("ShaderNodeMix")
+    c_vig.data_type = "RGBA"
+    c_vig.blend_type = "MULTIPLY"
+    c_vig.inputs[0].default_value = 0.16
+    vig_cols = [i for i in c_vig.inputs if i.type == "RGBA"]
+    vig_res = [o for o in c_vig.outputs if o.type == "RGBA"][0]
+    ct.links.new(c_ell.outputs[0], c_blur.inputs[0])
+    ct.links.new(cur, vig_cols[0])
+    ct.links.new(c_blur.outputs[0], vig_cols[1])
+    cur = vig_res
+except Exception:
+    pass
+ct.links.new(cur, c_out.inputs[0])
 
 # ----------------------------------------------------------------------------
 # stats
@@ -1419,7 +1564,9 @@ bpy.ops.wm.save_as_mainfile(filepath=blend_path, compress=True)
 print(f"Saved {blend_path}")
 
 glb_path = os.path.join(EXPORT_DIR, "forest_watchtower.glb")
+COL.objects.unlink(FOG_OB)  # the fog volume is render-only, keep it out of the GLB
 bpy.ops.export_scene.gltf(filepath=glb_path, export_format="GLB")
+COL.objects.link(FOG_OB)
 print(f"Exported {glb_path}")
 
 if os.environ.get("WT_SKIP_RENDER") != "1":
