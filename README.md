@@ -7,6 +7,12 @@ needs to be edited by hand.
 
 ![Watchtower](renders/watchtower_preview.png)
 
+A second script, `environment.py`, drops the same tower into a procedural
+Nordic landscape — farmland, forest and mountains. See
+[Landscape environment](#landscape-environment) below.
+
+![Landscape](renders/environment.png)
+
 ## Running it
 
 The script works both against a Blender install and against the `bpy` Python
@@ -134,3 +140,73 @@ Colour management uses Blender's **Khronos PBR Neutral** view transform instead
 of the AgX default. AgX lifts and desaturates an isolated asset until the stone
 reads as white plaster; the Khronos transform preserves albedo, which is what
 you want when the render is meant to represent the asset itself.
+
+## Landscape environment
+
+`environment.py` places the tower in context. It imports `watchtower.py` and
+calls `build_watchtower()`, so the tower in the landscape is the same model —
+change the tower and the landscape shot follows automatically.
+
+```bash
+python3 environment.py            # 1920x1080
+python3 environment.py --preview  # fast 960x540 check
+python3 environment.py --no-render
+```
+
+Outputs `assets/environment.blend` and `renders/environment.png`. The scene
+file is not tracked in git — it is ~11 MB of instanced forest geometry that
+rewrites wholesale on every tweak, and `--no-render` rebuilds it in about a
+minute. It is saved compressed (28.1 MB uncompressed vs 10.9 MB compressed).
+
+### Terrain
+
+The ground is a **radial** grid rather than a square one: 224 spokes and 150
+rings whose spacing grows geometrically from 3 m out to 2.6 km. Detail lands
+where the camera is while the distant mountains cost almost nothing — a uniform
+grid fine enough for the foreground would need roughly twenty times the faces to
+reach as far. It is all quads apart from a small triangle fan closing the very
+centre, which sits under the tower's footprint and is never visible.
+
+Height is three layers: a rolling farmland basin, forested foothills, and a
+ridged-noise mountain range. The peak height and distance are tuned together so
+the range reads on the skyline without overshooting the top of frame. A level
+pad is blended in under the tower so it does not sit on a slope.
+
+### Farmland, forest and the rule they share
+
+A single predicate decides what ground can be ploughed — low enough, level
+enough, and inside a belt around the tower. `is_field()` implements it in Python
+for the tree scatter, and `_field_mask()` rebuilds the *same* thresholds in
+shader nodes for the material. Because both read the same altitude, slope and
+radius, fields and forest never contend for the same ground: trees settle on
+slopes too steep to plough and out past the farmland belt.
+
+Fields themselves are a Voronoi partition with a constant-interpolation ramp
+picking one crop per cell from a five-colour palette. The same per-cell random
+value also rotates a wave texture, so every field's furrows run at their own
+angle, and a distance-to-edge pass draws the hedgerows.
+
+Spruce and birch are built once as templates and stamped out with
+`from_pydata` — around 6,700 trees, far faster than driving bmesh per instance.
+
+### Lighting
+
+Two findings drove the look, both verified by test render rather than guessed:
+
+- **Ground specular had to go.** Left at the Principled default, grazing-angle
+  Fresnel mirrors the bright sky across the whole terrain and washes the
+  landscape out to pastel. A controlled probe put the foreground at
+  `(0.58, 0.68, 0.63)` with default specular versus `(0.39, 0.58, 0.36)` with it
+  disabled. Soil, crops and grass are effectively pure diffuse, so the terrain
+  and foliage set Specular IOR Level to 0.
+- **The sky is split by ray type.** A full-strength physical sky floods the
+  scene with ambient fill and flattens the sun's shadows away. A Light Path node
+  shows the bright sky to camera rays while lighting the landscape at 0.42
+  strength, so the sun still carries the shading.
+
+Distance haze is faked by mixing surface colour toward the sky tone using camera
+depth. Real atmospheric volumetrics would dominate render time at this scale for
+a stills-only benefit.
+
+Unlike the isolated asset, this scene renders through **AgX** — a landscape
+spans a far wider dynamic range, and Khronos PBR Neutral flattens the sky.

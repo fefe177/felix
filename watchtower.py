@@ -1126,14 +1126,9 @@ def print_stats(objects):
     return total_other
 
 
-def main():
-    preview = "--preview" in sys.argv
-    do_render = "--no-render" not in sys.argv
-
-    bpy.ops.wm.read_factory_settings(use_empty=True)
-    col = bpy.data.collections.new("Watchtower")
-    bpy.context.scene.collection.children.link(col)
-
+def build_watchtower(col):
+    """Create the tower's materials and meshes inside `col`, UV-unwrap them
+    and return the objects. Shared with the landscape scene builder."""
     stone = make_stone_material()
     dark = make_flat_material("WT_Recess", (0.006, 0.006, 0.007, 1))
     shingle = make_wood_material("WT_WoodShingle", [
@@ -1152,6 +1147,18 @@ def main():
         build_ivy([stem, ivy], col),
     ]
     apply_smooth_and_uvs(objects)
+    return objects
+
+
+def main():
+    preview = "--preview" in sys.argv
+    do_render = "--no-render" not in sys.argv
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    col = bpy.data.collections.new("Watchtower")
+    bpy.context.scene.collection.children.link(col)
+
+    objects = build_watchtower(col)
     print("face statistics:")
     print_stats(objects)
 

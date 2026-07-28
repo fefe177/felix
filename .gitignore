@@ -5,3 +5,8 @@ __pycache__/
 # Baked maps are written loose for inspection but are already embedded in
 # watchtower.glb, so tracking them would duplicate ~5 MB on every re-bake.
 assets/textures/
+
+# The landscape scene is ~11 MB of instanced forest geometry that rewrites
+# wholesale on every tweak. It regenerates in about a minute:
+#     python3 environment.py --no-render
+assets/environment.blend
