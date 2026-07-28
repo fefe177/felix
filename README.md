@@ -270,3 +270,60 @@ a stills-only benefit.
 
 Unlike the isolated asset, this scene renders through **AgX** — a landscape
 spans a far wider dynamic range, and Khronos PBR Neutral flattens the sky.
+
+## Minecraft Java export
+
+`minecraft.py` voxelises the tower into Minecraft blocks and writes a vanilla
+**structure NBT** — no mods, no WorldEdit.
+
+```bash
+python3 minecraft.py                # 3 blocks per unit (default)
+python3 minecraft.py --scale 2      # smaller build
+python3 minecraft.py --solid        # fill the interior instead of hollow
+```
+
+| Output | Use |
+| --- | --- |
+| `minecraft/watchtower.nbt` | Drop into `saves/<world>/generated/minecraft/structures/`, then a structure block in LOAD mode with name `watchtower` |
+| `minecraft/watchtower_datapack/` | Copy into `saves/<world>/datapacks/`, then load `watchtower:watchtower` in a structure block, or run `/function watchtower:watchtower` |
+| `minecraft/watchtower.mcfunction` | The same build as ~4,500 `setblock` lines, if you would rather not use a structure block |
+
+### How blocks are chosen
+
+Each voxel takes the material of the **nearest surface**, found with a BVH tree
+per object, so the stone body, shingle roof, ironwork and ivy each map to their
+own block:
+
+| Model material | Block |
+| --- | --- |
+| Stone | `cobblestone`, with `mossy_cobblestone` weighted by the same height mask the shader uses for moss, plus occasional stone-brick variants |
+| Shingle roof | `dark_oak_planks` above the eaves, `spruce_planks` for the door below |
+| Ironwork | `polished_blackstone` |
+| Ivy | `oak_leaves[persistent=true]` — without `persistent` Minecraft decays leaves that have no log nearby |
+| Window recess | *air*, so the arched openings stay open |
+
+Voxels are marked by distance to the surface rather than by an inside test, so
+the result is a hollow shell — which is what a building wants. `--solid` floods
+the interior afterwards if you want it filled.
+
+At the default scale the tower is **24 x 48 x 23 blocks**, which exactly fills
+the structure block's 48-block limit, so `--scale` can only usefully go *down*
+from here.
+
+### Verification
+
+The export is checked rather than assumed:
+
+- The `.nbt` is re-read with **nbtlib**, an independent implementation, and
+  every block state is confirmed to index a real palette entry, every position
+  to lie inside the declared size, with no duplicate positions.
+- The blocks are rebuilt from the written file back into Blender and rendered,
+  so the check exercises the file rather than the in-memory data.
+- A flood fill from outside the bounding box reaches **every** empty cell —
+  zero enclosed voids. That confirms the arched windows came out as genuine
+  through-holes and the tower is hollow and enterable, not a sealed lump.
+
+The structure is written with `DataVersion` 3465 (1.20.1); Minecraft upgrades
+older structures, so it loads in later versions too. The datapack ships both the
+pre-1.21 (`structures`, `functions`) and 1.21+ (`structure`, `function`) folder
+spellings, since that rename would otherwise break it on one side.
