@@ -57,6 +57,8 @@ SNOW_LINE = 168.0
 FIELD_MAX_ALT = 34.0         # fields only in the basin ...
 FIELD_MIN_FLAT = 0.950       # ... and only where the ground is near level
 FIELD_INNER, FIELD_OUTER = 30.0, 215.0
+GROVE_CENTER = (-88.0, 72.0)    # the enchanted wood, left of frame
+GROVE_R = 82.0
 FOREST_RADIUS = 620.0
 TREE_SPACING = 9.0
 BOULDER_COUNT = 260
@@ -120,10 +122,11 @@ def terrain_normal(x, y):
     return Vector((-hx, -hy, 1.0)).normalized()
 
 
-def is_field(h, nz, d):
-    """Ground the plough can work."""
+def is_field(x, y, h, nz, d):
+    """Ground the plough can work. Nobody ploughs the enchanted wood."""
     return (h < FIELD_MAX_ALT and nz > FIELD_MIN_FLAT
-            and FIELD_INNER < d < FIELD_OUTER)
+            and FIELD_INNER < d < FIELD_OUTER
+            and grove_factor(x, y) < 0.22)
 
 
 # --- field partition -------------------------------------------------------
@@ -223,16 +226,18 @@ def build_terrain(material, col):
     radii = _terrain_radii()
 
     verts = [(0.0, 0.0, terrain_height(0.0, 0.0))]
-    crop_col, edge_col = [], []
+    crop_col, edge_col, grove_col = [], [], []
 
     def sample(x, y, z):
         nz = terrain_normal(x, y).z
         d = math.hypot(x, y)
         crop, edge, _k1, _k2 = field_lookup(x, y)
-        mask = 1.0 if is_field(z, nz, d) else 0.0
+        mask = 1.0 if is_field(x, y, z, nz, d) else 0.0
         crop_col.extend((*CROP_COLOURS[crop], mask))
         e = clamp01(edge / 0.10)
         edge_col.extend((e, e, e, 1.0))
+        g = grove_factor(x, y)
+        grove_col.extend((g, g, g, 1.0))
 
     sample(0.0, 0.0, verts[0][2])
     for r in radii:
@@ -256,7 +261,8 @@ def build_terrain(material, col):
     me = bpy.data.meshes.new("Terrain")
     me.from_pydata(verts, [], faces)
     me.update()
-    for name, data in (("crop", crop_col), ("edge", edge_col)):
+    for name, data in (("crop", crop_col), ("edge", edge_col),
+                       ("grove", grove_col)):
         attr = me.color_attributes.new(name=name, type='FLOAT_COLOR',
                                        domain='POINT')
         attr.data.foreach_set("color", data)
@@ -455,6 +461,105 @@ def grass_tuft_template(seed, size=0.5):
     return template_from_bmesh(bm)
 
 
+# ------------------------------------------------------- the enchanted grove
+def grove_factor(x, y):
+    """1 deep inside the enchanted wood, 0 outside, with a ragged edge so the
+    treeline does not read as a drawn circle."""
+    d = math.hypot(x - GROVE_CENTER[0], y - GROVE_CENTER[1])
+    wobble = noise.fractal(Vector((x * 0.018, y * 0.018, 31.0)),
+                           1.0, 2.0, 3) * 26.0
+    return clamp01(1.0 - smoothstep(GROVE_R * 0.5, GROVE_R + wobble, d))
+
+
+def enchanted_tree_mesh(seed, height=17.0, lod=1):
+    """Ancient tree: a trunk that leans and curves instead of standing
+    straight, gnarled limbs, a broad flattened crown and hanging moss."""
+    rnd = random.Random(seed)
+    bm = bmesh.new()
+
+    drift = Vector((rnd.uniform(-1, 1), rnd.uniform(-1, 1), 0.0)).normalized()
+    pts, radii = [], []
+    for i in range(8):
+        t = i / 7
+        sway = (drift * (math.sin(t * 2.4) * height * 0.055) +
+                Vector((math.sin(t * 5.1 + seed) * height * 0.022,
+                        math.cos(t * 4.3 + seed) * height * 0.022, 0.0)))
+        pts.append(Vector((0.0, 0.0, t * height * 0.60)) + sway)
+        radii.append(height * 0.046 * (1.0 - 0.70 * t) + 0.05)
+    _taper_tube(bm, pts, radii, 8, 0)
+
+    tips = []
+    for k in range(5 if lod else 3):
+        a = math.tau * k / 5 + rnd.uniform(-0.35, 0.35)
+        base = pts[int(len(pts) * rnd.uniform(0.45, 0.85))]
+        reach = height * rnd.uniform(0.30, 0.46)
+        out = Vector((math.cos(a), math.sin(a), 0.0))
+        mid = base + out * (reach * 0.55) + Vector((0, 0, height * 0.10))
+        tip = base + out * reach + Vector((0, 0, height * rnd.uniform(0.16, 0.30)))
+        _taper_tube(bm, [base, mid, tip],
+                    [height * 0.020, height * 0.013, height * 0.007], 6, 0)
+        tips.append(tip)
+
+    clumps = 34 if lod else 12
+    for tip in tips:
+        for _ in range(clumps):
+            off = Vector((rnd.gauss(0, 1), rnd.gauss(0, 1),
+                          rnd.gauss(0, 0.5))) * (height * 0.115)
+            p = tip + off
+            d = off.normalized() if off.length > 1e-4 else Vector((0, 0, 1))
+            d = (d + Vector((0, 0, 0.30))).normalized()
+            size = height * rnd.uniform(0.030, 0.055)
+            _spike(bm, p, d, size * 2.0, size * 1.35, 1, taper=0.35)
+
+    if lod:                                    # beards of hanging moss
+        for tip in tips:
+            for _ in range(6):
+                p = tip + Vector((rnd.uniform(-1, 1), rnd.uniform(-1, 1),
+                                  rnd.uniform(-0.35, 0.05))) * (height * 0.13)
+                _spike(bm, p, Vector((rnd.uniform(-0.15, 0.15),
+                                      rnd.uniform(-0.15, 0.15), -1.0)),
+                       height * rnd.uniform(0.10, 0.24), height * 0.013, 2,
+                       taper=0.25)
+    return bm
+
+
+def mushroom_mesh(seed):
+    """Single glowing toadstool: pale stem, luminous cap."""
+    rnd = random.Random(seed)
+    bm = bmesh.new()
+    h = rnd.uniform(0.30, 0.55)
+    wt.bridge_rings(bm, [_ring(bm, 0.040, 0.0, 6), _ring(bm, 0.030, h, 6)],
+                    mat_index=0)
+    cap = [_ring(bm, 0.035, h, 8),
+           _ring(bm, 0.150, h + 0.05, 8),
+           _ring(bm, 0.175, h + 0.11, 8),
+           _ring(bm, 0.105, h + 0.18, 8),
+           _ring(bm, 0.025, h + 0.22, 8)]
+    wt.bridge_rings(bm, cap, mat_index=1)
+    wt.grid_cap(bm, cap[0], mat_index=1)
+    wt.grid_cap(bm, cap[-1], mat_index=1)
+    return bm
+
+
+def spirit_mesh():
+    """Tiny drifting light."""
+    bm = bmesh.new()
+    rings = [_ring(bm, math.sin(math.pi * i / 4) * 0.5,
+                   math.cos(math.pi * i / 4) * 0.5, 6) for i in range(1, 4)]
+    wt.bridge_rings(bm, rings, mat_index=0)
+    wt.grid_cap(bm, rings[0], mat_index=0)
+    wt.grid_cap(bm, rings[-1], mat_index=0)
+    return bm
+
+
+def mist_mesh(size=44.0):
+    bm = bmesh.new()
+    vs = [bm.verts.new((x * size, y * size, 0.0))
+          for x, y in ((-0.5, -0.5), (0.5, -0.5), (0.5, 0.5), (-0.5, 0.5))]
+    bm.faces.new(vs)
+    return bm
+
+
 def mesh_datablock(name, bm, materials):
     """Freeze a template bmesh into a Mesh datablock. Objects sharing one
     datablock are true instances in Cycles, so a detailed tree costs its
@@ -519,8 +624,8 @@ def scatter_forest(meshes, col, cam_pos, lod_dist=300.0):
                 continue
             h = terrain_height(x, y)
             nz = terrain_normal(x, y).z
-            if is_field(h, nz, d):
-                continue
+            if is_field(x, y, h, nz, d) or grove_factor(x, y) > 0.18:
+                continue          # the grove plants its own, denser trees
             if RND.random() > forest_density(x, y, h, nz, d) * 0.85:
                 continue
 
@@ -556,7 +661,7 @@ def scatter_hedgerows(meshes, col, cam_pos, trees_near=None,
             d = math.hypot(x, y)
             h = terrain_height(x, y)
             nz = terrain_normal(x, y).z
-            if not is_field(h, nz, d):
+            if not is_field(x, y, h, nz, d):
                 continue
             if field_edge(x, y) > 0.055 or RND.random() > 0.42:
                 continue
@@ -599,7 +704,7 @@ def scatter_grass(template, col, materials, cam_pos, radius=135.0, step=1.5):
             d = math.hypot(x, y)
             if h > FIELD_MAX_ALT + 30.0 or nz < 0.80:
                 continue
-            if is_field(h, nz, d) and field_edge(x, y) > 0.05:
+            if is_field(x, y, h, nz, d) and field_edge(x, y) > 0.05:
                 continue          # keep tufts out of the ploughed crop itself
             s = RND.uniform(0.7, 1.6)
             mtx = (Matrix.Translation(Vector((x, y, h - 0.05))) @
@@ -608,6 +713,77 @@ def scatter_grass(template, col, materials, cam_pos, radius=135.0, step=1.5):
             placements.append((0, mtx))
     print(f"  scattered {len(placements)} grass tufts")
     return instance_mesh("Grass", [template], placements, materials, col)
+
+
+def scatter_grove(trees_near, trees_far, mush, spirits, mist, col, cam_pos,
+                  lod_dist=320.0):
+    """Fill the enchanted wood: dense ancient trees, toadstools at their feet,
+    drifting spirit lights, and low mist banks."""
+    cx, cy = GROVE_CENTER
+    reach = GROVE_R + 34.0
+    trees = 0
+    step = 6.2
+    steps = int(2 * reach / step)
+    for j in range(steps):
+        for i in range(steps):
+            x = cx - reach + (i + RND.random()) * step
+            y = cy - reach + (j + RND.random()) * step
+            g = grove_factor(x, y)
+            if g < 0.16 or RND.random() > g * 0.95:
+                continue
+            h = terrain_height(x, y)
+            near = (Vector((x, y, h)) - cam_pos).length < lod_dist
+            pool = trees_near if near else trees_far
+            s = RND.uniform(0.62, 1.25) * (0.75 + 0.45 * g)
+            mtx = (Matrix.Translation(Vector((x, y, h - 0.3))) @
+                   Matrix.Rotation(RND.uniform(0, math.tau), 4, 'Z') @
+                   Matrix.Rotation(RND.uniform(-0.06, 0.06), 4, 'X') @
+                   Matrix.Diagonal((s, s, s * RND.uniform(0.85, 1.25), 1.0)))
+            link_instance(pool[RND.randrange(len(pool))], mtx, col, "OldTree")
+            trees += 1
+
+    caps = 0
+    for _ in range(2600):
+        x = cx + RND.uniform(-reach, reach)
+        y = cy + RND.uniform(-reach, reach)
+        g = grove_factor(x, y)
+        if g < 0.25 or RND.random() > g:
+            continue
+        h = terrain_height(x, y)
+        s = RND.uniform(0.9, 2.6)
+        mtx = (Matrix.Translation(Vector((x, y, h - 0.02))) @
+               Matrix.Rotation(RND.uniform(0, math.tau), 4, 'Z') @
+               Matrix.Diagonal((s, s, s, 1.0)))
+        link_instance(mush[RND.randrange(len(mush))], mtx, col, "Toadstool")
+        caps += 1
+
+    lights = 0
+    for _ in range(2400):
+        x = cx + RND.uniform(-reach, reach)
+        y = cy + RND.uniform(-reach, reach)
+        g = grove_factor(x, y)
+        if g < 0.3 or RND.random() > g:
+            continue
+        h = terrain_height(x, y) + RND.uniform(1.0, 11.0)
+        s = RND.uniform(0.16, 0.46)
+        link_instance(spirits, Matrix.Translation(Vector((x, y, h))) @
+                      Matrix.Diagonal((s, s, s, 1.0)), col, "Spirit")
+        lights += 1
+
+    banks = 0
+    for _ in range(26):
+        x = cx + RND.uniform(-GROVE_R, GROVE_R) * 0.8
+        y = cy + RND.uniform(-GROVE_R, GROVE_R) * 0.8
+        if grove_factor(x, y) < 0.3:
+            continue
+        h = terrain_height(x, y) + RND.uniform(0.5, 2.4)
+        s = RND.uniform(0.8, 1.5)
+        link_instance(mist, Matrix.Translation(Vector((x, y, h))) @
+                      Matrix.Rotation(RND.uniform(0, math.tau), 4, 'Z') @
+                      Matrix.Diagonal((s, s, 1.0, 1.0)), col, "Mist")
+        banks += 1
+    print(f"  grove: {trees} ancient trees, {caps} toadstools, "
+          f"{lights} spirit lights, {banks} mist banks")
 
 
 def scatter_boulders(templates, col, materials):
@@ -622,7 +798,7 @@ def scatter_boulders(templates, col, materials):
             continue
         h = terrain_height(x, y)
         nz = terrain_normal(x, y).z
-        if is_field(h, nz, d) or nz > 0.985:
+        if is_field(x, y, h, nz, d) or nz > 0.985:
             continue
         s = RND.uniform(0.5, 1.9) * (1.0 + smoothstep(80.0, 220.0, h) * 1.1)
         mtx = (Matrix.Translation(Vector((x, y, h - s * 0.25))) @
@@ -761,6 +937,22 @@ def make_terrain_material():
     ln.new(ground.outputs["Color"], varied.inputs["Color1"])
     ln.new(broad_ramp.outputs["Color"], varied.inputs["Color2"])
 
+    # forest floor under the enchanted wood: dark, mossy, faintly blue
+    grove_attr = nt.nodes.new("ShaderNodeAttribute")
+    grove_attr.attribute_name = "grove"
+    floor_noise = nt.nodes.new("ShaderNodeTexNoise")
+    floor_noise.inputs["Scale"].default_value = 0.20
+    floor_noise.inputs["Detail"].default_value = 6.0
+    ln.new(geo.outputs["Position"], floor_noise.inputs["Vector"])
+    floor = _ramp(nt, [(0.30, srgb("#1d3a2c")),
+                       (0.60, srgb("#274b34")),
+                       (0.85, srgb("#34603d"))])
+    ln.new(floor_noise.outputs["Fac"], floor.inputs["Fac"])
+    shaded_floor = nt.nodes.new("ShaderNodeMixRGB")
+    ln.new(grove_attr.outputs["Color"], shaded_floor.inputs["Fac"])
+    ln.new(varied.outputs["Color"], shaded_floor.inputs["Color1"])
+    ln.new(floor.outputs["Color"], shaded_floor.inputs["Color2"])
+
     # --- rock on steep ground, snow on the high tops
     rnoise = nt.nodes.new("ShaderNodeTexNoise")
     rnoise.inputs["Scale"].default_value = 0.09
@@ -786,7 +978,7 @@ def make_terrain_material():
 
     rocky = nt.nodes.new("ShaderNodeMixRGB")
     ln.new(bare.outputs["Value"], rocky.inputs["Fac"])
-    ln.new(varied.outputs["Color"], rocky.inputs["Color1"])
+    ln.new(shaded_floor.outputs["Color"], rocky.inputs["Color1"])
     ln.new(rock.outputs["Color"], rocky.inputs["Color2"])
 
     alt = nt.nodes.new("ShaderNodeMapRange")
@@ -814,6 +1006,74 @@ def make_terrain_material():
     # whole ground plane and washes the landscape out to pastel.
     bsdf.inputs["Specular IOR Level"].default_value = 0.0
     add_haze(nt, snowy.outputs["Color"], bsdf)
+    return m
+
+
+def make_emissive_material(name, color, strength=1.0):
+    """Pure emission. toonify() only rewires materials that have a Principled
+    BSDF, so removing it here is what keeps these glowing rather than being
+    flattened into the cel bands."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    for n in list(nt.nodes):
+        if n.type == 'BSDF_PRINCIPLED':
+            nt.nodes.remove(n)
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+    emit = nt.nodes.new("ShaderNodeEmission")
+    emit.inputs["Color"].default_value = color
+    emit.inputs["Strength"].default_value = strength
+    nt.links.new(emit.outputs["Emission"], out.inputs["Surface"])
+    return m
+
+
+def make_mist_material(name="ENV_Mist"):
+    """Low mist bank: a transparent quad whose alpha comes from noise and
+    fades toward its own edges, so the plane itself never shows."""
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    ln = nt.links
+    for n in list(nt.nodes):
+        if n.type == 'BSDF_PRINCIPLED':
+            nt.nodes.remove(n)
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    puff = nt.nodes.new("ShaderNodeTexNoise")
+    puff.inputs["Scale"].default_value = 2.4
+    puff.inputs["Detail"].default_value = 5.0
+    ln.new(coord.outputs["Object"], puff.inputs["Vector"])
+    density = _ramp(nt, [(0.42, (0, 0, 0, 1)), (0.68, (1, 1, 1, 1))])
+    ln.new(puff.outputs["Fac"], density.inputs["Fac"])
+
+    dist = nt.nodes.new("ShaderNodeVectorMath")
+    dist.operation = 'LENGTH'
+    ln.new(coord.outputs["Object"], dist.inputs[0])
+    falloff = nt.nodes.new("ShaderNodeMapRange")
+    falloff.inputs["From Min"].default_value = 0.42
+    falloff.inputs["From Max"].default_value = 0.10
+    falloff.clamp = True
+    ln.new(dist.outputs["Value"], falloff.inputs["Value"])
+    mul = nt.nodes.new("ShaderNodeMath")
+    mul.operation = 'MULTIPLY'
+    ln.new(density.outputs["Color"], mul.inputs[0])
+    ln.new(falloff.outputs["Result"], mul.inputs[1])
+    alpha = nt.nodes.new("ShaderNodeMath")
+    alpha.operation = 'MULTIPLY'
+    alpha.inputs[1].default_value = 0.8
+    ln.new(mul.outputs["Value"], alpha.inputs[0])
+
+    emit = nt.nodes.new("ShaderNodeEmission")
+    emit.inputs["Color"].default_value = srgb("#cfe6f5")
+    clear = nt.nodes.new("ShaderNodeBsdfTransparent")
+    mix = nt.nodes.new("ShaderNodeMixShader")
+    ln.new(alpha.outputs["Value"], mix.inputs["Fac"])
+    ln.new(clear.outputs["BSDF"], mix.inputs[1])
+    ln.new(emit.outputs["Emission"], mix.inputs[2])
+    ln.new(mix.outputs["Shader"], out.inputs["Surface"])
+    m.surface_render_method = 'BLENDED'
+    m.use_backface_culling = False
     return m
 
 
@@ -1062,6 +1322,31 @@ def setup_sky(scene, sun_elev_deg=30.0, sun_rot_deg=196.0):
     return sun
 
 
+def setup_bloom(scene):
+    """Bloom so the spirit lights and toadstools actually glow. EEVEE Next
+    dropped its built-in bloom, so this is a compositor Glare pass — which in
+    Blender 5 lives in scene.compositing_node_group, and whose type is a menu
+    socket rather than a node property."""
+    ng = bpy.data.node_groups.new("Bloom", "CompositorNodeTree")
+    ng.interface.new_socket("Image", in_out='OUTPUT',
+                            socket_type='NodeSocketColor')
+    # The render result arrives through a Render Layers node inside the group.
+    # A Group Input socket looks like the obvious source but is never fed —
+    # wiring it that way renders black.
+    layers = ng.nodes.new("CompositorNodeRLayers")
+    group_out = ng.nodes.new("NodeGroupOutput")
+    glare = ng.nodes.new("CompositorNodeGlare")
+    glare.inputs["Type"].default_value = 'Bloom'
+    glare.inputs["Quality"].default_value = 'High'
+    glare.inputs["Threshold"].default_value = 0.9
+    glare.inputs["Strength"].default_value = 0.5
+    glare.inputs["Size"].default_value = 7.0
+    ng.links.new(layers.outputs["Image"], glare.inputs["Image"])
+    ng.links.new(glare.outputs["Image"], group_out.inputs[0])
+    scene.use_nodes = True
+    scene.compositing_node_group = ng
+
+
 def camera_position(base_z):
     """Shared so the scatter passes can bias detail toward the camera before
     the camera object itself exists."""
@@ -1143,6 +1428,34 @@ def main():
     scatter_grass(grass_tuft_template(3), col, [grassmat], cam_pos)
     scatter_boulders([boulder_template(s) for s in range(4)], col, [rockmat])
 
+    old_bark = make_foliage_material("ENV_OldBark", [
+        (0.3, srgb("#3b2f2a")),
+        (0.8, srgb("#55443a"))], rough=0.92)
+    old_leaf = make_foliage_material("ENV_OldLeaf", [
+        (0.30, srgb("#123c33")),
+        (0.60, srgb("#1a5340")),
+        (0.85, srgb("#26684a"))])
+    hanging = make_foliage_material("ENV_Moss", [
+        (0.3, srgb("#5c7a5a")),
+        (0.8, srgb("#7d9a72"))], rough=0.95, var_scale=0.6)
+    grove_mats = [old_bark, old_leaf, hanging]
+    glow_cap = make_emissive_material("ENV_Glow", srgb("#7ff2e0"), 9.0)
+    stem_mat = make_emissive_material("ENV_Stem", srgb("#dff6ef"), 1.2)
+    spirit_mat = make_emissive_material("ENV_Spirit", srgb("#c9fff2"), 22.0)
+
+    old_near = [mesh_datablock(f"Ancient{s}", enchanted_tree_mesh(
+        60 + s, height=RND.uniform(14.0, 21.0), lod=1), grove_mats)
+        for s in range(4)]
+    old_far = [mesh_datablock(f"AncientLod{s}", enchanted_tree_mesh(
+        60 + s, height=RND.uniform(14.0, 21.0), lod=0), grove_mats)
+        for s in range(3)]
+    caps = [mesh_datablock(f"Cap{s}", mushroom_mesh(80 + s),
+                           [stem_mat, glow_cap]) for s in range(4)]
+    spirit = mesh_datablock("Spirit", spirit_mesh(), [spirit_mat])
+    mist = mesh_datablock("MistBank", mist_mesh(), [make_mist_material()])
+    if "--no-grove" not in sys.argv:
+        scatter_grove(old_near, old_far, caps, spirit, mist, col, cam_pos)
+
     tower = wt.build_watchtower(col)
     for obj in tower:
         obj.location.z = _H0
@@ -1181,6 +1494,8 @@ def main():
 
     setup_toon_sky(scene, 30.0, 196.0)
     setup_camera(scene, _H0)
+    if "--no-bloom" not in sys.argv:
+        setup_bloom(scene)
 
     if do_render:
         path = os.path.join(HERE, "renders", "environment.png")
