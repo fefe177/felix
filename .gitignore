@@ -1,0 +1,7 @@
+# Blender's rolling backup of the previous save
+*.blend1
+__pycache__/
+
+# Baked maps are written loose for inspection but are already embedded in
+# watchtower.glb, so tracking them would duplicate ~5 MB on every re-bake.
+assets/textures/

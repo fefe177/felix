@@ -1,2 +1,7 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Binary model and render outputs must never be line-ending normalized
+*.blend binary
+*.glb   binary
+*.png   binary
