@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Nordic landscape around the stone watchtower.
+"""Anime-styled Nordic landscape around the stone watchtower.
 
-Builds an environment for the watchtower asset and renders it in context:
+Builds an environment for the watchtower asset and renders it in context,
+cel-shaded rather than photoreal:
   - procedural terrain: a farmland basin around the tower's knoll, forested
     foothills, and snow-capped mountains ringing the horizon
   - patchwork farmland whose field partition is computed in Python and painted
@@ -10,7 +11,11 @@ Builds an environment for the watchtower asset and renders it in context:
   - spruce and birch built from dozens of tapered foliage spurs, instanced from
     shared mesh datablocks with distance-based level of detail, plus hedgerow
     bushes, foreground grass tufts and boulders
-  - physical sky with a matching sun, and depth-based aerial haze
+  - flat cel shading: every material is rewired through `Shader to RGB` into
+    hard light bands with a cool shadow tint, which is why this scene renders
+    in EEVEE rather than Cycles
+  - a painted sky — vertical gradient plus hard-edged cumulus — and light
+    depth haze
 
 The tower itself is built by `watchtower.py`, so the two stay in sync.
 
@@ -55,6 +60,18 @@ FIELD_INNER, FIELD_OUTER = 30.0, 215.0
 FOREST_RADIUS = 620.0
 TREE_SPACING = 9.0
 BOULDER_COUNT = 260
+
+
+def srgb(hexstr):
+    """Anime palettes are far easier to pick as sRGB hex than as linear
+    floats; Blender wants linear, so convert here and keep the constants
+    readable."""
+    h = hexstr.lstrip("#")
+    out = []
+    for i in (0, 2, 4):
+        c = int(h[i:i + 2], 16) / 255.0
+        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return (*out, 1.0)
 
 
 def smoothstep(a, b, x):
@@ -116,13 +133,15 @@ def is_field(h, nz, d):
 # instead of testing every seed.
 FIELD_STEP = 34.0
 FIELD_SPAN = FIELD_OUTER + 70.0
+# Cel shading emits the base colour directly, so these are finished picture
+# colours rather than albedos — chosen bright and saturated for the anime look.
 CROP_COLOURS = [
-    (0.045, 0.105, 0.025),    # pasture
-    (0.255, 0.190, 0.055),    # ripe barley
-    (0.105, 0.062, 0.038),    # ploughed earth
-    (0.300, 0.245, 0.045),    # rapeseed
-    (0.215, 0.175, 0.075),    # stubble
-    (0.065, 0.135, 0.032),    # young shoots
+    srgb("#74c341")[:3],      # pasture
+    srgb("#e6c765")[:3],      # ripe barley
+    srgb("#9a6a49")[:3],      # ploughed earth
+    srgb("#f3dc5a")[:3],      # rapeseed
+    srgb("#d3b273")[:3],      # stubble
+    srgb("#9ad35d")[:3],      # young shoots
 ]
 _FIELD_GRID = None
 
@@ -623,14 +642,14 @@ def add_haze(nt, color_socket, bsdf):
     time on a landscape this size."""
     cam = nt.nodes.new("ShaderNodeCameraData")
     depth = nt.nodes.new("ShaderNodeMapRange")
-    depth.inputs["From Min"].default_value = 220.0
+    depth.inputs["From Min"].default_value = 320.0
     depth.inputs["From Max"].default_value = 2200.0
     depth.inputs["To Min"].default_value = 0.0
-    depth.inputs["To Max"].default_value = 0.62
+    depth.inputs["To Max"].default_value = 0.42
     depth.clamp = True
     nt.links.new(cam.outputs["View Z Depth"], depth.inputs["Value"])
     mix = nt.nodes.new("ShaderNodeMixRGB")
-    mix.inputs["Color2"].default_value = (0.32, 0.41, 0.55, 1.0)
+    mix.inputs["Color2"].default_value = srgb("#a9cfe8")
     nt.links.new(depth.outputs["Result"], mix.inputs["Fac"])
     nt.links.new(color_socket, mix.inputs["Color1"])
     nt.links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
@@ -672,9 +691,9 @@ def make_terrain_material():
     gmix.inputs["Fac"].default_value = 0.38
     ln.new(gnoise.outputs["Fac"], gmix.inputs["Color1"])
     ln.new(gfine.outputs["Fac"], gmix.inputs["Color2"])
-    grass = _ramp(nt, [(0.30, (0.024, 0.050, 0.014, 1)),
-                       (0.55, (0.044, 0.084, 0.024, 1)),
-                       (0.80, (0.072, 0.115, 0.038, 1))])
+    grass = _ramp(nt, [(0.30, srgb("#4f9c31")),
+                       (0.55, srgb("#68b83c")),
+                       (0.80, srgb("#8ccb52"))])
     ln.new(gmix.outputs["Color"], grass.inputs["Fac"])
 
     # --- farmland: crop colour from the painted attribute, furrows rotated
@@ -747,16 +766,26 @@ def make_terrain_material():
     rnoise.inputs["Scale"].default_value = 0.09
     rnoise.inputs["Detail"].default_value = 9.0
     ln.new(geo.outputs["Position"], rnoise.inputs["Vector"])
-    rock = _ramp(nt, [(0.35, (0.038, 0.036, 0.034, 1)),
-                      (0.70, (0.098, 0.092, 0.086, 1))])
+    rock = _ramp(nt, [(0.35, srgb("#6f7480")),
+                      (0.70, srgb("#98a0ab"))])
     ln.new(rnoise.outputs["Fac"], rock.inputs["Fac"])
     steep = nt.nodes.new("ShaderNodeMapRange")
     steep.inputs["From Min"].default_value = 0.90
     steep.inputs["From Max"].default_value = 0.74
     steep.clamp = True
     ln.new(sep_n.outputs["Z"], steep.inputs["Value"])
+    high = nt.nodes.new("ShaderNodeMapRange")
+    high.inputs["From Min"].default_value = 95.0
+    high.inputs["From Max"].default_value = 175.0
+    high.clamp = True
+    ln.new(sep_p.outputs["Z"], high.inputs["Value"])
+    bare = nt.nodes.new("ShaderNodeMath")
+    bare.operation = 'MAXIMUM'
+    ln.new(steep.outputs["Result"], bare.inputs[0])
+    ln.new(high.outputs["Result"], bare.inputs[1])
+
     rocky = nt.nodes.new("ShaderNodeMixRGB")
-    ln.new(steep.outputs["Result"], rocky.inputs["Fac"])
+    ln.new(bare.outputs["Value"], rocky.inputs["Fac"])
     ln.new(varied.outputs["Color"], rocky.inputs["Color1"])
     ln.new(rock.outputs["Color"], rocky.inputs["Color2"])
 
@@ -775,7 +804,7 @@ def make_terrain_material():
     ln.new(alt.outputs["Result"], snow_fac.inputs[0])
     ln.new(hold.outputs["Result"], snow_fac.inputs[1])
     snowy = nt.nodes.new("ShaderNodeMixRGB")
-    snowy.inputs["Color2"].default_value = (0.72, 0.76, 0.85, 1.0)
+    snowy.inputs["Color2"].default_value = srgb("#eef4ff")
     ln.new(snow_fac.outputs["Value"], snowy.inputs["Fac"])
     ln.new(rocky.outputs["Color"], snowy.inputs["Color1"])
 
@@ -803,6 +832,187 @@ def make_foliage_material(name, cols, rough=0.78, var_scale=0.09):
     bsdf.inputs["Specular IOR Level"].default_value = 0.0
     add_haze(nt, ramp.outputs["Color"], bsdf)
     return m
+
+
+# ------------------------------------------------------------- cel shading
+# Anime shading is flat: a couple of hard light bands, a cool shadow tint and
+# no specular. `Shader to RGB` gives the lit result as a colour that can be
+# quantised — it is EEVEE-only, which is why this scene renders in EEVEE.
+SHADOW_TINT = srgb("#8494d9")
+LIGHT_TINT = srgb("#fffdf4")
+
+
+def toonify(mat, bands=(0.0, 0.34, 0.66), shadow=SHADOW_TINT,
+            light=LIGHT_TINT, rim=0.0, use_normal=True, gain=1.0):
+    """Rewire a Principled material into flat cel bands, keeping whatever
+    node graph already feeds its base colour."""
+    nt = mat.node_tree
+    bsdf = nt.nodes.get("Principled BSDF")
+    if bsdf is None:
+        return
+    out = next(n for n in nt.nodes if n.type == 'OUTPUT_MATERIAL')
+    ln = nt.links
+
+    sock = bsdf.inputs["Base Color"]
+    if sock.is_linked:
+        base = sock.links[0].from_socket
+    else:
+        rgb = nt.nodes.new("ShaderNodeRGB")
+        rgb.outputs[0].default_value = sock.default_value[:]
+        base = rgb.outputs[0]
+
+    if gain != 1.0:
+        # PBR albedos are lit by the renderer; an emitted colour is the final
+        # pixel, so borrowed materials need lifting into picture range.
+        up = nt.nodes.new("ShaderNodeMixRGB")
+        up.blend_type = 'MULTIPLY'
+        up.inputs["Fac"].default_value = 1.0
+        up.inputs["Color2"].default_value = (gain, gain, gain, 1.0)
+        ln.new(base, up.inputs["Color1"])
+        base = up.outputs["Color"]
+
+    diff = nt.nodes.new("ShaderNodeBsdfDiffuse")
+    diff.inputs["Color"].default_value = (1.0, 1.0, 1.0, 1.0)
+    if use_normal and bsdf.inputs["Normal"].is_linked:
+        ln.new(bsdf.inputs["Normal"].links[0].from_socket, diff.inputs["Normal"])
+    to_rgb = nt.nodes.new("ShaderNodeShaderToRGB")
+    ln.new(diff.outputs["BSDF"], to_rgb.inputs["Shader"])
+    lum = nt.nodes.new("ShaderNodeRGBToBW")
+    ln.new(to_rgb.outputs["Color"], lum.inputs["Color"])
+
+    steps = _ramp(nt, [(bands[0], (0.0, 0.0, 0.0, 1)),
+                       (bands[1], (0.55, 0.55, 0.55, 1)),
+                       (bands[2], (1.0, 1.0, 1.0, 1))])
+    steps.color_ramp.interpolation = 'CONSTANT'   # hard cel edges
+    ln.new(lum.outputs["Val"], steps.inputs["Fac"])
+
+    tint = nt.nodes.new("ShaderNodeMixRGB")
+    tint.inputs["Color1"].default_value = shadow
+    tint.inputs["Color2"].default_value = light
+    ln.new(steps.outputs["Color"], tint.inputs["Fac"])
+
+    shaded = nt.nodes.new("ShaderNodeMixRGB")
+    shaded.blend_type = 'MULTIPLY'
+    shaded.inputs["Fac"].default_value = 1.0
+    ln.new(base, shaded.inputs["Color1"])
+    ln.new(tint.outputs["Color"], shaded.inputs["Color2"])
+    result = shaded.outputs["Color"]
+
+    if rim > 0.0:
+        weight = nt.nodes.new("ShaderNodeLayerWeight")
+        weight.inputs["Blend"].default_value = 0.72
+        edge = _ramp(nt, [(0.42, (0, 0, 0, 1)), (0.58, (1, 1, 1, 1))])
+        edge.color_ramp.interpolation = 'CONSTANT'
+        ln.new(weight.outputs["Facing"], edge.inputs["Fac"])
+        gain = nt.nodes.new("ShaderNodeMixRGB")
+        gain.blend_type = 'MULTIPLY'
+        gain.inputs["Fac"].default_value = 1.0
+        gain.inputs["Color2"].default_value = (rim, rim, rim, 1.0)
+        ln.new(edge.outputs["Color"], gain.inputs["Color1"])
+        add = nt.nodes.new("ShaderNodeMixRGB")
+        add.blend_type = 'ADD'
+        add.inputs["Fac"].default_value = 1.0
+        ln.new(result, add.inputs["Color1"])
+        ln.new(gain.outputs["Color"], add.inputs["Color2"])
+        result = add.outputs["Color"]
+
+    emit = nt.nodes.new("ShaderNodeEmission")
+    ln.new(result, emit.inputs["Color"])
+    ln.new(emit.outputs["Emission"], out.inputs["Surface"])
+
+
+def setup_toon_sky(scene, sun_elev_deg, sun_rot_deg):
+    """Painted sky: a vertical gradient with big hard-edged cumulus, rather
+    than a physical atmosphere model."""
+    world = bpy.data.worlds.new("ToonSky")
+    world.use_nodes = True
+    nt = world.node_tree
+    ln = nt.links
+    bg = nt.nodes["Background"]
+
+    coord = nt.nodes.new("ShaderNodeTexCoord")
+    sep = nt.nodes.new("ShaderNodeSeparateXYZ")
+    ln.new(coord.outputs["Generated"], sep.inputs["Vector"])
+
+    height = nt.nodes.new("ShaderNodeMapRange")
+    height.inputs["From Min"].default_value = -0.05
+    height.inputs["From Max"].default_value = 0.62
+    height.clamp = True
+    ln.new(sep.outputs["Z"], height.inputs["Value"])
+    sky = _ramp(nt, [(0.0, srgb("#dcf0fb")),
+                     (0.35, srgb("#7cc2ef")),
+                     (1.0, srgb("#2f86d8"))])
+    ln.new(height.outputs["Result"], sky.inputs["Fac"])
+
+    # Sample the cloud noise directly on the (unit) view direction, with Z
+    # squashed so the masses flatten into a deck. Projecting onto a plane
+    # instead needs a divide by Z, which smears into vertical streaks wherever
+    # the divisor has to be clamped near the horizon.
+    squash = nt.nodes.new("ShaderNodeMath")
+    squash.operation = 'MULTIPLY'
+    squash.inputs[1].default_value = 2.6
+    ln.new(sep.outputs["Z"], squash.inputs[0])
+    deck = nt.nodes.new("ShaderNodeCombineXYZ")
+    ln.new(sep.outputs["X"], deck.inputs["X"])
+    ln.new(sep.outputs["Y"], deck.inputs["Y"])
+    ln.new(squash.outputs["Value"], deck.inputs["Z"])
+
+    puff = nt.nodes.new("ShaderNodeTexNoise")
+    puff.inputs["Scale"].default_value = 2.2
+    puff.inputs["Detail"].default_value = 4.0
+    puff.inputs["Roughness"].default_value = 0.40
+    ln.new(deck.outputs["Vector"], puff.inputs["Vector"])
+    massing = nt.nodes.new("ShaderNodeTexNoise")   # keeps gaps of open sky
+    massing.inputs["Scale"].default_value = 0.80
+    massing.inputs["Detail"].default_value = 3.0
+    ln.new(deck.outputs["Vector"], massing.inputs["Vector"])
+    shape = nt.nodes.new("ShaderNodeMixRGB")
+    shape.inputs["Fac"].default_value = 0.45
+    ln.new(puff.outputs["Fac"], shape.inputs["Color1"])
+    ln.new(massing.outputs["Fac"], shape.inputs["Color2"])
+
+    body = _ramp(nt, [(0.520, (0, 0, 0, 1)), (0.534, (1, 1, 1, 1))])
+    ln.new(shape.outputs["Color"], body.inputs["Fac"])
+    top = _ramp(nt, [(0.556, (0, 0, 0, 1)), (0.590, (1, 1, 1, 1))])
+    ln.new(shape.outputs["Color"], top.inputs["Fac"])
+
+    cloud_col = nt.nodes.new("ShaderNodeMixRGB")
+    cloud_col.inputs["Color1"].default_value = srgb("#c9d6ea")   # shaded base
+    cloud_col.inputs["Color2"].default_value = srgb("#ffffff")   # sunlit top
+    ln.new(top.outputs["Color"], cloud_col.inputs["Fac"])
+
+    fade = nt.nodes.new("ShaderNodeMapRange")   # clouds thin out at the horizon
+    fade.inputs["From Min"].default_value = 0.015
+    fade.inputs["From Max"].default_value = 0.13
+    fade.clamp = True
+    ln.new(sep.outputs["Z"], fade.inputs["Value"])
+    cover = nt.nodes.new("ShaderNodeMath")
+    cover.operation = 'MULTIPLY'
+    ln.new(body.outputs["Color"], cover.inputs[0])
+    ln.new(fade.outputs["Result"], cover.inputs[1])
+
+    final = nt.nodes.new("ShaderNodeMixRGB")
+    ln.new(cover.outputs["Value"], final.inputs["Fac"])
+    ln.new(sky.outputs["Color"], final.inputs["Color1"])
+    ln.new(cloud_col.outputs["Color"], final.inputs["Color2"])
+    ln.new(final.outputs["Color"], bg.inputs["Color"])
+    bg.inputs["Strength"].default_value = 0.55
+    scene.world = world
+    return add_sun(scene, sun_elev_deg, sun_rot_deg)
+
+
+def add_sun(scene, sun_elev_deg, sun_rot_deg):
+    data = bpy.data.lights.new("Sun", 'SUN')
+    data.energy = 3.4
+    data.angle = math.radians(0.8)
+    data.color = srgb("#fff3dc")[:3]
+    sun = bpy.data.objects.new("Sun", data)
+    e, r = math.radians(sun_elev_deg), math.radians(sun_rot_deg)
+    to_sun = Vector((math.cos(e) * math.cos(r), math.cos(e) * math.sin(r),
+                     math.sin(e)))
+    sun.rotation_euler = to_sun.to_track_quat('Z', 'Y').to_euler()
+    scene.collection.objects.link(sun)
+    return sun
 
 
 # ------------------------------------------------------------ scene and sky
@@ -884,25 +1094,25 @@ def main():
     build_terrain(make_terrain_material(), col)
 
     needles = make_foliage_material("ENV_Needles", [
-        (0.30, (0.010, 0.030, 0.012, 1)),
-        (0.55, (0.018, 0.048, 0.018, 1)),
-        (0.80, (0.032, 0.072, 0.024, 1))])
+        (0.30, srgb("#256b3a")),
+        (0.55, srgb("#2f8043")),
+        (0.80, srgb("#419a4d"))])
     bark = make_foliage_material("ENV_Bark", [
-        (0.3, (0.030, 0.022, 0.015, 1)),
-        (0.8, (0.055, 0.042, 0.030, 1))], rough=0.9)
+        (0.3, srgb("#4a3324")),
+        (0.8, srgb("#664731"))], rough=0.9)
     birch_bark = make_foliage_material("ENV_BirchBark", [
-        (0.3, (0.290, 0.285, 0.265, 1)),
-        (0.8, (0.420, 0.415, 0.395, 1))], rough=0.85)
+        (0.3, srgb("#e3e2d8")),
+        (0.8, srgb("#f6f5ee"))], rough=0.85)
     birch_leaf = make_foliage_material("ENV_BirchLeaf", [
-        (0.3, (0.055, 0.095, 0.022, 1)),
-        (0.8, (0.095, 0.140, 0.035, 1))])
+        (0.3, srgb("#6cb840")),
+        (0.8, srgb("#8fce55"))])
     rockmat = make_foliage_material("ENV_Rock", [
-        (0.3, (0.042, 0.040, 0.038, 1)),
-        (0.8, (0.098, 0.092, 0.084, 1))], rough=0.95, var_scale=0.5)
+        (0.3, srgb("#74797f")),
+        (0.8, srgb("#969ca4"))], rough=0.95, var_scale=0.5)
 
     grassmat = make_foliage_material("ENV_GrassBlade", [
-        (0.3, (0.030, 0.058, 0.014, 1)),
-        (0.8, (0.070, 0.105, 0.030, 1))], rough=0.86, var_scale=0.35)
+        (0.3, srgb("#569f31")),
+        (0.8, srgb("#7fc247"))], rough=0.86, var_scale=0.35)
 
     tree_mats = [bark, needles, birch_bark, birch_leaf]
     conifers_near = [mesh_datablock(f"Conifer{s}", conifer_mesh(
@@ -938,29 +1148,38 @@ def main():
         obj.location.z = _H0
     print(f"tower objects placed at z={_H0:.2f}")
 
-    # instanced objects share mesh data, so unique geometry is what Cycles
-    # actually stores; the evaluated total is much larger
+    # instanced objects share mesh data, so unique geometry is what the
+    # renderer actually stores; the evaluated total is much larger
     evaluated = sum(len(o.data.polygons) for o in col.objects
                     if o.type == 'MESH')
     print(f"unique vegetation faces: {unique}   evaluated scene: {evaluated}")
 
-    scene.render.engine = 'CYCLES'
-    scene.cycles.device = 'CPU'
-    scene.cycles.samples = 16 if preview else 72
-    scene.cycles.use_denoising = True
+    # Cel-shade everything, the tower included, so the whole frame reads as one
+    # drawing. Foliage gets a small rim so canopies separate from one another.
+    rims = {"ENV_Needles": 0.05, "ENV_BirchLeaf": 0.05, "WT_Ivy": 0.04}
+    gains = {"WT_Stone": 3.6, "WT_WoodShingle": 4.6, "WT_Iron": 4.0,
+             "WT_Ivy": 3.0, "WT_IvyStem": 3.5, "WT_Recess": 1.0}
+    for mat in bpy.data.materials:
+        # bump-driven bands turn to noise on the terrain's shallow relief
+        flat = mat.name in ("ENV_Terrain",)
+        toonify(mat, rim=rims.get(mat.name, 0.0), use_normal=not flat,
+                gain=gains.get(mat.name, 1.0))
+    print(f"cel-shaded {len(bpy.data.materials)} materials")
+
+    scene.render.engine = 'BLENDER_EEVEE'
+    scene.eevee.taa_render_samples = 16 if preview else 32
+    for prop, value in (("use_raytracing", True), ("use_shadows", True)):
+        try:
+            setattr(scene.eevee, prop, value)
+        except AttributeError:
+            pass
     scene.render.resolution_x = 960 if preview else 1920
     scene.render.resolution_y = 540 if preview else 1080
-    # A landscape spans a far wider dynamic range than the isolated asset
-    # render: AgX rolls off the sky instead of flattening everything to pastel.
-    scene.view_settings.view_transform = 'AgX'
-    for look in ("AgX - Medium High Contrast", "Medium High Contrast"):
-        try:
-            scene.view_settings.look = look
-            break
-        except TypeError:
-            continue
+    # Flat art wants the colours it was given: any filmic transform would
+    # roll off exactly the saturated highlights the style depends on.
+    scene.view_settings.view_transform = 'Standard'
 
-    setup_sky(scene)
+    setup_toon_sky(scene, 30.0, 196.0)
     setup_camera(scene, _H0)
 
     if do_render:

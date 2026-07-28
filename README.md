@@ -8,8 +8,8 @@ needs to be edited by hand.
 ![Watchtower](renders/watchtower_preview.png)
 
 A second script, `environment.py`, drops the same tower into a procedural
-Nordic landscape — farmland, forest and mountains. See
-[Landscape environment](#landscape-environment) below.
+Nordic landscape — farmland, forest and mountains — rendered in an anime /
+cel-shaded style. See [Landscape environment](#landscape-environment) below.
 
 ![Landscape](renders/environment.png)
 
@@ -153,6 +153,11 @@ python3 environment.py --preview  # fast 960x540 check
 python3 environment.py --no-render
 ```
 
+Because it renders in EEVEE, this scene needs a working GL context — on a bare
+headless box install `libegl1` and `libegl-mesa0` and run with
+`LIBGL_ALWAYS_SOFTWARE=1`. (The isolated asset render uses Cycles and has no
+such requirement.)
+
 Outputs `assets/environment.blend` and `renders/environment.png`. The scene
 file is not tracked in git — it is ~11 MB of instanced forest geometry that
 rewrites wholesale on every tweak, and `--no-render` rebuilds it in about a
@@ -213,9 +218,40 @@ camera distance and nothing else — an earlier version handed hedgerow trees th
 reduced template unconditionally, and a coarse one landing in the foreground was
 immediately obvious.
 
+### Anime cel shading
+
+The landscape is deliberately not photoreal. Every material is rewired by
+`toonify()`: whatever node graph already feeds the Principled base colour is
+kept, but the lighting is replaced by a white Diffuse BSDF fed through a
+**Shader to RGB** node, quantised by a constant-interpolation ramp into three
+hard bands, and used to blend between a cool blue shadow tint and a warm
+highlight. The result drives an Emission shader.
+
+Shader to RGB only exists in EEVEE, which is why this scene renders there while
+the isolated asset still uses Cycles. EEVEE also renders it in minutes rather
+than tens of minutes.
+
+Two consequences worth knowing:
+
+- **Colours are finished picture values, not albedos.** An emitted colour is the
+  final pixel, so the palette is picked directly as sRGB hex through a `srgb()`
+  helper. The tower's materials are borrowed from the PBR asset and are far too
+  dark when emitted, so `toonify()` takes a per-material `gain` to lift them
+  into picture range.
+- **The view transform is `Standard`.** Any filmic transform rolls off exactly
+  the saturated highlights flat art depends on.
+
+The sky is painted rather than simulated: a vertical gradient with hard-edged
+cumulus. The cloud noise is sampled directly on the unit view direction with Z
+squashed to flatten the deck. Projecting onto a plane instead needs a divide by
+Z, and clamping that divisor near the horizon smeared the clouds into vertical
+streaks — visible immediately in the test render.
+
 ### Lighting
 
-Two findings drove the look, both verified by test render rather than guessed:
+Two findings from the earlier photoreal version, both verified by test render
+rather than guessed (the specular fix still applies; the sky split is moot now
+that shading is emissive):
 
 - **Ground specular had to go.** Left at the Principled default, grazing-angle
   Fresnel mirrors the bright sky across the whole terrain and washes the
