@@ -4,11 +4,12 @@
 Builds an environment for the watchtower asset and renders it in context:
   - procedural terrain: a farmland basin around the tower's knoll, forested
     foothills, and snow-capped mountains ringing the horizon
-  - patchwork farmland (Voronoi fields, crop palette, furrows, hedgerow lines)
-    driven by the same slope/altitude rules the tree scatter obeys, so fields
-    and forest never fight over the same ground
-  - low-poly spruce and birch forest plus boulders, scattered on terrain the
-    plough could not work
+  - patchwork farmland whose field partition is computed in Python and painted
+    onto the terrain as vertex colours, so hedgerow bushes can stand exactly on
+    the boundaries the material draws
+  - spruce and birch built from dozens of tapered foliage spurs, instanced from
+    shared mesh datablocks with distance-based level of detail, plus hedgerow
+    bushes, foreground grass tufts and boulders
   - physical sky with a matching sun, and depth-based aerial haze
 
 The tower itself is built by `watchtower.py`, so the two stay in sync.
@@ -41,9 +42,9 @@ _nodes, _ramp = wt._nodes, wt._ramp
 # The terrain is a radial grid rather than a square one: ring spacing grows
 # geometrically outward, so the ground near the tower is finely detailed while
 # the mountain range 2 km away costs almost nothing.
-THETA_SEGS = 224
-RING_COUNT = 150
+THETA_SEGS = 384
 R_INNER, R_OUTER = 3.0, 2600.0
+R_DENSE, DENSE_STEP = 290.0, 3.4   # fine uniform rings over the farmland
 PAD_INNER, PAD_OUTER = 8.0, 22.0    # flat pad the tower stands on
 KNOLL_R, KNOLL_H = 46.0, 18.0
 TREELINE = 190.0
@@ -103,26 +104,130 @@ def terrain_normal(x, y):
 
 
 def is_field(h, nz, d):
-    """Ground the plough can work — mirrored by the shader's field mask."""
+    """Ground the plough can work."""
     return (h < FIELD_MAX_ALT and nz > FIELD_MIN_FLAT
             and FIELD_INNER < d < FIELD_OUTER)
 
 
+# --- field partition -------------------------------------------------------
+# The field layout lives in Python rather than in a shader Voronoi, because the
+# hedgerow bushes have to stand exactly on the boundaries the material paints.
+# Seeds sit on a jittered grid, so the nearest few cells can be found by index
+# instead of testing every seed.
+FIELD_STEP = 34.0
+FIELD_SPAN = FIELD_OUTER + 70.0
+CROP_COLOURS = [
+    (0.045, 0.105, 0.025),    # pasture
+    (0.255, 0.190, 0.055),    # ripe barley
+    (0.105, 0.062, 0.038),    # ploughed earth
+    (0.300, 0.245, 0.045),    # rapeseed
+    (0.215, 0.175, 0.075),    # stubble
+    (0.065, 0.135, 0.032),    # young shoots
+]
+_FIELD_GRID = None
+
+
+def _field_grid():
+    global _FIELD_GRID
+    if _FIELD_GRID is None:
+        rnd = random.Random(7)
+        n = int(2 * FIELD_SPAN / FIELD_STEP) + 3
+        _FIELD_GRID = {
+            (i, j): (-FIELD_SPAN + (i + rnd.random()) * FIELD_STEP,
+                     -FIELD_SPAN + (j + rnd.random()) * FIELD_STEP,
+                     rnd.randrange(len(CROP_COLOURS)))
+            for j in range(-2, n) for i in range(-2, n)}
+    return _FIELD_GRID
+
+
+def field_lookup(x, y):
+    """(crop index, edge, nearest key, second key). `edge` is the gap between
+    the nearest and second-nearest seed normalised by the cell step, so it goes
+    to zero on a boundary; the two keys identify which fields meet there."""
+    g = _field_grid()
+    gi = int((x + FIELD_SPAN) / FIELD_STEP)
+    gj = int((y + FIELD_SPAN) / FIELD_STEP)
+    best = second = 1e18
+    crop = 0
+    k1 = k2 = (0, 0)
+    for dj in (-2, -1, 0, 1, 2):
+        for di in (-2, -1, 0, 1, 2):
+            key = (gi + di, gj + dj)
+            s = g.get(key)
+            if s is None:
+                continue
+            dd = (s[0] - x) ** 2 + (s[1] - y) ** 2
+            if dd < best:
+                second, k2 = best, k1
+                best, k1, crop = dd, key, s[2]
+            elif dd < second:
+                second, k2 = dd, key
+    if second > 1e17:
+        return crop, 1.0, k1, k2
+    return crop, (math.sqrt(second) - math.sqrt(best)) / FIELD_STEP, k1, k2
+
+
+def field_edge(x, y):
+    return field_lookup(x, y)[1]
+
+
+def hedged_boundary(x, y, edge_width=0.05, share=0.55):
+    """True on a boundary that carries a hedge. Only some boundaries do — a
+    hedge on every one reads as random scatter rather than field margins, so
+    the decision is hashed from the pair of fields that meet there and is
+    therefore stable along the whole length of that boundary."""
+    _crop, edge, k1, k2 = field_lookup(x, y)
+    if edge > edge_width:
+        return False
+    a, b = sorted((k1, k2))
+    h = (a[0] * 73856093) ^ (a[1] * 19349663) ^ \
+        (b[0] * 83492791) ^ (b[1] * 2971215073)
+    return (h % 1000) < share * 1000
+
+
+def _terrain_radii():
+    """Uniform fine rings across the farmland belt so the painted field
+    boundaries stay crisp, then geometric growth out to the mountains."""
+    radii, r = [], R_INNER
+    while r < R_DENSE:
+        radii.append(r)
+        r += DENSE_STEP
+    growth = 1.052
+    while r < R_OUTER:
+        radii.append(r)
+        r *= growth
+    radii.append(R_OUTER)
+    return radii
+
+
 def build_terrain(material, col):
-    growth = (R_OUTER / R_INNER) ** (1.0 / (RING_COUNT - 1))
-    radii = [R_INNER * growth ** k for k in range(RING_COUNT)]
+    radii = _terrain_radii()
 
     verts = [(0.0, 0.0, terrain_height(0.0, 0.0))]
+    crop_col, edge_col = [], []
+
+    def sample(x, y, z):
+        nz = terrain_normal(x, y).z
+        d = math.hypot(x, y)
+        crop, edge, _k1, _k2 = field_lookup(x, y)
+        mask = 1.0 if is_field(z, nz, d) else 0.0
+        crop_col.extend((*CROP_COLOURS[crop], mask))
+        e = clamp01(edge / 0.10)
+        edge_col.extend((e, e, e, 1.0))
+
+    sample(0.0, 0.0, verts[0][2])
     for r in radii:
         for j in range(THETA_SEGS):
             a = math.tau * j / THETA_SEGS
             x, y = r * math.cos(a), r * math.sin(a)
-            verts.append((x, y, terrain_height(x, y)))
+            z = terrain_height(x, y)
+            verts.append((x, y, z))
+            sample(x, y, z)
 
     # Everything is quads except a small triangle fan closing the very centre,
     # which sits under the tower's footprint and is never visible.
     faces = [(0, 1 + j, 1 + (j + 1) % THETA_SEGS) for j in range(THETA_SEGS)]
-    for k in range(RING_COUNT - 1):
+    for k in range(len(radii) - 1):
         b0 = 1 + k * THETA_SEGS
         b1 = b0 + THETA_SEGS
         for j in range(THETA_SEGS):
@@ -132,11 +237,16 @@ def build_terrain(material, col):
     me = bpy.data.meshes.new("Terrain")
     me.from_pydata(verts, [], faces)
     me.update()
+    for name, data in (("crop", crop_col), ("edge", edge_col)):
+        attr = me.color_attributes.new(name=name, type='FLOAT_COLOR',
+                                       domain='POINT')
+        attr.data.foreach_set("color", data)
     me.materials.append(material)
     for p in me.polygons:
         p.use_smooth = True
     obj = bpy.data.objects.new("Terrain", me)
     col.objects.link(obj)
+    print(f"  terrain: {len(radii)} rings, {len(faces)} faces")
     return obj
 
 
@@ -182,57 +292,173 @@ def _ring(bm, radius, z, segs, wobble=0.0):
     return out
 
 
-def spruce_template(tiers=3, segs=8, height=9.0):
-    bm = bmesh.new()
-    trunk_h = height * 0.20
-    rings = [_ring(bm, 0.17, 0.0, 6), _ring(bm, 0.12, trunk_h * 1.6, 6)]
-    wt.bridge_rings(bm, rings, mat_index=0)
-    wt.grid_cap(bm, rings[0], mat_index=0)
+def lerp(a, b, t):
+    return a + (b - a) * t
 
-    z = trunk_h
-    span = (height - trunk_h) / tiers
-    for i in range(tiers):
-        f = i / max(1, tiers - 1)
-        r_bot = 2.05 * (1.0 - 0.55 * f)
-        low = _ring(bm, r_bot, z, segs)
-        high = _ring(bm, r_bot * 0.22, z + span * 1.35, segs)
-        wt.bridge_rings(bm, [low, high], mat_index=1)
-        wt.grid_cap(bm, low, mat_index=1)
-        if i == tiers - 1:
-            wt.grid_cap(bm, high, mat_index=1)
-        z += span
+
+def _spike(bm, origin, direction, length, width, mat, taper=0.10):
+    """A tapered four-sided spur — the building block for foliage. Dozens of
+    these give a broken, bushy silhouette, where a single smooth cone reads as
+    a low-poly toy no matter how finely it is subdivided."""
+    d = Vector(direction).normalized()
+    side = d.cross(Vector((0, 0, 1)))
+    side = side.normalized() if side.length > 1e-5 else Vector((1, 0, 0))
+    other = d.cross(side).normalized()
+    rings = []
+    for f, w in ((0.0, width), (1.0, width * taper)):
+        c = Vector(origin) + d * (length * f)
+        rings.append([bm.verts.new(c + side * (sx * w * 0.5) +
+                                   other * (sy * w * 0.5))
+                      for sx, sy in ((-1, -1), (1, -1), (1, 1), (-1, 1))])
+    wt.bridge_rings(bm, rings, mat_index=mat)
+    wt.cap_quad_ring(bm, rings[0], True, mat)
+    wt.cap_quad_ring(bm, rings[-1], False, mat)
+
+
+def _taper_tube(bm, pts, radii, segs, mat):
+    """Tube swept along a polyline — trunks and limbs."""
+    rings = []
+    n = len(pts)
+    for i, (p, r) in enumerate(zip(pts, radii)):
+        t = (pts[min(i + 1, n - 1)] - pts[max(i - 1, 0)]).normalized()
+        side = t.cross(Vector((0, 0, 1)))
+        side = side.normalized() if side.length > 1e-5 else Vector((1, 0, 0))
+        up = side.cross(t).normalized()
+        rings.append([bm.verts.new(p + (side * math.cos(a) + up * math.sin(a)) * r)
+                      for a in (math.tau * j / segs for j in range(segs))])
+    wt.bridge_rings(bm, rings, mat_index=mat)
+    wt.grid_cap(bm, rings[0], mat_index=mat)
+    wt.grid_cap(bm, rings[-1], mat_index=mat)
+
+
+def conifer_mesh(seed, height=12.0, sprigs=130, lod=1):
+    """Spruce: a leaning tapered trunk carrying whorls of foliage spurs that
+    angle up near the crown and droop toward the ground."""
+    rnd = random.Random(seed)
+    bm = bmesh.new()
+    lean = Vector((rnd.uniform(-0.035, 0.035), rnd.uniform(-0.035, 0.035), 0))
+
+    pts, radii = [], []
+    for i in range(7):
+        t = i / 6
+        pts.append(Vector((0, 0, t * height)) + lean * (t * t * height))
+        radii.append(height * 0.017 * (1.0 - 0.85 * t) + 0.02)
+    _taper_tube(bm, pts, radii, 6, 0)
+
+    def trunk_at(t):
+        return Vector((0, 0, t * height)) + lean * (t * t * height)
+
+    count = sprigs if lod else max(48, sprigs // 2)
+    for i in range(count):
+        t = 0.11 + 0.88 * (i / count) ** 0.82
+        crown = height * 0.28 * (1.0 - t) ** 0.80 + height * 0.022
+        ang = rnd.uniform(0.0, math.tau)
+        droop = math.radians(lerp(-34.0, 24.0, t) + rnd.uniform(-9.0, 9.0))
+        d = Vector((math.cos(ang) * math.cos(droop),
+                    math.sin(ang) * math.cos(droop), math.sin(droop)))
+        length = crown * rnd.uniform(0.80, 1.20)
+        _spike(bm, trunk_at(t) + d * (height * 0.010), d, length,
+               length * rnd.uniform(0.26, 0.38), 1)
+
+    _spike(bm, trunk_at(0.97), Vector((0, 0, 1)), height * 0.10,
+           height * 0.022, 1)                        # leader
+    return bm
+
+
+def birch_mesh(seed, height=9.0, clusters=230, lod=1):
+    """Birch: pale trunk, a few rising limbs, and a canopy built from blobby
+    leaf clumps distributed through an ellipsoid."""
+    rnd = random.Random(seed)
+    bm = bmesh.new()
+    fork = height * 0.42
+    lean = Vector((rnd.uniform(-0.05, 0.05), rnd.uniform(-0.05, 0.05), 0))
+
+    pts, radii = [], []
+    for i in range(5):
+        t = i / 4
+        pts.append(Vector((0, 0, t * fork)) + lean * (t * fork))
+        radii.append(height * 0.014 * (1.0 - 0.35 * t))
+    _taper_tube(bm, pts, radii, 6, 2)
+
+    limbs = 3 if lod else 2
+    for k in range(limbs):
+        a = math.tau * k / limbs + rnd.uniform(-0.4, 0.4)
+        tip = Vector((math.cos(a), math.sin(a), 0)) * height * 0.22 + \
+            Vector((0, 0, height * 0.85))
+        base = pts[-1]
+        _taper_tube(bm, [base, base.lerp(tip, 0.55), tip],
+                    [height * 0.010, height * 0.007, height * 0.004], 4, 2)
+
+    count = clusters if lod else max(40, clusters // 4)
+    cz, rx, rz = height * 0.74, height * 0.30, height * 0.27
+    for _ in range(count):
+        u = rnd.uniform(0, math.tau)
+        v = math.acos(rnd.uniform(-1, 1))
+        rr = rnd.uniform(0.35, 1.0) ** 0.5
+        p = Vector((rx * rr * math.sin(v) * math.cos(u),
+                    rx * rr * math.sin(v) * math.sin(u),
+                    cz + rz * rr * math.cos(v)))
+        d = (p - Vector((0, 0, cz))).normalized() + Vector((0, 0, -0.25))
+        size = height * rnd.uniform(0.017, 0.032)
+        _spike(bm, p, d, size * 2.2, size * 1.15, 3, taper=0.32)
+    return bm
+
+
+def shrub_mesh(seed, size=1.8):
+    """Low bush for hedgerows and field margins."""
+    rnd = random.Random(seed)
+    bm = bmesh.new()
+    for _ in range(34):
+        u = rnd.uniform(0, math.tau)
+        lift = rnd.uniform(0.15, 1.0)
+        d = Vector((math.cos(u) * rnd.uniform(0.4, 1.0),
+                    math.sin(u) * rnd.uniform(0.4, 1.0), lift))
+        origin = Vector((math.cos(u) * rnd.uniform(0.0, 0.28) * size,
+                         math.sin(u) * rnd.uniform(0.0, 0.28) * size,
+                         size * rnd.uniform(0.05, 0.35)))
+        _spike(bm, origin, d, size * rnd.uniform(0.45, 0.85),
+               size * rnd.uniform(0.14, 0.24), 1, taper=0.30)
+    return bm
+
+
+def grass_tuft_template(seed, size=0.5):
+    """Small crossed blades — merged rather than instanced, since each tuft is
+    only a handful of faces and there are thousands of them."""
+    rnd = random.Random(seed)
+    bm = bmesh.new()
+    for _ in range(5):
+        u = rnd.uniform(0, math.tau)
+        d = Vector((math.cos(u) * rnd.uniform(0.15, 0.55),
+                    math.sin(u) * rnd.uniform(0.15, 0.55),
+                    rnd.uniform(0.8, 1.3)))
+        _spike(bm, Vector((0, 0, 0)), d, size * rnd.uniform(0.7, 1.4),
+               size * rnd.uniform(0.10, 0.18), 0, taper=0.05)
     return template_from_bmesh(bm)
 
 
-def birch_template(segs=8, height=7.5):
-    bm = bmesh.new()
-    trunk_h = height * 0.45
-    rings = [_ring(bm, 0.13, 0.0, 6), _ring(bm, 0.09, trunk_h, 6)]
-    wt.bridge_rings(bm, rings, mat_index=2)
-    wt.grid_cap(bm, rings[0], mat_index=2)
-
-    canopy = [
-        _ring(bm, 0.55, trunk_h * 0.85, segs),
-        _ring(bm, 1.45, trunk_h + height * 0.20, segs),
-        _ring(bm, 1.30, trunk_h + height * 0.40, segs),
-        _ring(bm, 0.45, height * 1.05, segs),
-    ]
-    wt.bridge_rings(bm, canopy, mat_index=3)
-    wt.grid_cap(bm, canopy[0], mat_index=3)
-    wt.grid_cap(bm, canopy[-1], mat_index=3)
-    return template_from_bmesh(bm)
+def mesh_datablock(name, bm, materials):
+    """Freeze a template bmesh into a Mesh datablock. Objects sharing one
+    datablock are true instances in Cycles, so a detailed tree costs its
+    geometry once no matter how many stand in the forest."""
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
+    me = bpy.data.meshes.new(name)
+    bm.to_mesh(me)
+    bm.free()
+    for m in materials:
+        me.materials.append(m)
+    return me
 
 
 def boulder_template(seed):
     rnd = random.Random(seed)
     bm = bmesh.new()
     rings = []
-    lat = 4
+    lat = 6
     for i in range(1, lat):
         phi = math.pi * i / lat
-        rings.append(_ring(bm, math.sin(phi) * rnd.uniform(0.85, 1.15),
-                           math.cos(phi) * 0.7, 8,
-                           wobble=rnd.uniform(0.08, 0.22)))
+        rings.append(_ring(bm, math.sin(phi) * rnd.uniform(0.88, 1.12),
+                           math.cos(phi) * 0.72, 10,
+                           wobble=rnd.uniform(0.06, 0.16)))
     wt.bridge_rings(bm, rings, mat_index=0)
     wt.grid_cap(bm, rings[0], mat_index=0)
     wt.grid_cap(bm, rings[-1], mat_index=0)
@@ -251,8 +477,19 @@ def forest_density(x, y, h, nz, d):
     return clamp01(dens)
 
 
-def scatter_forest(templates, col, materials):
-    placements = []
+def link_instance(mesh, mtx, col, name):
+    obj = bpy.data.objects.new(name, mesh)
+    obj.matrix_world = mtx
+    col.objects.link(obj)
+    return obj
+
+
+def scatter_forest(meshes, col, cam_pos, lod_dist=300.0):
+    """Place trees as instances of shared mesh datablocks. Trees nearer the
+    camera than `lod_dist` get the detailed template; the rest get a reduced
+    one, so the detail budget goes where it is actually resolvable."""
+    conifers_near, conifers_far, birches_near, birches_far = meshes
+    counts = [0, 0]
     steps = int(2 * FOREST_RADIUS / TREE_SPACING)
     for j in range(steps):
         for i in range(steps):
@@ -267,16 +504,91 @@ def scatter_forest(templates, col, materials):
                 continue
             if RND.random() > forest_density(x, y, h, nz, d) * 0.85:
                 continue
+
+            near = (Vector((x, y, h)) - cam_pos).length < lod_dist
             # birch keeps to the sheltered lower ground, spruce takes the rest
-            birch = h < 60.0 and RND.random() < 0.30
-            scale = RND.uniform(0.72, 1.35) * (0.85 if birch else 1.0)
-            mtx = (Matrix.Translation(Vector((x, y, h - 0.25))) @
+            birch = h < 70.0 and RND.random() < 0.28
+            pool = ((birches_near if near else birches_far) if birch
+                    else (conifers_near if near else conifers_far))
+            mesh = pool[RND.randrange(len(pool))]
+            counts[0 if near else 1] += 1
+
+            scale = RND.uniform(0.68, 1.35)
+            mtx = (Matrix.Translation(Vector((x, y, h - 0.2))) @
                    Matrix.Rotation(RND.uniform(0, math.tau), 4, 'Z') @
-                   Matrix.Diagonal((scale * RND.uniform(0.85, 1.1), scale,
-                                    scale * RND.uniform(0.9, 1.25), 1.0)))
-            placements.append((1 if birch else 0, mtx))
-    print(f"  scattered {len(placements)} trees")
-    return instance_mesh("Forest", templates, placements, materials, col)
+                   Matrix.Diagonal((scale * RND.uniform(0.88, 1.12), scale,
+                                    scale * RND.uniform(0.9, 1.2), 1.0)))
+            link_instance(mesh, mtx, col, "Tree")
+    print(f"  scattered {sum(counts)} trees ({counts[0]} detailed, "
+          f"{counts[1]} reduced)")
+
+
+def scatter_hedgerows(meshes, col, cam_pos, trees_near=None,
+                      trees_far=None, lod_dist=300.0):
+    """Bushes and field trees along the boundaries between fields — the single
+    strongest cue that the patchwork is farmland and not coloured ground."""
+    placed = 0
+    step = 1.7
+    steps = int(2 * FIELD_OUTER / step)
+    for j in range(steps):
+        for i in range(steps):
+            x = -FIELD_OUTER + (i + RND.random()) * step
+            y = -FIELD_OUTER + (j + RND.random()) * step
+            d = math.hypot(x, y)
+            h = terrain_height(x, y)
+            nz = terrain_normal(x, y).z
+            if not is_field(h, nz, d):
+                continue
+            if field_edge(x, y) > 0.055 or RND.random() > 0.42:
+                continue
+            if (Vector((x, y, h)) - cam_pos).length > 420.0:
+                continue
+            near = (Vector((x, y, h)) - cam_pos).length < lod_dist
+            if trees_near and RND.random() < 0.08:
+                pool = trees_near if near else trees_far
+                scale = RND.uniform(0.55, 0.95)
+            else:
+                pool = meshes
+                scale = RND.uniform(0.7, 1.15)
+            mtx = (Matrix.Translation(Vector((x, y, h - 0.15))) @
+                   Matrix.Rotation(RND.uniform(0, math.tau), 4, 'Z') @
+                   Matrix.Diagonal((scale, scale, scale * RND.uniform(0.8, 1.2),
+                                    1.0)))
+            link_instance(pool[RND.randrange(len(pool))], mtx, col, "Hedge")
+            placed += 1
+    print(f"  scattered {placed} hedgerow bushes")
+
+
+def scatter_grass(template, col, materials, cam_pos, radius=135.0, step=1.5):
+    """Dense tufts near the camera so the foreground is not a bare colour
+    field. Merged into one mesh — each tuft is only a few faces."""
+    placements = []
+    steps = int(2 * radius / step)
+    origin = Vector((cam_pos.x, cam_pos.y, 0.0))
+    for j in range(steps):
+        for i in range(steps):
+            x = origin.x - radius + (i + RND.random()) * step
+            y = origin.y - radius + (j + RND.random()) * step
+            flat = math.hypot(x - cam_pos.x, y - cam_pos.y)
+            if flat > radius:
+                continue
+            fade = 1.0 - smoothstep(radius * 0.45, radius, flat)
+            if RND.random() > 0.85 * fade:
+                continue
+            h = terrain_height(x, y)
+            nz = terrain_normal(x, y).z
+            d = math.hypot(x, y)
+            if h > FIELD_MAX_ALT + 30.0 or nz < 0.80:
+                continue
+            if is_field(h, nz, d) and field_edge(x, y) > 0.05:
+                continue          # keep tufts out of the ploughed crop itself
+            s = RND.uniform(0.7, 1.6)
+            mtx = (Matrix.Translation(Vector((x, y, h - 0.05))) @
+                   Matrix.Rotation(RND.uniform(0, math.tau), 4, 'Z') @
+                   Matrix.Diagonal((s, s, s * RND.uniform(0.8, 1.5), 1.0)))
+            placements.append((0, mtx))
+    print(f"  scattered {len(placements)} grass tufts")
+    return instance_mesh("Grass", [template], placements, materials, col)
 
 
 def scatter_boulders(templates, col, materials):
@@ -293,7 +605,7 @@ def scatter_boulders(templates, col, materials):
         nz = terrain_normal(x, y).z
         if is_field(h, nz, d) or nz > 0.985:
             continue
-        s = RND.uniform(0.8, 3.4) * (1.0 + smoothstep(80.0, 220.0, h) * 1.8)
+        s = RND.uniform(0.5, 1.9) * (1.0 + smoothstep(80.0, 220.0, h) * 1.1)
         mtx = (Matrix.Translation(Vector((x, y, h - s * 0.25))) @
                Matrix.Rotation(RND.uniform(0, math.tau), 4, 'Z') @
                Matrix.Rotation(RND.uniform(-0.3, 0.3), 4, 'X') @
@@ -324,60 +636,28 @@ def add_haze(nt, color_socket, bsdf):
     nt.links.new(mix.outputs["Color"], bsdf.inputs["Base Color"])
 
 
-def _field_mask(nt, geo):
-    """Rebuild `is_field` in shader nodes so the painted fields land exactly
-    where the tree scatter left room for them."""
+def _field_inputs(nt, geo):
+    """Field data is painted onto the terrain in Python (see field_lookup), so
+    the material and the hedgerow geometry agree on exactly where each field
+    begins and ends."""
     ln = nt.links
+    crop = nt.nodes.new("ShaderNodeAttribute")
+    crop.attribute_name = "crop"
+    edge = nt.nodes.new("ShaderNodeAttribute")
+    edge.attribute_name = "edge"
     sep_p = nt.nodes.new("ShaderNodeSeparateXYZ")
     ln.new(geo.outputs["Position"], sep_p.inputs["Vector"])
     sep_n = nt.nodes.new("ShaderNodeSeparateXYZ")
     ln.new(geo.outputs["Normal"], sep_n.inputs["Vector"])
-
-    flat = nt.nodes.new("ShaderNodeMapRange")     # nz > FIELD_MIN_FLAT
-    flat.inputs["From Min"].default_value = FIELD_MIN_FLAT - 0.012
-    flat.inputs["From Max"].default_value = FIELD_MIN_FLAT + 0.012
-    flat.clamp = True
-    ln.new(sep_n.outputs["Z"], flat.inputs["Value"])
-
-    low = nt.nodes.new("ShaderNodeMapRange")      # h < FIELD_MAX_ALT
-    low.inputs["From Min"].default_value = FIELD_MAX_ALT
-    low.inputs["From Max"].default_value = FIELD_MAX_ALT - 9.0
-    low.clamp = True
-    ln.new(sep_p.outputs["Z"], low.inputs["Value"])
-
-    dist = nt.nodes.new("ShaderNodeVectorMath")   # radial distance
-    dist.operation = 'LENGTH'
-    xy = nt.nodes.new("ShaderNodeCombineXYZ")
-    ln.new(sep_p.outputs["X"], xy.inputs["X"])
-    ln.new(sep_p.outputs["Y"], xy.inputs["Y"])
-    ln.new(xy.outputs["Vector"], dist.inputs[0])
-    belt = nt.nodes.new("ShaderNodeMapRange")
-    belt.inputs["From Min"].default_value = FIELD_OUTER
-    belt.inputs["From Max"].default_value = FIELD_OUTER - 26.0
-    belt.clamp = True
-    ln.new(dist.outputs["Value"], belt.inputs["Value"])
-    inner = nt.nodes.new("ShaderNodeMapRange")
-    inner.inputs["From Min"].default_value = FIELD_INNER
-    inner.inputs["From Max"].default_value = FIELD_INNER + 12.0
-    inner.clamp = True
-    ln.new(dist.outputs["Value"], inner.inputs["Value"])
-
-    mask = flat.outputs["Result"]
-    for other in (low.outputs["Result"], belt.outputs["Result"],
-                  inner.outputs["Result"]):
-        mul = nt.nodes.new("ShaderNodeMath")
-        mul.operation = 'MULTIPLY'
-        ln.new(mask, mul.inputs[0])
-        ln.new(other, mul.inputs[1])
-        mask = mul.outputs["Value"]
-    return mask, sep_p, sep_n
+    return crop, edge, sep_p, sep_n
 
 
 def make_terrain_material():
     m, nt, bsdf = _nodes("ENV_Terrain")
     ln = nt.links
     geo = nt.nodes.new("ShaderNodeNewGeometry")
-    mask, sep_p, sep_n = _field_mask(nt, geo)
+    crop_attr, edge_attr, sep_p, sep_n = _field_inputs(nt, geo)
+    mask = crop_attr.outputs["Alpha"]
 
     # --- meadow / rough grass base
     gnoise = nt.nodes.new("ShaderNodeTexNoise")
@@ -397,27 +677,14 @@ def make_terrain_material():
                        (0.80, (0.072, 0.115, 0.038, 1))])
     ln.new(gmix.outputs["Color"], grass.inputs["Fac"])
 
-    # --- farmland: Voronoi fields, one crop per cell, furrows and hedgerows
-    fields = nt.nodes.new("ShaderNodeTexVoronoi")
-    fields.inputs["Scale"].default_value = 0.032
-    fields.inputs["Randomness"].default_value = 0.9
-    ln.new(geo.outputs["Position"], fields.inputs["Vector"])
-    crop_id = nt.nodes.new("ShaderNodeRGBToBW")
-    ln.new(fields.outputs["Color"], crop_id.inputs["Color"])
-    crops = _ramp(nt, [(0.00, (0.052, 0.098, 0.030, 1)),   # pasture
-                       (0.20, (0.205, 0.160, 0.062, 1)),   # ripe barley
-                       (0.40, (0.098, 0.066, 0.043, 1)),   # ploughed earth
-                       (0.60, (0.245, 0.205, 0.058, 1)),   # rapeseed
-                       (0.80, (0.185, 0.150, 0.065, 1))])  # stubble
-    crops.color_ramp.interpolation = 'CONSTANT'
-    ln.new(crop_id.outputs["Val"], crops.inputs["Fac"])
-
-    # Rotate the plough direction per field, driven by the same random value
-    # that picks the crop, so neighbouring fields never share a furrow angle.
+    # --- farmland: crop colour from the painted attribute, furrows rotated
+    # per field by the same value, and a grassy margin toward the hedgerows
+    crop_bw = nt.nodes.new("ShaderNodeRGBToBW")
+    ln.new(crop_attr.outputs["Color"], crop_bw.inputs["Color"])
     angle = nt.nodes.new("ShaderNodeMath")
     angle.operation = 'MULTIPLY'
-    angle.inputs[1].default_value = math.pi
-    ln.new(crop_id.outputs["Val"], angle.inputs[0])
+    angle.inputs[1].default_value = math.pi * 3.0
+    ln.new(crop_bw.outputs["Val"], angle.inputs[0])
     rot_vec = nt.nodes.new("ShaderNodeCombineXYZ")
     ln.new(angle.outputs["Value"], rot_vec.inputs["Z"])
     furrow_map = nt.nodes.new("ShaderNodeMapping")
@@ -434,7 +701,7 @@ def make_terrain_material():
     ploughed = nt.nodes.new("ShaderNodeMixRGB")
     ploughed.blend_type = 'MULTIPLY'
     ploughed.inputs["Fac"].default_value = 0.55
-    ln.new(crops.outputs["Color"], ploughed.inputs["Color1"])
+    ln.new(crop_attr.outputs["Color"], ploughed.inputs["Color1"])
     ln.new(furrow_ramp.outputs["Color"], ploughed.inputs["Color2"])
 
     fwear = nt.nodes.new("ShaderNodeTexNoise")
@@ -450,21 +717,12 @@ def make_terrain_material():
     ln.new(ploughed.outputs["Color"], worn.inputs["Color1"])
     ln.new(fwear_ramp.outputs["Color"], worn.inputs["Color2"])
 
-    edges = nt.nodes.new("ShaderNodeTexVoronoi")   # hedgerow / field margin
-    edges.feature = 'DISTANCE_TO_EDGE'
-    edges.inputs["Scale"].default_value = 0.032
-    edges.inputs["Randomness"].default_value = 0.9
-    ln.new(geo.outputs["Position"], edges.inputs["Vector"])
-    # distance-to-edge is measured in the Voronoi's own scaled space and only
-    # spans about 0..0.5, so the hedgerow band lives at small values
-    hedge = _ramp(nt, [(0.010, (0.150, 0.190, 0.090, 1)),
-                       (0.055, (1.0, 1.0, 1.0, 1))])
-    ln.new(edges.outputs["Distance"], hedge.inputs["Fac"])
+    margin = _ramp(nt, [(0.0, (0.0, 0.0, 0.0, 1)), (0.45, (1.0, 1.0, 1.0, 1))])
+    ln.new(edge_attr.outputs["Color"], margin.inputs["Fac"])
     farmland = nt.nodes.new("ShaderNodeMixRGB")
-    farmland.blend_type = 'MULTIPLY'
-    farmland.inputs["Fac"].default_value = 1.0
-    ln.new(worn.outputs["Color"], farmland.inputs["Color1"])
-    ln.new(hedge.outputs["Color"], farmland.inputs["Color2"])
+    ln.new(margin.outputs["Color"], farmland.inputs["Fac"])
+    ln.new(grass.outputs["Color"], farmland.inputs["Color1"])
+    ln.new(worn.outputs["Color"], farmland.inputs["Color2"])
 
     ground = nt.nodes.new("ShaderNodeMixRGB")
     ln.new(mask, ground.inputs["Fac"])
@@ -594,12 +852,18 @@ def setup_sky(scene, sun_elev_deg=30.0, sun_rot_deg=196.0):
     return sun
 
 
+def camera_position(base_z):
+    """Shared so the scatter passes can bias detail toward the camera before
+    the camera object itself exists."""
+    return Vector((50.0, -60.0, base_z + 17.0))
+
+
 def setup_camera(scene, base_z):
     data = bpy.data.cameras.new("Camera")
     data.lens = 35
     data.clip_end = 6000.0
     cam = bpy.data.objects.new("Camera", data)
-    cam.location = Vector((50.0, -60.0, base_z + 17.0))
+    cam.location = camera_position(base_z)
     scene.collection.objects.link(cam)
     # aim to one side of the tower so it sits off-centre
     wt.look_at(cam, Vector((9.0, 10.0, base_z + 12.0)))
@@ -636,9 +900,37 @@ def main():
         (0.3, (0.042, 0.040, 0.038, 1)),
         (0.8, (0.098, 0.092, 0.084, 1))], rough=0.95, var_scale=0.5)
 
+    grassmat = make_foliage_material("ENV_GrassBlade", [
+        (0.3, (0.030, 0.058, 0.014, 1)),
+        (0.8, (0.070, 0.105, 0.030, 1))], rough=0.86, var_scale=0.35)
+
+    tree_mats = [bark, needles, birch_bark, birch_leaf]
+    conifers_near = [mesh_datablock(f"Conifer{s}", conifer_mesh(
+        s, height=RND.uniform(10.5, 15.0), lod=1), tree_mats)
+        for s in range(4)]
+    conifers_far = [mesh_datablock(f"ConiferLod{s}", conifer_mesh(
+        s, height=RND.uniform(10.5, 15.0), lod=0), tree_mats)
+        for s in range(3)]
+    birches_near = [mesh_datablock(f"Birch{s}", birch_mesh(
+        20 + s, height=RND.uniform(7.5, 10.5), lod=1), tree_mats)
+        for s in range(3)]
+    birches_far = [mesh_datablock(f"BirchLod{s}", birch_mesh(
+        20 + s, height=RND.uniform(7.5, 10.5), lod=0), tree_mats)
+        for s in range(2)]
+    bushes = [mesh_datablock(f"Shrub{s}", shrub_mesh(40 + s,
+                                                     size=RND.uniform(1.6, 2.8)),
+                             tree_mats) for s in range(4)]
+    unique = sum(len(m.polygons) for m in
+                 conifers_near + conifers_far + birches_near + birches_far +
+                 bushes)
+
+    cam_pos = camera_position(_H0)
     print("scattering:")
-    scatter_forest([spruce_template(), birch_template()], col,
-                   [bark, needles, birch_bark, birch_leaf])
+    scatter_forest([conifers_near, conifers_far, birches_near, birches_far],
+                   col, cam_pos)
+    scatter_hedgerows(bushes, col, cam_pos, trees_near=birches_near,
+                      trees_far=birches_far)
+    scatter_grass(grass_tuft_template(3), col, [grassmat], cam_pos)
     scatter_boulders([boulder_template(s) for s in range(4)], col, [rockmat])
 
     tower = wt.build_watchtower(col)
@@ -646,8 +938,11 @@ def main():
         obj.location.z = _H0
     print(f"tower objects placed at z={_H0:.2f}")
 
-    total = sum(len(o.data.polygons) for o in col.objects)
-    print(f"scene faces: {total}")
+    # instanced objects share mesh data, so unique geometry is what Cycles
+    # actually stores; the evaluated total is much larger
+    evaluated = sum(len(o.data.polygons) for o in col.objects
+                    if o.type == 'MESH')
+    print(f"unique vegetation faces: {unique}   evaluated scene: {evaluated}")
 
     scene.render.engine = 'CYCLES'
     scene.cycles.device = 'CPU'

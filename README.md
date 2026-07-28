@@ -160,12 +160,13 @@ minute. It is saved compressed (28.1 MB uncompressed vs 10.9 MB compressed).
 
 ### Terrain
 
-The ground is a **radial** grid rather than a square one: 224 spokes and 150
-rings whose spacing grows geometrically from 3 m out to 2.6 km. Detail lands
-where the camera is while the distant mountains cost almost nothing — a uniform
-grid fine enough for the foreground would need roughly twenty times the faces to
-reach as far. It is all quads apart from a small triangle fan closing the very
-centre, which sits under the tower's footprint and is never visible.
+The ground is a **radial** grid rather than a square one: 384 spokes, with
+uniform fine rings across the farmland belt and geometric growth beyond it out
+to 2.6 km — 130 rings and about 50,000 faces in total. Detail lands where the
+camera is while the distant mountains cost almost nothing; a uniform grid fine
+enough for the foreground would need many times the faces to reach as far. It is
+all quads apart from a small triangle fan closing the very centre, which sits
+under the tower's footprint and is never visible.
 
 Height is three layers: a rolling farmland basin, forested foothills, and a
 ridged-noise mountain range. The peak height and distance are tuned together so
@@ -175,19 +176,42 @@ pad is blended in under the tower so it does not sit on a slope.
 ### Farmland, forest and the rule they share
 
 A single predicate decides what ground can be ploughed — low enough, level
-enough, and inside a belt around the tower. `is_field()` implements it in Python
-for the tree scatter, and `_field_mask()` rebuilds the *same* thresholds in
-shader nodes for the material. Because both read the same altitude, slope and
-radius, fields and forest never contend for the same ground: trees settle on
-slopes too steep to plough and out past the farmland belt.
+enough, and inside a belt around the tower. `is_field()` implements it, and the
+tree scatter obeys it, so fields and forest never contend for the same ground:
+trees settle on slopes too steep to plough and out past the farmland belt.
 
-Fields themselves are a Voronoi partition with a constant-interpolation ramp
-picking one crop per cell from a five-colour palette. The same per-cell random
-value also rotates a wave texture, so every field's furrows run at their own
-angle, and a distance-to-edge pass draws the hedgerows.
+The field partition itself is computed **in Python**, not as a shader Voronoi.
+Seeds sit on a jittered grid, and for any point the two nearest seeds give both
+the crop and the distance to the boundary between them. Crop colour and that
+boundary distance are painted onto the terrain as vertex colour attributes which
+the material reads. This is what lets hedgerow bushes stand exactly on the
+boundaries the material draws — a shader Voronoi is crisper, but the scatter
+could never find its edges. The fine inner rings exist to keep those painted
+boundaries from blurring.
 
-Spruce and birch are built once as templates and stamped out with
-`from_pydata` — around 6,700 trees, far faster than driving bmesh per instance.
+Hedges go on only about half the boundaries, chosen by hashing the pair of
+fields that meet there. That decision is stable along a boundary's whole length,
+so hedges form continuous lines; scattering on *every* boundary reads as random
+dots rather than field margins.
+
+### Vegetation
+
+Trees are built from dozens of tapered four-sided spurs rather than a smooth
+cone — a cone reads as a low-poly toy no matter how finely it is subdivided,
+while the spurs give a broken, bushy silhouette. Spruce spurs angle up near the
+crown and droop toward the ground; birch carries a canopy of leaf clumps on a
+few rising limbs.
+
+That detail is affordable because trees are **real instances**: objects sharing
+one mesh datablock, which Cycles stores once no matter how many stand in the
+forest. Around 6,800 trees plus bushes, grass tufts and boulders evaluate to
+roughly 3.4 million faces from about 7,400 unique ones.
+
+Templates come in two levels of detail, picked per tree by distance to the
+camera so the budget goes where it is resolvable. The level has to come from the
+camera distance and nothing else — an earlier version handed hedgerow trees the
+reduced template unconditionally, and a coarse one landing in the foreground was
+immediately obvious.
 
 ### Lighting
 
