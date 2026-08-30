@@ -98,12 +98,26 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
   if(!DATA || typeof DATA !== 'object') DATA = { rooms:{} };
   if(!DATA.rooms) DATA.rooms = {};
 
+  function loadLocal(){ try { return JSON.parse(localStorage.getItem('spuelplan-data')||'null'); } catch(e){ return null; } }
+  function saveLocal(){ try { localStorage.setItem('spuelplan-data', JSON.stringify(DATA)); } catch(e){} }
+  // Änderungen bleiben auf diesem Gerät erhalten: pro Raum gewinnt die neuere Version (updatedAt).
+  (function(){
+    var local = loadLocal();
+    if(local && local.rooms){
+      Object.keys(local.rooms).forEach(function(k){
+        var lr = local.rooms[k], er = DATA.rooms[k];
+        if(!er || (lr.updatedAt||0) >= (er.updatedAt||0)) DATA.rooms[k] = lr;
+      });
+    }
+    saveLocal();
+  })();
+
   var TAGE = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
   var KURZ = ["Mo","Di","Mi","Do","Fr","Sa","So"];
   var PIN = null;
   try { PIN = localStorage.getItem('spuelplan-pin'); } catch(e){}
   var TAB = 'heute';
-  var READONLY = false;
+  var SYNCOFF = false;
   var ERROR = '';
   var NOW = Date.now();
 
@@ -128,7 +142,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
     return d.toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})
       + ', ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
   }
-  function defaultRoom(){ return { namen:['Person 1','Person 2'], plan:[0,0,0,0,0,1,1], offen:false, seit:null, log:[] }; }
+  function defaultRoom(){ return { namen:['Person 1','Person 2'], plan:[0,0,0,0,0,1,1], offen:false, seit:null, log:[], updatedAt: Date.now() }; }
   function room(){ return PIN ? DATA.rooms[PIN] : null; }
 
   function buildDoc(data){
@@ -146,27 +160,30 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
   }
 
   function save(mutator){
-    var backup = JSON.stringify(DATA);
     try { mutator(DATA); } catch(e){}
+    var r = DATA.rooms[PIN]; if(r) r.updatedAt = Date.now();
     ERROR = '';
+    saveLocal();                 // sofort dauerhaft auf diesem Gerät – geht nie verloren
     render();
     var c = window.claude;
-    if(!c || !c.use){ READONLY = true; DATA = JSON.parse(backup); render(); return; }
+    if(!c || !c.use){ SYNCOFF = true; render(); return; }
     try { sessionStorage.setItem('spuelplan-tab', TAB); } catch(e){}
+    try { sessionStorage.setItem('spuelplan-scroll', String(window.scrollY||0)); } catch(e){}
     c.use('artifact').then(function(api){
-      if(!api){ READONLY = true; DATA = JSON.parse(backup); render(); return; }
+      if(!api){ SYNCOFF = true; render(); return; }
+      SYNCOFF = false;
       api.publish(buildDoc(DATA)).then(function(){
-        /* Erfolg: die Ansicht wird von der Plattform neu geladen */
+        /* Erfolg: die Plattform lädt alle offenen Ansichten neu */
       }).catch(function(err){
         var code = err && err.code;
-        if(code==='conflict'){ return; }
+        if(code==='conflict'){ return; } // lädt zur Gewinner-Version; lokale Änderung bleibt erhalten
         if(code==='not_writer'||code==='not_granted'||code==='consent_required'||code==='capability_disabled'||code==='not_declared'){
-          READONLY = true; DATA = JSON.parse(backup); render(); return;
+          SYNCOFF = true; render(); return;
         }
-        ERROR = 'Nicht gespeichert. Bitte nochmal versuchen.';
-        DATA = JSON.parse(backup); render();
+        ERROR = 'Konnte nicht mit anderen synchronisieren – lokal gespeichert.';
+        render();
       });
-    }).catch(function(){ READONLY = true; DATA = JSON.parse(backup); render(); });
+    }).catch(function(){ SYNCOFF = true; render(); });
   }
 
   function doJoin(){
@@ -200,7 +217,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
     return '<div class="wrap center"><div class="pincard">'
       + '<h1 class="brand">Spülplan</h1>'
       + '<p class="sub">Die PIN <b>'+esc(PIN)+'</b> gibt es noch nicht.'
-      + (READONLY ? ' In diesem Fenster kannst du keine neue anlegen (nur Ansicht).' : '')
+      + ''
       + '</p>'
       + '<button data-action="leave" class="btn btn-dark big" style="margin-top:16px">Andere PIN</button>'
       + '</div></div>';
@@ -216,17 +233,17 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
         + '<p class="eyebrow mt">Wer hat es gemacht?</p>'
         + '<div class="row2">';
       for(var i=0;i<r.namen.length;i++){
-        h += '<button data-action="done" data-p="'+i+'" class="btn fill'+i+' white hard"'+(READONLY?' disabled':'')+'>'+esc(r.namen[i])+'</button>';
+        h += '<button data-action="done" data-p="'+i+'" class="btn fill'+i+' white hard"'+'>'+esc(r.namen[i])+'</button>';
       }
       h += '</div></div>';
-      h += '<button data-action="undo" class="btn ghost small"'+(READONLY?' disabled':'')+'>Doch nicht fertig – zurücknehmen</button>';
+      h += '<button data-action="undo" class="btn ghost small"'+'>Doch nicht fertig – zurücknehmen</button>';
     } else {
       h += '<div class="card white">'
         + '<p class="eyebrow muted">Nichts zu tun</p>'
         + '<p class="huge">Alles erledigt</p>'
         + '<p class="line text'+dran+'">Wenn etwas ansteht, ist heute '+esc(r.namen[dran]||'?')+' dran.</p>'
         + '</div>';
-      h += '<button data-action="fertig" class="bigdark"'+(READONLY?' disabled':'')+'>'
+      h += '<button data-action="fertig" class="bigdark"'+'>'
         + '<span class="bd-eyebrow">Für alle</span>'
         + '<span class="bd-title">Spülmaschine ist fertig</span>'
         + '</button>';
@@ -245,7 +262,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
   function viewPlan(r){
     var h = '<div class="card white"><p class="eyebrow muted">Namen</p>';
     for(var i=0;i<r.namen.length;i++){
-      h += '<input data-action="name" data-i="'+i+'" value="'+esc(r.namen[i])+'" class="nameinput soft'+i+'"'+(READONLY?' disabled':'')+'>';
+      h += '<input data-action="name" data-i="'+i+'" value="'+esc(r.namen[i])+'" class="nameinput soft'+i+'"'+'>';
     }
     h += '</div>';
     h += '<div class="card white"><p class="eyebrow muted">Wer hat welchen Tag?</p>';
@@ -253,11 +270,11 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
       h += '<div class="dayrow"><span class="dayname">'+TAGE[d]+'</span>';
       for(var p=0;p<r.namen.length;p++){
         var on = r.plan[d]===p;
-        h += '<button data-action="tag" data-i="'+d+'" data-p="'+p+'" class="pick'+(on?' on fill'+p:'')+'"'+(READONLY?' disabled':'')+'>'+esc(r.namen[p])+'</button>';
+        h += '<button data-action="tag" data-i="'+d+'" data-p="'+p+'" class="pick'+(on?' on fill'+p:'')+'"'+'>'+esc(r.namen[p])+'</button>';
       }
       h += '</div>';
     }
-    h += '<button data-action="resetplan" class="btn ghost small mt"'+(READONLY?' disabled':'')+'>Vorlage: Mo–Fr / Sa–So</button>';
+    h += '<button data-action="resetplan" class="btn ghost small mt"'+'>Vorlage: Mo–Fr / Sa–So</button>';
     h += '</div>';
     return h;
   }
@@ -269,7 +286,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
       r.log.forEach(function(e){
         h += '<div class="logrow"><span class="dot fill'+e.p+'"></span><span class="logname">'+esc(r.namen[e.p]||'?')+'</span><span class="logdate">'+esc(datumText(e.t))+'</span></div>';
       });
-      h += '<button data-action="clearlog" class="btn ghost small mt"'+(READONLY?' disabled':'')+'>Verlauf löschen</button>';
+      h += '<button data-action="clearlog" class="btn ghost small mt"'+'>Verlauf löschen</button>';
     }
     h += '</div>';
     return h;
@@ -300,7 +317,7 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
       h += '<button data-action="tab" data-tab="'+t[0]+'" class="tab'+(TAB===t[0]?' active':'')+'">'+t[1]+'</button>';
     });
     h += '</div>';
-    if(READONLY) h += '<p class="ro">Nur-Ansicht: Du kannst den Plan sehen, aber in diesem Fenster nicht ändern.</p>';
+    if(SYNCOFF) h += '<p class="ro">Auf diesem Gerät gespeichert. Zum Teilen mit anderen: die Seite in Claude öffnen (siehe „Teilen").</p>';
     if(ERROR) h += '<p class="warn">'+esc(ERROR)+'</p>';
     if(TAB==='heute') h += viewHeute(r,dran,zaehl,gesamt);
     else if(TAB==='plan') h += viewPlan(r);
@@ -344,6 +361,10 @@ button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-of
 
   try { var st = sessionStorage.getItem('spuelplan-tab'); if(st){ TAB = st; sessionStorage.removeItem('spuelplan-tab'); } } catch(e){}
   render();
+  try {
+    var sc = sessionStorage.getItem('spuelplan-scroll');
+    if(sc!==null){ sessionStorage.removeItem('spuelplan-scroll'); requestAnimationFrame(function(){ window.scrollTo(0, (+sc)||0); }); }
+  } catch(e){}
   setInterval(function(){
     NOW = Date.now();
     if(PIN && TAB==='heute'){ var r=room(); if(r && r.offen) render(); }
