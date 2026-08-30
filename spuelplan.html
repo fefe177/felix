@@ -1,0 +1,352 @@
+<title>Spülplan</title>
+<style id="css">
+*{box-sizing:border-box}
+html,body{margin:0}
+:root{
+  --bg:#f5f5f4; --ink:#1c1917; --paper:#ffffff;
+  --stone200:#e7e5e4; --stone300:#d6d3d1; --stone400:#a8a29e; --stone500:#78716c;
+  --amber:#fcd34d; --amber-soft:#fef3c7;
+  --p0:#0ea5e9; --p0-soft:#e0f2fe; --p0-text:#0369a1;
+  --p1:#f43f5e; --p1-soft:#ffe4e6; --p1-text:#be123c;
+  --shadow:4px 4px 0 var(--ink); --shadow-sm:3px 3px 0 var(--ink);
+}
+body{background:var(--bg);color:var(--ink);
+  font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  -webkit-font-smoothing:antialiased;}
+.wrap{max-width:460px;margin:0 auto;padding:22px 16px 40px;}
+.center{min-height:100vh;display:flex;flex-direction:column;justify-content:center;}
+.brand{font-size:30px;font-weight:900;letter-spacing:-0.02em;text-transform:uppercase;margin:0;line-height:1;}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:16px;}
+.today-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.14em;color:var(--stone500);margin-top:6px;}
+.pinbox{display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex:none;}
+.pinchip{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.08em;background:var(--ink);color:#fff;padding:5px 9px;border-radius:8px;}
+.leave{border:2px solid var(--ink);background:var(--paper);color:var(--ink);font-weight:800;font-size:11px;border-radius:8px;padding:3px 8px;cursor:pointer;}
+.grid7{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:18px;}
+.daycell{border:2px solid var(--stone200);border-radius:10px;padding:7px 2px;text-align:center;}
+.daycell.today{border-color:var(--ink);}
+.dk{font-size:11px;font-weight:900;}
+.dn{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 2px;}
+.tabs{display:flex;gap:8px;margin-bottom:18px;}
+.tab{flex:1;border:2px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:12px;padding:9px 0;font-weight:800;font-size:14px;cursor:pointer;}
+.tab.active{background:var(--ink);color:#fff;}
+.card{border:2px solid var(--ink);border-radius:18px;padding:20px;box-shadow:var(--shadow);margin-bottom:14px;}
+.card.amber{background:var(--amber);}
+.card.white{background:var(--paper);}
+.eyebrow{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.14em;margin:0;}
+.eyebrow.muted{color:var(--stone500);}
+.eyebrow.mt{margin-top:18px;}
+.huge{font-size:30px;font-weight:900;line-height:1.05;margin:4px 0 0;}
+.line{font-weight:700;margin:10px 0 0;}
+.line.text0{color:var(--p0-text);}
+.line.text1{color:var(--p1-text);}
+.u{text-decoration:underline;}
+.row2{display:flex;gap:10px;margin-top:10px;}
+.row2 .btn{flex:1;padding:14px 8px;font-weight:900;}
+.btn{border:2px solid var(--ink);border-radius:12px;font-weight:800;cursor:pointer;font-size:15px;color:var(--ink);background:var(--paper);}
+.btn.fill0{background:var(--p0);}
+.btn.fill1{background:var(--p1);}
+.btn.white{color:#fff;}
+.btn.hard{box-shadow:var(--shadow-sm);}
+.btn.ghost{background:var(--paper);border-color:var(--stone300);color:var(--stone500);}
+.btn.small{width:100%;padding:9px;font-size:13px;border-radius:12px;}
+.mt{margin-top:14px;}
+.bigdark{width:100%;border:2px solid var(--ink);background:var(--ink);color:#fff;border-radius:18px;padding:16px 18px;text-align:left;box-shadow:var(--shadow);cursor:pointer;display:block;}
+.bd-eyebrow{display:block;font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:0.14em;color:var(--stone400);}
+.bd-title{display:block;font-size:18px;font-weight:900;margin-top:2px;}
+.stats{margin-top:22px;}
+.statrow{margin-bottom:10px;}
+.statlab{display:flex;justify-content:space-between;font-weight:800;font-size:14px;margin-bottom:5px;font-variant-numeric:tabular-nums;}
+.bar{height:14px;border:2px solid var(--ink);border-radius:999px;background:var(--paper);overflow:hidden;}
+.barfill{height:100%;}
+.barfill.fill0{background:var(--p0);}
+.barfill.fill1{background:var(--p1);}
+.nameinput{display:block;width:100%;border:2px solid var(--ink);border-radius:12px;padding:10px 12px;font-weight:800;font-size:15px;margin-top:10px;color:var(--ink);}
+.soft0{background:var(--p0-soft);}
+.soft1{background:var(--p1-soft);}
+.dayrow{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.dayname{width:92px;font-size:14px;font-weight:800;flex:none;}
+.pick{flex:1;border:2px solid var(--ink);border-radius:9px;padding:9px 4px;font-weight:800;font-size:13px;cursor:pointer;background:var(--paper);color:var(--stone400);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pick.on.fill0{background:var(--p0);color:#fff;}
+.pick.on.fill1{background:var(--p1);color:#fff;}
+.empty{text-align:center;font-weight:800;color:var(--stone400);padding:22px 0;line-height:1.5;margin:0;}
+.logrow{display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--stone200);}
+.logrow:last-child{border-bottom:0;}
+.dot{width:12px;height:12px;border-radius:999px;flex:none;}
+.dot.fill0{background:var(--p0);}
+.dot.fill1{background:var(--p1);}
+.logname{flex:1;font-weight:800;}
+.logdate{font-size:12px;color:var(--stone500);font-variant-numeric:tabular-nums;}
+.foot{text-align:center;font-size:12px;color:var(--stone400);margin-top:20px;}
+.warn{border:2px solid var(--ink);background:var(--amber-soft);border-radius:12px;padding:9px 12px;font-weight:800;font-size:14px;margin:0 0 14px;}
+.ro{border:2px dashed var(--stone400);background:var(--paper);border-radius:12px;padding:9px 12px;font-weight:700;font-size:13px;color:var(--stone500);margin:0 0 14px;line-height:1.4;}
+.pincard{border:2px solid var(--ink);border-radius:20px;background:var(--paper);padding:26px 22px;box-shadow:var(--shadow);}
+.sub{color:var(--stone500);font-weight:600;font-size:14px;line-height:1.5;margin:10px 0 0;}
+.pinput{display:block;width:100%;border:2px solid var(--ink);border-radius:12px;padding:14px;font-size:22px;font-weight:900;letter-spacing:0.3em;text-align:center;margin:18px 0 14px;color:var(--ink);}
+.btn-dark{background:var(--ink);color:#fff;border:2px solid var(--ink);}
+.big{width:100%;padding:14px;font-size:16px;border-radius:14px;font-weight:900;box-shadow:var(--shadow-sm);cursor:pointer;}
+button:disabled,input:disabled{opacity:0.5;cursor:not-allowed;}
+button:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-offset:2px;}
+</style>
+<div id="root"></div>
+<script id="state" type="application/json">{"rooms":{"7739":{"namen":["Ich","Schwester"],"plan":[0,0,0,0,0,1,1],"offen":false,"seit":null,"log":[]}}}</script>
+<script id="app">
+(function(){
+  var root = document.getElementById('root');
+  var DATA;
+  try { DATA = JSON.parse(document.getElementById('state').textContent); }
+  catch(e){ DATA = { rooms:{} }; }
+  if(!DATA || typeof DATA !== 'object') DATA = { rooms:{} };
+  if(!DATA.rooms) DATA.rooms = {};
+
+  var TAGE = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+  var KURZ = ["Mo","Di","Mi","Do","Fr","Sa","So"];
+  var PIN = null;
+  try { PIN = localStorage.getItem('spuelplan-pin'); } catch(e){}
+  var TAB = 'heute';
+  var READONLY = false;
+  var ERROR = '';
+  var NOW = Date.now();
+
+  function esc(s){
+    return String(s==null?'':s).replace(/[&<>"']/g,function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function heuteIndex(){ return (new Date().getDay()+6)%7; }
+  function seitText(seit,jetzt){
+    if(!seit) return '';
+    var min = Math.floor((jetzt-seit)/60000);
+    if(min<1) return 'gerade eben';
+    if(min<60) return 'seit '+min+' Min.';
+    var std = Math.floor(min/60);
+    if(std<24) return 'seit '+std+' Std.';
+    var tage = Math.floor(std/24);
+    return tage===1 ? 'seit 1 Tag' : 'seit '+tage+' Tagen';
+  }
+  function datumText(t){
+    var d = new Date(t);
+    return d.toLocaleDateString('de-DE',{weekday:'short',day:'2-digit',month:'2-digit'})
+      + ', ' + d.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'});
+  }
+  function defaultRoom(){ return { namen:['Person 1','Person 2'], plan:[0,0,0,0,0,1,1], offen:false, seit:null, log:[] }; }
+  function room(){ return PIN ? DATA.rooms[PIN] : null; }
+
+  function buildDoc(data){
+    var css = document.getElementById('css').textContent;
+    var app = document.getElementById('app').textContent;
+    var json = JSON.stringify(data).replace(/</g,'\\u003c');
+    return '<!doctype html><html lang="de"><head><meta charset="utf-8">'
+      + '<meta name="viewport" content="width=device-width, initial-scale=1">'
+      + '<title>Spülplan</title>'
+      + '<style id="css">' + css + '</style></head><body>'
+      + '<div id="root"></div>'
+      + '<script id="state" type="application/json">' + json + '<\/script>'
+      + '<script id="app">' + app + '<\/script>'
+      + '</body></html>';
+  }
+
+  function save(mutator){
+    var backup = JSON.stringify(DATA);
+    try { mutator(DATA); } catch(e){}
+    ERROR = '';
+    render();
+    var c = window.claude;
+    if(!c || !c.use){ READONLY = true; DATA = JSON.parse(backup); render(); return; }
+    try { sessionStorage.setItem('spuelplan-tab', TAB); } catch(e){}
+    c.use('artifact').then(function(api){
+      if(!api){ READONLY = true; DATA = JSON.parse(backup); render(); return; }
+      api.publish(buildDoc(DATA)).then(function(){
+        /* Erfolg: die Ansicht wird von der Plattform neu geladen */
+      }).catch(function(err){
+        var code = err && err.code;
+        if(code==='conflict'){ return; }
+        if(code==='not_writer'||code==='not_granted'||code==='consent_required'||code==='capability_disabled'||code==='not_declared'){
+          READONLY = true; DATA = JSON.parse(backup); render(); return;
+        }
+        ERROR = 'Nicht gespeichert. Bitte nochmal versuchen.';
+        DATA = JSON.parse(backup); render();
+      });
+    }).catch(function(){ READONLY = true; DATA = JSON.parse(backup); render(); });
+  }
+
+  function doJoin(){
+    var input = root.querySelector('#pinInput');
+    var v = (input && input.value || '').trim();
+    if(!/^[0-9]{3,8}$/.test(v)){ ERROR = 'Bitte eine PIN aus 3–8 Ziffern eingeben.'; render(); return; }
+    ERROR = '';
+    PIN = v;
+    try { localStorage.setItem('spuelplan-pin', v); } catch(e){}
+    if(!DATA.rooms[v]){ save(function(d){ if(!d.rooms[v]) d.rooms[v] = defaultRoom(); }); }
+    else render();
+  }
+  function doLeave(){
+    try { localStorage.removeItem('spuelplan-pin'); } catch(e){}
+    PIN = null; TAB = 'heute'; ERROR = ''; render();
+  }
+
+  function viewPin(){
+    return '<div class="wrap center">'
+      + '<div class="pincard">'
+      + '<h1 class="brand">Spülplan</h1>'
+      + '<p class="sub">Gib eure PIN ein, um dem Plan beizutreten. Alle mit derselben PIN sehen denselben Plan.</p>'
+      + (ERROR ? '<p class="warn">'+esc(ERROR)+'</p>' : '')
+      + '<input id="pinInput" data-action="pin" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="z. B. 7739" class="pinput" autocomplete="off">'
+      + '<button data-action="join" class="btn btn-dark big">Beitreten</button>'
+      + '</div>'
+      + '<p class="foot">Tipp: Teile den Link und die PIN mit deiner Familie.</p>'
+      + '</div>';
+  }
+  function viewMissing(){
+    return '<div class="wrap center"><div class="pincard">'
+      + '<h1 class="brand">Spülplan</h1>'
+      + '<p class="sub">Die PIN <b>'+esc(PIN)+'</b> gibt es noch nicht.'
+      + (READONLY ? ' In diesem Fenster kannst du keine neue anlegen (nur Ansicht).' : '')
+      + '</p>'
+      + '<button data-action="leave" class="btn btn-dark big" style="margin-top:16px">Andere PIN</button>'
+      + '</div></div>';
+  }
+
+  function viewHeute(r,dran,zaehl,gesamt){
+    var h = '';
+    if(r.offen){
+      h += '<div class="card amber">'
+        + '<p class="eyebrow">Aufgabe offen · '+esc(seitText(r.seit,NOW))+'</p>'
+        + '<p class="huge">Spülmaschine ausräumen</p>'
+        + '<p class="line">Heute dran: <span class="u">'+esc(r.namen[dran]||'?')+'</span></p>'
+        + '<p class="eyebrow mt">Wer hat es gemacht?</p>'
+        + '<div class="row2">';
+      for(var i=0;i<r.namen.length;i++){
+        h += '<button data-action="done" data-p="'+i+'" class="btn fill'+i+' white hard"'+(READONLY?' disabled':'')+'>'+esc(r.namen[i])+'</button>';
+      }
+      h += '</div></div>';
+      h += '<button data-action="undo" class="btn ghost small"'+(READONLY?' disabled':'')+'>Doch nicht fertig – zurücknehmen</button>';
+    } else {
+      h += '<div class="card white">'
+        + '<p class="eyebrow muted">Nichts zu tun</p>'
+        + '<p class="huge">Alles erledigt</p>'
+        + '<p class="line text'+dran+'">Wenn etwas ansteht, ist heute '+esc(r.namen[dran]||'?')+' dran.</p>'
+        + '</div>';
+      h += '<button data-action="fertig" class="bigdark"'+(READONLY?' disabled':'')+'>'
+        + '<span class="bd-eyebrow">Für alle</span>'
+        + '<span class="bd-title">Spülmaschine ist fertig</span>'
+        + '</button>';
+    }
+    if(gesamt>0){
+      h += '<div class="stats"><p class="eyebrow muted">Letzte 30 Tage</p>';
+      for(var j=0;j<r.namen.length;j++){
+        var pct = Math.round((zaehl[j]/gesamt)*100);
+        h += '<div class="statrow"><div class="statlab"><span>'+esc(r.namen[j])+'</span><span>'+zaehl[j]+'×</span></div>'
+          + '<div class="bar"><div class="barfill fill'+j+'" style="width:'+pct+'%"></div></div></div>';
+      }
+      h += '</div>';
+    }
+    return h;
+  }
+  function viewPlan(r){
+    var h = '<div class="card white"><p class="eyebrow muted">Namen</p>';
+    for(var i=0;i<r.namen.length;i++){
+      h += '<input data-action="name" data-i="'+i+'" value="'+esc(r.namen[i])+'" class="nameinput soft'+i+'"'+(READONLY?' disabled':'')+'>';
+    }
+    h += '</div>';
+    h += '<div class="card white"><p class="eyebrow muted">Wer hat welchen Tag?</p>';
+    for(var d=0;d<7;d++){
+      h += '<div class="dayrow"><span class="dayname">'+TAGE[d]+'</span>';
+      for(var p=0;p<r.namen.length;p++){
+        var on = r.plan[d]===p;
+        h += '<button data-action="tag" data-i="'+d+'" data-p="'+p+'" class="pick'+(on?' on fill'+p:'')+'"'+(READONLY?' disabled':'')+'>'+esc(r.namen[p])+'</button>';
+      }
+      h += '</div>';
+    }
+    h += '<button data-action="resetplan" class="btn ghost small mt"'+(READONLY?' disabled':'')+'>Vorlage: Mo–Fr / Sa–So</button>';
+    h += '</div>';
+    return h;
+  }
+  function viewVerlauf(r){
+    var h = '<div class="card white">';
+    if(!r.log || r.log.length===0){
+      h += '<p class="empty">Noch nichts eingetragen.<br>Der erste Eintrag kommt, sobald jemand ausgeräumt hat.</p>';
+    } else {
+      r.log.forEach(function(e){
+        h += '<div class="logrow"><span class="dot fill'+e.p+'"></span><span class="logname">'+esc(r.namen[e.p]||'?')+'</span><span class="logdate">'+esc(datumText(e.t))+'</span></div>';
+      });
+      h += '<button data-action="clearlog" class="btn ghost small mt"'+(READONLY?' disabled':'')+'>Verlauf löschen</button>';
+    }
+    h += '</div>';
+    return h;
+  }
+
+  function viewApp(r){
+    var heute = heuteIndex();
+    var dran = r.plan[heute];
+    var grenze = NOW - 30*24*3600*1000;
+    var zaehl = [0,0];
+    (r.log||[]).forEach(function(e){ if(e.t>grenze && (e.p===0||e.p===1)) zaehl[e.p]++; });
+    var gesamt = zaehl[0]+zaehl[1];
+
+    var h = '<div class="wrap">';
+    h += '<div class="top">'
+      + '<div><h1 class="brand">Spülplan</h1><div class="today-label">'+TAGE[heute]+'</div></div>'
+      + '<div class="pinbox"><span class="pinchip">PIN '+esc(PIN)+'</span><button data-action="leave" class="leave">wechseln</button></div>'
+      + '</div>';
+    h += '<div class="grid7">';
+    for(var i=0;i<7;i++){
+      var pi = r.plan[i];
+      var nm = (r.namen[pi]||'?');
+      h += '<div class="daycell '+(i===heute?'today ':'')+'soft'+pi+'"><div class="dk">'+KURZ[i]+'</div><div class="dn">'+esc(nm.slice(0,3))+'</div></div>';
+    }
+    h += '</div>';
+    h += '<div class="tabs">';
+    [['heute','Heute'],['plan','Plan'],['verlauf','Verlauf']].forEach(function(t){
+      h += '<button data-action="tab" data-tab="'+t[0]+'" class="tab'+(TAB===t[0]?' active':'')+'">'+t[1]+'</button>';
+    });
+    h += '</div>';
+    if(READONLY) h += '<p class="ro">Nur-Ansicht: Du kannst den Plan sehen, aber in diesem Fenster nicht ändern.</p>';
+    if(ERROR) h += '<p class="warn">'+esc(ERROR)+'</p>';
+    if(TAB==='heute') h += viewHeute(r,dran,zaehl,gesamt);
+    else if(TAB==='plan') h += viewPlan(r);
+    else h += viewVerlauf(r);
+    h += '<p class="foot">Alle mit dieser PIN sehen denselben Plan.</p>';
+    h += '</div>';
+    return h;
+  }
+
+  function render(){
+    if(!PIN){ root.innerHTML = viewPin(); return; }
+    var r = room();
+    if(!r){ root.innerHTML = viewMissing(); return; }
+    root.innerHTML = viewApp(r);
+  }
+
+  root.addEventListener('click',function(ev){
+    var el = ev.target.closest && ev.target.closest('[data-action]');
+    if(!el) return;
+    var a = el.getAttribute('data-action');
+    if(a==='join'){ doJoin(); }
+    else if(a==='leave'){ doLeave(); }
+    else if(a==='tab'){ TAB = el.getAttribute('data-tab'); render(); }
+    else if(a==='fertig'){ save(function(d){ var x=d.rooms[PIN]; x.offen=true; x.seit=Date.now(); }); }
+    else if(a==='undo'){ save(function(d){ var x=d.rooms[PIN]; x.offen=false; x.seit=null; }); }
+    else if(a==='done'){ var p=+el.getAttribute('data-p'); save(function(d){ var x=d.rooms[PIN]; x.log=[{p:p,t:Date.now()}].concat(x.log||[]).slice(0,60); x.offen=false; x.seit=null; }); }
+    else if(a==='tag'){ var i=+el.getAttribute('data-i'), q=+el.getAttribute('data-p'); save(function(d){ d.rooms[PIN].plan[i]=q; }); }
+    else if(a==='resetplan'){ save(function(d){ d.rooms[PIN].plan=[0,0,0,0,0,1,1]; }); }
+    else if(a==='clearlog'){ save(function(d){ d.rooms[PIN].log=[]; }); }
+  });
+  root.addEventListener('keydown',function(ev){
+    if(ev.key==='Enter' && ev.target && ev.target.id==='pinInput'){ ev.preventDefault(); doJoin(); }
+  });
+  root.addEventListener('change',function(ev){
+    var el = ev.target;
+    if(el && el.matches && el.matches('input[data-action="name"]')){
+      var i = +el.getAttribute('data-i'); var val = el.value;
+      save(function(d){ d.rooms[PIN].namen[i]=val; });
+    }
+  });
+
+  try { var st = sessionStorage.getItem('spuelplan-tab'); if(st){ TAB = st; sessionStorage.removeItem('spuelplan-tab'); } } catch(e){}
+  render();
+  setInterval(function(){
+    NOW = Date.now();
+    if(PIN && TAB==='heute'){ var r=room(); if(r && r.offen) render(); }
+  }, 30000);
+})();
+</script>
