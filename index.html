@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Schleifental GP</title>
+<meta name="description" content="Ein kleines 3D-Kartrennen mit Loopings, Korkenzieher und Sprunghuegeln.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,600;1,700&family=Barlow+Semi+Condensed:wght@500;600&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- app:start -->
+<div id="app"></div>
+
+<div class="hud" id="hud">
+  <div class="panel panel--race">
+    <div class="panel__in">
+      <div class="stat"><span class="stat__k">Runde</span><span class="stat__v"><b id="lapNo">1</b><i>/</i><span id="lapAll">3</span></span></div>
+      <div class="stat"><span class="stat__k">Zeit</span><span class="stat__v tabular" id="time">0:00.00</span></div>
+      <div class="stat stat--sub"><span class="stat__k">Beste</span><span class="stat__v tabular" id="best">--:--.--</span></div>
+      <div class="stat stat--sub"><span class="stat__k">Letzte</span><span class="stat__v tabular" id="last">--:--.--</span></div>
+    </div>
+  </div>
+
+  <div class="panel panel--place">
+    <div class="panel__in">
+      <span class="place"><b id="place">4</b><i>/</i><span id="placeAll">4</span></span>
+      <span class="place__k">Position</span>
+    </div>
+  </div>
+
+  <div class="panel panel--speed">
+    <div class="panel__in">
+      <div class="speed"><b id="speed">0</b><span class="speed__u">km/h</span></div>
+      <div class="boost"><div class="boost__fill" id="boostFill" data-level="1"></div></div>
+      <div class="gear" id="gear">1</div>
+    </div>
+  </div>
+
+  <div class="panel panel--map">
+    <div class="panel__in">
+      <canvas id="minimap" width="230" height="168"></canvas>
+      <span class="map__k">Schleifental</span>
+    </div>
+  </div>
+
+  <div class="wrongway" id="wrongway">Falsche Richtung</div>
+  <div class="message" id="message"></div>
+  <div class="countdown" id="countdown"></div>
+</div>
+
+<div class="touchpad">
+  <button class="tbtn tbtn--l" data-touch="left" aria-label="links"></button>
+  <button class="tbtn tbtn--r" data-touch="right" aria-label="rechts"></button>
+  <button class="tbtn tbtn--drift" data-touch="drift" aria-label="Drift">DRIFT</button>
+  <button class="tbtn tbtn--brake" data-touch="brake" aria-label="Bremse">BREMSE</button>
+  <button class="tbtn tbtn--gas" data-touch="gas" aria-label="Gas">GAS</button>
+</div>
+
+<div class="overlay is-on" id="startPanel">
+  <div class="card">
+    <p class="card__eyebrow">Kartrennen &middot; 3 Runden &middot; 1,9 km</p>
+    <h1 class="card__title">Schleifental<span>GP</span></h1>
+    <p class="card__lead">Zwei senkrechte Loopings, ein Korkenzieher, drei Sprungh&uuml;gel und
+      eine Bergkuppe auf 44&nbsp;Metern H&ouml;henunterschied. Vollgas in den Looping &ndash;
+      wer zu langsam ist, rollt wieder heraus.</p>
+    <div class="keys">
+      <div class="key"><kbd>W</kbd><kbd>&uarr;</kbd><span>Gas</span></div>
+      <div class="key"><kbd>S</kbd><kbd>&darr;</kbd><span>Bremse</span></div>
+      <div class="key"><kbd>A</kbd><kbd>D</kbd><span>Lenken</span></div>
+      <div class="key"><kbd>Leer</kbd><span>Drift &amp; Sprung</span></div>
+      <div class="key"><kbd>C</kbd><span>Kamera</span></div>
+      <div class="key"><kbd>R</kbd><span>Zur&uuml;cksetzen</span></div>
+      <div class="key"><kbd>M</kbd><span>Ton</span></div>
+      <div class="key"><kbd>P</kbd><span>Pause</span></div>
+    </div>
+    <p class="card__tip">Tipp: In der Kurve <kbd>Leer</kbd> halten, lenken, und beim
+      blauen Funken loslassen &ndash; das gibt Mini-Turbo.</p>
+    <button class="btn" id="startBtn">Rennen starten</button>
+  </div>
+</div>
+
+<div class="overlay" id="results">
+  <div class="card card--result">
+    <p class="card__eyebrow">Zielflagge</p>
+    <h2 class="card__title" id="resHead">Sieg</h2>
+    <div class="res">
+      <div class="res__row"><span>Platz</span><b id="resPlace">1.</b></div>
+      <div class="res__row"><span>Gesamtzeit</span><b class="tabular" id="resTotal">0:00.00</b></div>
+      <div class="res__row"><span>Beste Runde</span><b class="tabular" id="resBest">0:00.00</b></div>
+    </div>
+    <button class="btn" id="againBtn">Noch eine Runde</button>
+  </div>
+</div>
+
+<div class="overlay overlay--error" id="loadError">
+  <div class="card">
+    <h2 class="card__title">Kein 3D verf&uuml;gbar</h2>
+    <p class="card__lead">Die 3D-Bibliothek konnte nicht geladen werden. Pr&uuml;fe die
+      Internetverbindung und lade die Seite neu.</p>
+  </div>
+</div>
+<!-- app:end -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+  /* Lokaler Fallback, wenn das CDN nicht erreichbar ist */
+  if (!window.THREE) document.write('<script src="vendor/three.min.js"><\/script>');
+</script>
+<script src="src/track.js"></script>
+<script src="src/world.js"></script>
+<script src="src/kart.js"></script>
+<script src="src/hud.js"></script>
+<script src="src/game.js"></script>
+<script>
+  if (!window.THREE) document.getElementById('loadError').classList.add('is-on');
+</script>
+</body>
+</html>
