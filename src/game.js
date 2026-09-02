@@ -16,14 +16,15 @@
     { name: 'DU',      paint: '#e2453b', accent: '#ffd23f', top: 46.0, line:  0.0 },
     { name: 'BLITZ',   paint: '#2f7fe0', accent: '#eef3ff', top: 43.6, line: -0.5 },
     { name: 'KAKTUS',  paint: '#3fb56b', accent: '#0f1a14', top: 43.0, line:  0.5 },
-    { name: 'ZITRONE', paint: '#f0bd2e', accent: '#2a2410', top: 42.4, line: -0.2 }
+    { name: 'ZITRONE', paint: '#f0bd2e', accent: '#2a2410', top: 42.4, line: -0.2 },
+    { name: 'NEURA',   paint: '#8b5cf6', accent: '#ede9fe', top: 46.0, line:  0.0, brain: true }
   ];
 
   var G = {
-    state: 'intro', time: 0, t0: 0, countdown: 0, camMode: 0, paused: false,
+    state: 'intro', time: 0, t0: 0, countdown: 0, camMode: 0, paused: false, autoDrive: false,
     shake: 0, introS: 0, dtAcc: 0
   };
-  var scene, camera, renderer, track, karts = [], player, padMesh, sceneryRefs;
+  var scene, camera, renderer, track, karts = [], player, padMesh, sceneryRefs, playerNet = null;
   var input = { gas: 0, brake: 0, steer: 0, drift: 0, hop: 0 };
   var keys = {}, touch = { steer: 0, gas: 0, brake: 0, drift: 0 };
   var tmpF = null, tmpF2 = null;
@@ -69,11 +70,19 @@
       var shadow = new T.Mesh(new T.CircleGeometry(1.6, 12),
         new T.MeshBasicMaterial({ color: 0x0b0f16, transparent: true, opacity: 0.32, depthWrite: false }));
       scene.add(shadow);
+      var net = null;
+      if (spec.brain && MK.brain && MK.brainWeights) {
+        net = MK.brain.create(Float64Array.from(MK.brainWeights.w), MK.brainWeights.shape);
+      }
       karts.push({ obj: obj, st: st, color: spec.paint, ai: i > 0, shadow: shadow,
-                   sector: 4, prevPad: -1, spark: makeSparks(scene) });
+                   sector: 4, net: net, spark: makeSparks(scene) });
     });
     player = karts[0];
     player.st.name = 'DU';
+    if (MK.brain && MK.brainWeights) {
+      playerNet = MK.brain.create(Float64Array.from(MK.brainWeights.w), MK.brainWeights.shape);
+      document.getElementById('aihint').hidden = false;
+    }
 
     MK.hud.init(track, LAPS);
     bindInput();
@@ -110,7 +119,7 @@
       st.v = 0; st.phi = 0; st.slide = 0; st.h = 0; st.vy = 0; st.air = false;
       st.boost = 0; st.drift = 0; st.charge = 0; st.lap = 0; st.finished = 0;
       st.lapStart = 0; st.lastLap = 0;
-      k.sector = 4; k.prevPad = -1;
+      k.sector = 4; st.padSeen = -1;
       var f = MK.track.frameAt(track, st.s);
       MK.kart.place(k.obj, st, f, 0);
     });
@@ -144,6 +153,14 @@
       }
       if (k === 'r' && G.state === 'race') respawn(player);
       if (k === 'c') { G.camMode = (G.camMode + 1) % 3; MK.hud.message(['VERFOLGER', 'WEIT', 'COCKPIT'][G.camMode], 'info', 1.1); }
+      if (k === 'k') {
+        if (!playerNet) MK.hud.message('KEIN KI-FAHRER GELADEN', 'warn', 1.6);
+        else {
+          G.autoDrive = !G.autoDrive;
+          document.getElementById('aidrive').classList.toggle('is-on', G.autoDrive);
+          MK.hud.message(G.autoDrive ? 'KI ÜBERNIMMT' : 'DU FÄHRST', 'info', 1.4);
+        }
+      }
       if (k === 'm') MK.hud.message(MK.hud.audio.setMuted(!MK.hud.audio.isMuted()) ? 'TON AUS' : 'TON AN', 'info', 1.1);
       if (k === 'p' && (G.state === 'race')) { G.paused = !G.paused; MK.hud.message(G.paused ? 'PAUSE' : '', 'info', G.paused ? 99 : 0.1); }
     });
@@ -229,24 +246,11 @@
   }
 
   /* Turbofelder */
-  var PAD_R = 7;                       // Wirkradius eines Turbofelds in Metern
   function checkPads(k) {
-    var st = k.st, L = track.length;
-    for (var i = 0; i < track.pads.length; i++) {
-      var d = Math.abs((st.s - track.pads[i] + L * 1.5) % L - L * 0.5);   // Abstand ueber die Runde hinweg
-      if (d < PAD_R) {
-        if (k.prevPad !== i) {
-          k.prevPad = i;
-          st.boost = Math.max(st.boost, 1.5);
-          if (!k.ai) {
-            MK.hud.message('TURBO!', 'good', 1);
-            MK.hud.audio.noise(0.4, 0.22);
-          }
-        }
-        return;
-      }
+    if (MK.kart.pads(k.st, track) >= 0 && !k.ai) {
+      MK.hud.message('TURBO!', 'good', 1);
+      MK.hud.audio.noise(0.4, 0.22);
     }
-    k.prevPad = -1;
   }
 
   function kartCollisions() {
@@ -416,10 +420,14 @@
     karts.forEach(function (k) {
       var st = k.st;
       var kin;
-      if (k.ai) {
+      if (k.net) {
+        kin = MK.brain.decide(k.net, st, track);          // trainiertes Netz
+      } else if (k.ai) {
         var rubber = clamp(1 + (player.st.progress - st.progress) / 900, 0.9, 1.12);
         kin = MK.kart.autopilot(st, track, { top: st.top * rubber, line: st.line, weave: 0.35, phase: st.phase });
         if (st.v > 24 && Math.abs(kin.steer) > 0.45 && rnd() < 0.02) kin.drift = 1;
+      } else if (G.autoDrive && playerNet) {
+        kin = MK.brain.decide(playerNet, st, track);      // KI faehrt fuer dich
       } else {
         kin = inp;
       }
@@ -446,6 +454,7 @@
              quer: +st.x.toFixed(1), hoehe: +st.h.toFixed(1),
              ueberKopf: st._f ? st._f.u.y < 0 : false,
              turbo: +st.boost.toFixed(2), ladung: +st.charge.toFixed(2), drift: st.drift > 0,
+             kiFaehrt: G.autoDrive,
              platz: karts.slice().sort(function (a, b) { return b.st.progress - a.st.progress; }).indexOf(player) + 1,
              fps: G.fps ? Math.round(G.fps) : 0 };
   }

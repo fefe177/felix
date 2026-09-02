@@ -98,7 +98,7 @@
     return Object.assign({
       s: s, x: x, phi: 0, v: 0, slide: 0, h: 0, vy: 0, air: false,
       boost: 0, drift: 0, driftDir: 0, charge: 0, slip: 0, touching: 0, wheel: 0,
-      lap: 0, cp: 0, progress: 0, offtrack: 0, hitWall: 0, landed: 0,
+      lap: 0, cp: 0, progress: 0, offtrack: 0, hitWall: 0, landed: 0, padSeen: -1,
       lapStart: 0, lastLap: 0, best: 0, name: 'Kart', finished: 0
     }, opts || {});
   }
@@ -111,7 +111,7 @@
 
     /* Antrieb */
     var a = 0;
-    if (inp.gas) a += P.ENGINE * Math.max(0.12, 1 - k.v / top);
+    if (inp.gas) a += P.ENGINE * Math.max(0, 1 - k.v / top);   // Schub endet an der Hoechstgeschwindigkeit
     if (inp.brake) a -= (k.v > 0.5 ? P.BRAKE : 16);
     if (!inp.gas && !inp.brake) a -= P.COAST * (k.v > 0 ? 1 : -1);
     if (k.boost > 0) a += 20;
@@ -173,9 +173,11 @@
     /* Drift und Mini-Turbo */
     if (inp.drift && k.v > 14 && !k.air) {
       if (k.drift <= 0 && Math.abs(inp.steer) > 0.2) { k.drift = 1; k.driftDir = inp.steer > 0 ? 1 : -1; }
-      if (k.drift > 0) k.charge += dt * clamp(k.v / 30, 0, 1.4);
+      /* Geladen wird nur, solange wirklich in die Driftrichtung gelenkt wird -
+         sonst liesse sich auf der Geraden endlos Turbo nachladen. */
+      if (k.drift > 0 && inp.steer * k.driftDir > 0.25) k.charge += dt * clamp(k.v / 30, 0, 1.3);
     } else if (k.drift > 0) {
-      if (k.charge > 0.55) k.boost = Math.max(k.boost, 0.55 + Math.min(k.charge, 2.2) * 0.42);
+      if (k.charge > 0.8) k.boost = Math.max(k.boost, 0.45 + Math.min(k.charge, 2.4) * 0.35);
       k.drift = 0; k.charge = 0; k.driftDir = 0;
     }
     if (k.drift > 0) k.v -= 1.4 * dt;
@@ -212,6 +214,20 @@
     if (obj.userData.flame) obj.userData.flame.visible = k.boost > 0;
   }
 
+  /* Turbofeld unter dem Kart? Gibt den Index zurueck (oder -1) und setzt den
+     Schub. k.padSeen verhindert mehrfaches Ausloesen auf demselben Feld. */
+  var PAD_R = 7;
+  function pads(k, track) {
+    var L = track.length, hit = -1;
+    for (var i = 0; i < track.pads.length; i++) {
+      if (Math.abs((k.s - track.pads[i] + L * 1.5) % L - L * 0.5) < PAD_R) { hit = i; break; }
+    }
+    var fresh = hit >= 0 && k.padSeen !== hit;
+    k.padSeen = hit;
+    if (fresh) k.boost = Math.max(k.boost, 1.5);
+    return fresh ? hit : -1;
+  }
+
   /* Autopilot: Pure Pursuit auf einen Punkt voraus - fuer die Gegner
    * und fuer den Streckentest. */
   var _t1 = null, _d = new V3(), _tp = new V3();
@@ -241,5 +257,5 @@
   }
 
   MK.kart = { make: makeKart, state: makeState, step: step, place: place,
-              autopilot: autopilot, P: P, clamp: clamp };
+              autopilot: autopilot, pads: pads, P: P, clamp: clamp };
 })(typeof window !== 'undefined' ? window : global);

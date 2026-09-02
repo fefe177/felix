@@ -133,6 +133,15 @@ body {
   100% { opacity: 0; transform: scale(0.94); }
 }
 
+.aidrive {
+  grid-column: 2; grid-row: 1; justify-self: center; align-self: start;
+  font-family: var(--display); font-weight: 700; font-size: 12px;
+  letter-spacing: 0.22em; text-transform: uppercase; color: #c4b5fd;
+  border: 1px solid rgba(196, 181, 253, 0.5); background: var(--panel-2);
+  padding: 5px 14px; transform: skewX(var(--skew)); display: none;
+}
+.aidrive.is-on { display: block; }
+
 .wrongway {
   align-self: center; margin-top: 22vh;
   font-family: var(--display); font-weight: 700; font-style: italic;

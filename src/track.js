@@ -236,10 +236,22 @@
       b2.vk = new V3().subVectors(c2.t, a2.t).dot(b2.u) / ds;   // Vertikalkruemmung
     }
 
+    /* Nachschlagetabelle: von der Bogenlaenge direkt auf den Frame-Index.
+       Die Frames sind nicht gleichmaessig verteilt (im Looping enger), eine
+       Binaersuche je Abfrage waere aber teuer - vor allem fuer den KI-Fahrer,
+       der zwoelfmal pro Schritt nach vorn schaut. */
+    var BUCKET = 2;
+    var lut = new Int32Array(Math.ceil(total / BUCKET) + 1);
+    for (i = 0, j = 0; i < lut.length; i++) {
+      var sAt = i * BUCKET;
+      while (j + 1 < n2 && frames[j + 1].d <= sAt) j++;
+      lut[i] = j;
+    }
+
     return {
       frames: frames, length: total, count: n2, roadHalf: ROAD_HALF,
       pads: PADS.map(function (u) { return u * total; }),
-      loops: loopInfo, baseCurve: curve
+      loops: loopInfo, baseCurve: curve, lut: lut, bucket: BUCKET
     };
   }
 
@@ -247,8 +259,8 @@
   function frameAt(track, s, out) {
     var L = track.length, F = track.frames, n = track.count;
     s = s % L; if (s < 0) s += L;
-    var lo = 0, hi = n - 1, mid;
-    while (lo < hi) { mid = (lo + hi + 1) >> 1; if (F[mid].d <= s) lo = mid; else hi = mid - 1; }
+    var lo = track.lut[(s / track.bucket) | 0];
+    while (lo + 1 < n && F[lo + 1].d <= s) lo++;
     var a = F[lo], b = F[(lo + 1) % n];
     var span = (lo + 1 < n ? b.d : L) - a.d;
     var f = span > 1e-6 ? (s - a.d) / span : 0;
@@ -265,6 +277,24 @@
     return out;
   }
 
-  MK.track = { build: build, frameAt: frameAt, STEP: STEP, UP: UP,
+  /* Nur die Skalarwerte an der Stelle s - ohne Vektorinterpolation.
+     Der KI-Fahrer schaut damit zwoelfmal je Schritt nach vorn. */
+  function sample(track, s, out) {
+    var L = track.length, F = track.frames, n = track.count;
+    s = s % L; if (s < 0) s += L;
+    var lo = track.lut[(s / track.bucket) | 0];
+    while (lo + 1 < n && F[lo + 1].d <= s) lo++;
+    var a = F[lo], b = F[(lo + 1) % n];
+    var span = (lo + 1 < n ? b.d : L) - a.d;
+    var f = span > 1e-6 ? (s - a.d) / span : 0;
+    out = out || { yaw: 0, vk: 0, ty: 0, w: 1 };
+    out.yaw = a.yaw + (b.yaw - a.yaw) * f;
+    out.vk = a.vk + (b.vk - a.vk) * f;
+    out.ty = a.t.y + (b.t.y - a.t.y) * f;
+    out.w = a.w + (b.w - a.w) * f;
+    return out;
+  }
+
+  MK.track = { build: build, frameAt: frameAt, sample: sample, STEP: STEP, UP: UP,
                rotAxis: rotAxis, clamp: clamp, smoother: smoother, ROAD_HALF: ROAD_HALF };
 })(typeof window !== 'undefined' ? window : global);
