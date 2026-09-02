@@ -25,8 +25,9 @@
     BRAKE: 40,
     COAST: 4.5,
     STEER: 2.35,
-    DRIFT_STEER: 1.6,
-    PHI_MAX: 1.15,
+    DRIFT_STEER: 1.3,   // Faktor auf die Lenkrate im Drift
+    PHI_MAX: 0.55,      // Fahrtrichtung gegen die Fahrbahn
+    SLIP_MAX: 0.6,      // zusaetzlicher Schraegstand, nur optisch
     ALIGN: 2.6,
     GRIP: 3.4,
     CURB: 9,          // Bremsen auf dem Randstein
@@ -96,7 +97,7 @@
   function makeState(s, x, opts) {
     return Object.assign({
       s: s, x: x, phi: 0, v: 0, slide: 0, h: 0, vy: 0, air: false,
-      boost: 0, drift: 0, driftDir: 0, charge: 0, spin: 0, wheel: 0,
+      boost: 0, drift: 0, driftDir: 0, charge: 0, slip: 0, touching: 0, wheel: 0,
       lap: 0, cp: 0, progress: 0, offtrack: 0, hitWall: 0, landed: 0,
       lapStart: 0, lastLap: 0, best: 0, name: 'Kart', finished: 0
     }, opts || {});
@@ -123,12 +124,14 @@
 
     /* Lenkung */
     var grip = clamp(Math.abs(k.v) / 13, 0, 1);
-    var rate = (k.drift > 0 ? P.DRIFT_STEER + P.STEER : P.STEER) * grip * (1 - 0.3 * clamp(k.v / P.V_TOP, 0, 1));
+    var rate = P.STEER * (k.drift > 0 ? P.DRIFT_STEER : 1) * grip * (1 - 0.3 * clamp(k.v / P.V_TOP, 0, 1));
     if (k.v < 0) rate = -rate;
     k.phi += inp.steer * rate * dt;
     if (Math.abs(inp.steer) < 0.15 && k.drift <= 0) k.phi -= k.phi * P.ALIGN * dt;
-    if (k.drift > 0) k.phi += k.driftDir * 0.55 * dt;
+    if (k.drift > 0) k.phi += k.driftDir * 0.2 * dt;      // treibt sanft nach aussen
     k.phi = clamp(k.phi, -P.PHI_MAX, P.PHI_MAX);
+    var slipWant = k.drift > 0 ? k.driftDir * P.SLIP_MAX * clamp(k.v / 26, 0, 1) : 0;
+    k.slip += (slipWant - k.slip) * Math.min(1, dt * 6);
 
     /* Vortrieb entlang der Strecke, Querversatz */
     var ds = k.v * Math.cos(k.phi) * dt;
@@ -144,15 +147,16 @@
     k.offtrack = Math.max(0, Math.abs(k.x) - f.half);
     if (Math.abs(k.x) > wall) {
       var into = -k.v * Math.sin(k.phi) + k.slide;      // Quergeschwindigkeit
-      if ((k.x > 0) === (into > 0)) {                   // nur beim Anprall bremsen
-        k.v *= 1 - 0.06 * clamp(Math.abs(into) / 10, 0, 1);
+      if (!k.touching && (k.x > 0) === (into > 0)) {    // einmaliger Anprall
+        k.v *= 1 - 0.22 * clamp(Math.abs(into) / 14, 0, 1);
         k.hitWall = Math.max(k.hitWall, clamp(Math.abs(into) / 12, 0.15, 1));
       }
       k.x = k.x > 0 ? wall : -wall;
       k.slide *= -0.25;
-      k.phi *= 0.6;
-      k.v -= 5 * dt;                                    // Schleifen an der Planke
-    }
+      k.phi *= 0.75;
+      k.v -= 6 * dt;                                    // Schleifen an der Planke
+      k.touching = 1;
+    } else k.touching = 0;
     k.hitWall = Math.max(0, k.hitWall - dt * 3);
 
     /* Sprung: Bahn hebt ab, wenn die Kuppe schneller faellt als die Schwerkraft zieht */
@@ -185,10 +189,11 @@
   /* Kart-Objekt an die Streckenlage setzen */
   var _m = new T.Matrix4(), _q = new T.Quaternion();
   var _fw = new V3(), _up = new V3(), _rt = new V3();
-  function place(obj, k, f, extraRoll) {
+  function place(obj, k, f, extraRoll, slip) {
+    var yaw = k.phi + (slip || 0);
     _up.copy(f.u);
-    _fw.copy(f.t).multiplyScalar(Math.cos(k.phi))
-       .addScaledVector(new V3().crossVectors(f.u, f.t), Math.sin(k.phi)).normalize();
+    _fw.copy(f.t).multiplyScalar(Math.cos(yaw))
+       .addScaledVector(new V3().crossVectors(f.u, f.t), Math.sin(yaw)).normalize();
     if (extraRoll) _up.copy(MK.track.rotAxis(_up, _fw, extraRoll));
     _rt.crossVectors(_fw, _up).normalize();
     _up.crossVectors(_rt, _fw).normalize();

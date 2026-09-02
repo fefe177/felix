@@ -88,6 +88,7 @@ body {
 }
 .boost__fill[data-level="2"] { background: var(--turbo); }
 .boost__fill[data-level="3"] { background: #5fd0ff; }
+.boost__fill[data-level="4"] { background: var(--turbo); }
 .gear {
   margin-top: 6px; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase;
   color: var(--muted); font-weight: 600;

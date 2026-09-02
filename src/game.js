@@ -229,11 +229,12 @@
   }
 
   /* Turbofelder */
+  var PAD_R = 7;                       // Wirkradius eines Turbofelds in Metern
   function checkPads(k) {
-    var st = k.st;
+    var st = k.st, L = track.length;
     for (var i = 0; i < track.pads.length; i++) {
-      var d = Math.abs(((st.s - track.pads[i]) % track.length + track.length * 1.5) % track.length - track.length * 0.5);
-      if (d > track.length * 0.5 - 7) {
+      var d = Math.abs((st.s - track.pads[i] + L * 1.5) % L - L * 0.5);   // Abstand ueber die Runde hinweg
+      if (d < PAD_R) {
         if (k.prevPad !== i) {
           k.prevPad = i;
           st.boost = Math.max(st.boost, 1.5);
@@ -378,7 +379,7 @@
     karts.forEach(function (k) {
       var f = k.st._f || MK.track.frameAt(track, k.st.s);
       var roll = (k.st.drift > 0 ? -k.st.driftDir * 0.16 : 0) + clamp(-k.st.slide * 0.012, -0.12, 0.12);
-      MK.kart.place(k.obj, k.st, f, roll);
+      MK.kart.place(k.obj, k.st, f, roll, k.st.slip);
       k.shadow.position.copy(f.p).addScaledVector(f.r, k.st.x).addScaledVector(f.u, 0.06);
       k.shadow.quaternion.copy(k.obj.quaternion);
       k.shadow.rotateX(-Math.PI / 2);
@@ -397,8 +398,8 @@
     var order = karts.slice().sort(function (a, b) { return b.st.progress - a.st.progress; });
     var wrong = Math.cos(st.phi) < -0.25 && Math.abs(st.v) > 4;
     MK.hud.update({
-      v: st.v, boostOn: st.boost > 0, charge: st.drift > 0 ? st.charge / 2.2 : (st.boost / 2),
-      chargeLevel: st.charge > 1.6 ? 3 : (st.charge > 0.55 ? 2 : 1),
+      v: st.v, boostOn: st.boost > 0, charge: st.boost > 0 ? st.boost / 1.6 : st.charge / 2.2,
+      chargeLevel: st.boost > 0 ? 4 : (st.charge > 1.6 ? 3 : (st.charge > 0.55 ? 2 : 1)),
       lap: st.lap, laps: LAPS, time: G.time, best: st.best, last: st.lastLap,
       place: order.indexOf(player) + 1, field: karts.length, wrongWay: wrong
     }, dt);
@@ -444,6 +445,7 @@
              tempo: +(st.v * 3.6).toFixed(0), meter: +st.s.toFixed(0),
              quer: +st.x.toFixed(1), hoehe: +st.h.toFixed(1),
              ueberKopf: st._f ? st._f.u.y < 0 : false,
+             turbo: +st.boost.toFixed(2), ladung: +st.charge.toFixed(2), drift: st.drift > 0,
              platz: karts.slice().sort(function (a, b) { return b.st.progress - a.st.progress; }).indexOf(player) + 1,
              fps: G.fps ? Math.round(G.fps) : 0 };
   }

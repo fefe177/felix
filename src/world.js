@@ -127,14 +127,13 @@
         trim.box(pt(a, ha + ro, RAIL_H / 2), ex, ey, ez, COL.post);
       }
 
-      /* Turbofeld */
+      /* Turbofeld: drei Pfeilspuren mit Luecken statt einer gelben Flaeche */
       if (padSet[i] !== undefined) {
-        var k = padSet[i], t0 = (k + 4) / 9, t1 = (k + 5) / 9;
+        var pk = padSet[i], pw = 0.17;
         for (var s = -1; s <= 1; s++) {
-          var w0 = ha * 0.3;
-          pads.quad(pt(a, s * ha * 0.62 - w0, 0.05), pt(a, s * ha * 0.62 + w0, 0.05),
-                    pt(b, s * hb * 0.62 + w0, 0.05), pt(b, s * hb * 0.62 - w0, 0.05),
-                    (k % 3 === 0) ? COL.padHot : COL.pad);
+          pads.quad(pt(a, (s * 0.6 - pw) * ha, 0.05), pt(a, (s * 0.6 + pw) * ha, 0.05),
+                    pt(b, (s * 0.6 + pw) * hb, 0.05), pt(b, (s * 0.6 - pw) * hb, 0.05),
+                    (pk % 3 === 0) ? COL.padHot : COL.pad);
         }
       }
 
