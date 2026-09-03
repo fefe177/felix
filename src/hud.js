@@ -15,7 +15,7 @@
 
   function init(track, name) {
     ['speed', 'time', 'best', 'progPct', 'progFill', 'boostFill', 'message',
-     'countdown', 'gear', 'wrongway'].forEach(function (k) { el[k] = $(k); });
+     'countdown', 'gear', 'wrongway', 'delta'].forEach(function (k) { el[k] = $(k); });
     mini = $('minimap');
     miniCtx = mini.getContext('2d');
     var lbl = $('mapName');
@@ -77,6 +77,14 @@
     el.progPct.textContent = Math.round(st.progress * 100);
     el.progFill.style.transform = 'scaleX(' + Math.max(0, Math.min(1, st.progress)) + ')';
     el.wrongway.classList.toggle('is-on', !!st.wrongWay);
+    if (st.abstand === null || st.abstand === undefined) {
+      el.delta.className = 'delta';
+      el.delta.textContent = '';
+    } else {
+      var v = st.abstand;
+      el.delta.className = 'delta is-on ' + (v < 0 ? 'is-fast' : 'is-slow');
+      el.delta.textContent = (v < 0 ? '\u2212' : '+') + Math.abs(v).toFixed(2);
+    }
     if (msgTimer > 0) {
       msgTimer -= dt;
       if (msgTimer <= 0) el.message.classList.remove('is-on');

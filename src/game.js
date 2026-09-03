@@ -16,11 +16,13 @@
   var BEST_KEY = 'schleifental.bestzeit';
 
   var G = {
-    state: 'intro', time: 0, t0: 0, countdown: 0, camMode: 0, paused: false,
+    state: 'intro', time: 0, t0: 0, countdown: 0, camMode: 0, paused: false, abstand: null,
     autoDrive: false, shake: 0, introS: 0, dtAcc: 0, restartIn: 0, best: 0
   };
-  var scene, camera, renderer, track, kart, kartObj, shadow, sparks;
+  var scene, camera, renderer, track, kart, kartObj, shadow, sparks, rauch;
   var padMesh, sceneryRefs, trackGroup = null, playerNet = null, courseSpec = null;
+  var geistObj = null, geistDaten = null, geistLage = null, aufnahme = null;
+  var geistKart = null, padStand = { an: false };
   var input = { gas: 0, brake: 0, steer: 0, drift: 0, hop: 0 };
   var keys = {}, touch = { steer: 0, gas: 0, brake: 0, drift: 0 }, steerSmooth = 0;
   var tmpF = null, tmpF2 = null, camFrame = null;
@@ -46,6 +48,13 @@
       new T.MeshBasicMaterial({ color: 0x0b0f16, transparent: true, opacity: 0.32, depthWrite: false }));
     scene.add(shadow);
     sparks = makeSparks(scene);
+    rauch = makeRauch(scene);
+
+    geistObj = MK.kart.make('#8fd8ff', '#ffffff');
+    durchsichtig(geistObj, 0.36);
+    geistObj.visible = false;
+    scene.add(geistObj);
+    geistKart = MK.kart.state(0, 0);
 
     bindInput();
     buildMenu();
@@ -94,6 +103,9 @@
       document.getElementById('aidrive').classList.remove('is-on');
     }
     G.best = bestzeit(spec.id);
+    geistDaten = null;
+    try { geistDaten = MK.ghost.entpacken(root.localStorage.getItem(BEST_KEY + '.geist.' + spec.id)); }
+    catch (e) { geistDaten = null; }
     camFrame = null; tmpF = null; tmpF2 = null;
     MK.hud.init(track, spec.name);
     menuAktualisieren();
@@ -130,6 +142,71 @@
     });
   }
 
+  /* Alle Materialien eines Karts halbdurchsichtig machen - fuer den Geist */
+  function durchsichtig(obj, deckung) {
+    var gesehen = [];
+    obj.traverse(function (o) {
+      if (!o.material || gesehen.indexOf(o.material) >= 0) return;
+      gesehen.push(o.material);
+      o.material.transparent = true;
+      o.material.opacity = deckung;
+      o.material.depthWrite = false;
+    });
+  }
+
+  /* Reifenrauch: ein Vorrat an Bildpunkten, die aufsteigen und verblassen */
+  function makeRauch(sc) {
+    var c = document.createElement('canvas');
+    c.width = c.height = 64;
+    var x = c.getContext('2d');
+    var grd = x.createRadialGradient(32, 32, 2, 32, 32, 30);
+    grd.addColorStop(0, 'rgba(255,255,255,0.9)');
+    grd.addColorStop(0.5, 'rgba(235,240,250,0.35)');
+    grd.addColorStop(1, 'rgba(235,240,250,0)');
+    x.fillStyle = grd; x.fillRect(0, 0, 64, 64);
+    var tex = new T.CanvasTexture(c);
+    var teile = [];
+    for (var i = 0; i < 26; i++) {
+      var sp = new T.Sprite(new T.SpriteMaterial({ map: tex, transparent: true,
+        opacity: 0, depthWrite: false, fog: true }));
+      sp.scale.setScalar(1);
+      sp.userData = { leben: 0, v: new V3() };
+      sc.add(sp);
+      teile.push(sp);
+    }
+    return { teile: teile, naechster: 0 };
+  }
+
+  function rauchAusstossen(menge, dt) {
+    if (menge <= 0.02) return;
+    if (Math.random() > menge * dt * 26) return;
+    var sp = rauch.teile[rauch.naechster];
+    rauch.naechster = (rauch.naechster + 1) % rauch.teile.length;
+    var rechts = new V3().setFromMatrixColumn(kartObj.matrixWorld, 0);
+    var vorn = kartObj.getWorldDirection(new V3());
+    sp.position.copy(kartObj.position)
+      .addScaledVector(vorn, -1.3)
+      .addScaledVector(rechts, (Math.random() < 0.5 ? -1 : 1) * 1.0)
+      .addScaledVector(MK.track.UP, 0.3);
+    sp.userData.leben = 0.55 + Math.random() * 0.5;
+    sp.userData.v.set((Math.random() - 0.5) * 2.5, 1.6 + Math.random() * 1.8, (Math.random() - 0.5) * 2.5);
+    sp.material.opacity = 0.5 * Math.min(1, menge + 0.3);
+    sp.scale.setScalar(0.9 + Math.random());
+  }
+
+  function rauchZeichnen(dt) {
+    for (var i = 0; i < rauch.teile.length; i++) {
+      var sp = rauch.teile[i];
+      if (sp.userData.leben <= 0) { sp.visible = false; continue; }
+      sp.visible = true;
+      sp.userData.leben -= dt;
+      sp.position.addScaledVector(sp.userData.v, dt);
+      sp.userData.v.multiplyScalar(1 - 1.6 * dt);
+      sp.scale.setScalar(sp.scale.x + dt * 3.2);
+      sp.material.opacity = Math.max(0, sp.material.opacity - dt * 0.85);
+    }
+  }
+
   function makeSparks(sc) {
     var g = new T.Group(), geo = new T.OctahedronGeometry(0.3, 0);
     for (var i = 0; i < 6; i++) {
@@ -153,6 +230,10 @@
     kart.h = 0; kart.vy = 0; kart.air = false; kart.boost = 0; kart.drift = 0;
     kart.charge = 0; kart.slip = 0; kart.cp = 0; kart.fell = 0; kart.padSeen = -1;
     MK.kart.place(kartObj, kart, MK.track.frameAt(track, 0), 0, 0);
+    aufnahme = MK.ghost.neu();
+    if (geistDaten) { geistDaten.cursor = 0; geistDaten.sCursor = 0; }
+    geistObj.visible = false;
+    G.abstand = null;
     G.time = 0;
     G.state = intro ? 'intro' : 'countdown';
     G.countdown = 3.999;
@@ -234,15 +315,44 @@
 
   /* Lenkung wird weich nachgefuehrt statt hart umgeschaltet - eine Tastatur
      kennt nur 0 und 1, das Kart soll aber einlenken und nicht springen. */
+  /* Gamepad, falls angeschlossen: linker Stick lenkt analog, die Schultertasten
+     geben Gas und bremsen. Tastatur bleibt daneben gueltig. */
+  function gamepad() {
+    var pads = root.navigator && root.navigator.getGamepads ? root.navigator.getGamepads() : null;
+    if (!pads) return null;
+    for (var i = 0; i < pads.length; i++) {
+      var p = pads[i];
+      if (!p || !p.connected) continue;
+      var achse = p.axes && p.axes.length ? p.axes[0] : 0;
+      if (Math.abs(achse) < 0.12) achse = 0;
+      var b = p.buttons || [];
+      function taste(n) { return b[n] ? (b[n].value !== undefined ? b[n].value : (b[n].pressed ? 1 : 0)) : 0; }
+      return {
+        steer: -achse,
+        gas: Math.max(taste(7), taste(0)),
+        brake: Math.max(taste(6), taste(1)),
+        drift: Math.max(taste(5), taste(4), taste(2)) > 0.5 ? 1 : 0
+      };
+    }
+    return null;
+  }
+
   function readInput(dt) {
+    var gp = gamepad();
+    if (gp && !padStand.an) {
+      padStand.an = true;
+      MK.hud.message('GAMEPAD ERKANNT', 'info', 1.6);
+    }
     var want = clamp((keys['arrowleft'] || keys['a'] ? 1 : 0) -
-                     (keys['arrowright'] || keys['d'] ? 1 : 0) + touch.steer, -1, 1);
+                     (keys['arrowright'] || keys['d'] ? 1 : 0) + touch.steer +
+                     (gp ? gp.steer : 0), -1, 1);
+    if (gp && Math.abs(gp.steer) > 0.02) { steerSmooth = want; }   // analog, ohne Nachfuehren
     var rate = (Math.abs(want) > 0.01 ? 4.2 : 7.5) * dt;
     steerSmooth += clamp(want - steerSmooth, -rate, rate);
     input.steer = steerSmooth;
-    input.gas = (keys['arrowup'] || keys['w'] || touch.gas) ? 1 : 0;
-    input.brake = (keys['arrowdown'] || keys['s'] || touch.brake) ? 1 : 0;
-    var d = (keys[' '] || keys['shift'] || touch.drift) ? 1 : 0;
+    input.gas = (keys['arrowup'] || keys['w'] || touch.gas || (gp && gp.gas > 0.15)) ? 1 : 0;
+    input.brake = (keys['arrowdown'] || keys['s'] || touch.brake || (gp && gp.brake > 0.15)) ? 1 : 0;
+    var d = (keys[' '] || keys['shift'] || touch.drift || (gp && gp.drift)) ? 1 : 0;
     input.hop = d && !input.drift ? 1 : 0;
     input.drift = d;
     return input;
@@ -272,7 +382,15 @@
     G.state = 'finish';
     G.restartIn = RESTART_AFTER;
     var neu = !G.best || G.time < G.best;
-    if (neu) { G.best = G.time; bestzeitSetzen(courseSpec.id, G.time); menuAktualisieren(); }
+    if (neu) {
+      G.best = G.time;
+      bestzeitSetzen(courseSpec.id, G.time);
+      menuAktualisieren();
+      try {
+        root.localStorage.setItem(BEST_KEY + '.geist.' + courseSpec.id, MK.ghost.packen(aufnahme));
+        geistDaten = MK.ghost.entpacken(MK.ghost.packen(aufnahme));
+      } catch (e) { /* Speicher voll - dann eben ohne Geist */ }
+    }
     document.getElementById('resHead').textContent = neu ? 'Bestzeit' : 'Im Ziel';
     document.getElementById('resTime').textContent = MK.hud.fmtTime(G.time);
     document.getElementById('resBest').textContent = MK.hud.fmtTime(G.best);
@@ -413,6 +531,26 @@
     shadow.material.opacity = 0.34 * sc * (f.gap ? 0 : 1);
     updateSparks();
 
+    /* Geist des besten Laufs */
+    if (geistDaten && (G.state === 'race' || G.state === 'finish')) {
+      geistLage = MK.ghost.beiZeit(geistDaten, G.time, geistLage);
+      geistObj.visible = !geistLage.fertig;
+      if (geistObj.visible) {
+        geistKart.s = geistLage.s; geistKart.x = geistLage.x; geistKart.phi = geistLage.phi;
+        geistKart.h = geistLage.h; geistKart.wheel += dt * 30;
+        var gf = MK.track.frameAt(track, geistLage.s, null);
+        MK.kart.place(geistObj, geistKart, gf, 0, geistLage.slip);
+      }
+      var tG = MK.ghost.zeitBei(geistDaten, kart.s);
+      G.abstand = (tG === null || kart.s < 5) ? null : G.time - tG;
+    } else {
+      geistObj.visible = false;
+      G.abstand = null;
+    }
+    rauchAusstossen(kart.air ? 0 : clamp(Math.abs(kart.ueber) * 0.9 +
+      (kart.drift > 0 ? 0.5 : 0) + (kart.offtrack > 0 ? 0.6 : 0), 0, 1.4), dt);
+    rauchZeichnen(dt);
+
     updateCamera(dt);
     sceneryRefs.clouds.rotation.y += dt * 0.004;
     padMesh.material.emissiveIntensity = 0.35 + Math.sin(now / 260) * 0.22;
@@ -421,7 +559,7 @@
       v: kart.v, boostOn: kart.boost > 0,
       charge: kart.boost > 0 ? kart.boost / 1.6 : kart.charge / 2.4,
       chargeLevel: kart.boost > 0 ? 4 : (kart.charge > 1.6 ? 3 : (kart.charge > 0.8 ? 2 : 1)),
-      time: G.time, best: G.best, progress: kart.s / track.length,
+      time: G.time, best: G.best, progress: kart.s / track.length, abstand: G.abstand,
       wrongWay: Math.cos(kart.phi) < -0.25 && Math.abs(kart.v) > 4
     }, dt);
     MK.hud.drawMini(track, kart, kartObj.position);
@@ -451,7 +589,11 @@
     if (kart.offtrack > 0 && !kart.air) {                 // Rumpeln auf dem Randstein
       G.shake = Math.max(G.shake, clamp(Math.abs(kart.v) / 60, 0, 1) * 0.22);
     }
-    if (racing) { checkPads(); progress(dt); }
+    if (racing) {
+      checkPads();
+      progress(dt);
+      MK.ghost.schreiben(aufnahme, G.time, kart);
+    }
   }
 
   /* Kurzer Statusabruf (Konsole / Test) */

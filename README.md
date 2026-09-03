@@ -35,6 +35,7 @@ python3 -m http.server 8000     # danach http://localhost:8000
 | `R` | Zurueck zum letzten Abschnitt |
 | `Esc` | Streckenwahl |
 | `K` | KI faehrt fuer dich |
+| Gamepad | linker Stick lenkt analog, Schultertasten Gas und Bremse |
 | `M` | Ton an/aus |
 | `P` | Pause |
 
@@ -44,6 +45,19 @@ Auf Touchgeraeten erscheinen Schaltflaechen am Bildschirmrand.
 werden weiss, orange, blau. Beim Loslassen gibt es Schub, je laenger der Drift,
 desto mehr. Geladen wird nur, solange wirklich eingelenkt wird. Die orangen
 Streifen auf der Fahrbahn geben ebenfalls Turbo.
+
+## Der Geist deiner Bestzeit
+
+Ab dem zweiten Lauf faehrt der beste bisherige Lauf als halbdurchsichtiges
+Kart mit. Waehrend der Fahrt schreibt `src/ghost.js` alle 80 ms sechs Zahlen
+mit (Zeit, Bogenlaenge, Querversatz, Kurswinkel, Sprunghoehe, Schraegstand);
+ein 80-Sekunden-Lauf braucht rund 21 kB im localStorage. Wird die Bestzeit
+unterboten, ersetzt die neue Aufzeichnung die alte.
+
+Die Anzeige oben in der Mitte sagt laufend, wie viel Vorsprung oder Rueckstand
+du hast. Sie kommt nicht aus einem Streckenvergleich, sondern aus der Frage
+"wann war der Geist an genau dieser Stelle" - dadurch stimmt der Wert auch
+dann, wenn du eine andere Linie faehrst.
 
 ## Aufbau
 
@@ -55,6 +69,7 @@ Streifen auf der Fahrbahn geben ebenfalls Turbo.
 | `src/kart.js` | Kart-Modell, Fahrphysik, Autopilot zum Vergleich |
 | `src/brain.js` | neuronales Netz des KI-Fahrers (ohne Bibliothek) |
 | `src/brainweights.js` | trainierte Gewichte, erzeugt von `ai/train.js` |
+| `src/ghost.js` | Aufzeichnung und Wiedergabe des besten Laufs |
 | `src/hud.js` | Anzeige, Minimap, Sound |
 | `src/game.js` | Szene, Laufablauf, Kamera, Eingabe |
 | `ai/train.js` | Training des KI-Fahrers (Evolutionsstrategie) |
