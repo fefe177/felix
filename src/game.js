@@ -20,7 +20,7 @@
     autoDrive: false, shake: 0, introS: 0, dtAcc: 0, restartIn: 0, best: 0
   };
   var scene, camera, renderer, track, kart, kartObj, shadow, sparks;
-  var padMesh, sceneryRefs, playerNet = null;
+  var padMesh, sceneryRefs, trackGroup = null, playerNet = null, courseSpec = null;
   var input = { gas: 0, brake: 0, steer: 0, drift: 0, hop: 0 };
   var keys = {}, touch = { steer: 0, gas: 0, brake: 0, drift: 0 }, steerSmooth = 0;
   var tmpF = null, tmpF2 = null, camFrame = null;
@@ -37,25 +37,7 @@
     host.appendChild(renderer.domElement);
 
     scene = new T.Scene();
-    scene.fog = new T.Fog(new T.Color('#cfe3f0'), 420, 2600);
     camera = new T.PerspectiveCamera(64, root.innerWidth / root.innerHeight, 0.5, 6000);
-
-    scene.add(new T.HemisphereLight(new T.Color('#dcefff'), new T.Color('#5d7f45'), 0.72));
-    var sun = new T.DirectionalLight(0xfff2dc, 0.85);
-    sun.position.set(-420, 640, 320);
-    scene.add(sun);
-    var rim = new T.DirectionalLight(0x9ec8ff, 0.28);
-    rim.position.set(380, 220, -420);
-    scene.add(rim);
-    var fill = new T.DirectionalLight(0xbfd8c0, 0.3);   // hebt die Unterseiten der Loopings
-    fill.position.set(120, -400, -80);
-    scene.add(fill);
-
-    track = MK.track.build();
-    var built = MK.world.buildTrack(track);
-    scene.add(built.group);
-    padMesh = built.padMesh;
-    sceneryRefs = MK.world.buildScenery(scene, track, rnd);
 
     kartObj = MK.kart.make(PAINT, ACCENT);
     scene.add(kartObj);
@@ -65,18 +47,87 @@
     scene.add(shadow);
     sparks = makeSparks(scene);
 
-    if (MK.brain && MK.brainWeights) {
-      playerNet = MK.brain.create(Float64Array.from(MK.brainWeights.w), MK.brainWeights.shape);
-      document.getElementById('aihint').hidden = false;
-    }
-
-    try { G.best = Number(root.localStorage.getItem(BEST_KEY)) || 0; } catch (e) { G.best = 0; }
-    MK.hud.init(track);
     bindInput();
+    buildMenu();
     resize();
     root.addEventListener('resize', resize);
-    reset(true);
+    loadCourse(MK.courseById(gespeicherteStrecke()));
     requestAnimationFrame(frame);
+  }
+
+  /* ---- Strecken: laden, wechseln, Bestzeiten ---- */
+  function gespeicherteStrecke() {
+    try { return root.localStorage.getItem(BEST_KEY + '.strecke') || MK.courses[0].id; }
+    catch (e) { return MK.courses[0].id; }
+  }
+  function bestzeit(id) {
+    try { return Number(root.localStorage.getItem(BEST_KEY + '.' + id)) || 0; } catch (e) { return 0; }
+  }
+  function bestzeitSetzen(id, t) {
+    try { root.localStorage.setItem(BEST_KEY + '.' + id, String(t)); } catch (e) { /* egal */ }
+  }
+
+  function netzFuer(id) {
+    var w = MK.brainWeights && MK.brainWeights[id];
+    if (!MK.brain || !w) return null;
+    return MK.brain.create(Float64Array.from(w.w), w.shape);
+  }
+
+  function loadCourse(spec) {
+    if (trackGroup) { scene.remove(trackGroup); MK.world.dispose(trackGroup); }
+    if (sceneryRefs) { scene.remove(sceneryRefs.group); MK.world.dispose(sceneryRefs.group); }
+    courseSpec = spec;
+    try { root.localStorage.setItem(BEST_KEY + '.strecke', spec.id); } catch (e) { /* egal */ }
+
+    track = MK.track.build(spec);
+    var built = MK.world.buildTrack(track);
+    trackGroup = built.group; padMesh = built.padMesh;
+    scene.add(trackGroup);
+    sceneryRefs = MK.world.buildScenery(track, rnd);
+    scene.add(sceneryRefs.group);
+    scene.fog = new T.Fog(new T.Color(spec.palette.nebel), spec.palette.nebelVon, spec.palette.nebelBis);
+
+    playerNet = netzFuer(spec.id);
+    document.getElementById('aihint').hidden = !playerNet;
+    if (!playerNet && G.autoDrive) {
+      G.autoDrive = false;
+      document.getElementById('aidrive').classList.remove('is-on');
+    }
+    G.best = bestzeit(spec.id);
+    camFrame = null; tmpF = null; tmpF2 = null;
+    MK.hud.init(track, spec.name);
+    menuAktualisieren();
+    reset(true);
+  }
+
+  /* Streckenauswahl auf der Startkarte */
+  function buildMenu() {
+    var box = document.getElementById('courses');
+    MK.courses.forEach(function (spec) {
+      var b = document.createElement('button');
+      b.className = 'course';
+      b.dataset.course = spec.id;
+      b.innerHTML = '<span class="course__name"></span>' +
+        '<span class="course__tag"></span>' +
+        '<span class="course__meta"><span class="course__grad"></span>' +
+        '<span class="course__best tabular"></span></span>';
+      b.addEventListener('click', function () {
+        if (courseSpec && spec.id === courseSpec.id) { startRun(); return; }
+        loadCourse(spec);
+      });
+      box.appendChild(b);
+    });
+  }
+  function menuAktualisieren() {
+    Array.prototype.forEach.call(document.querySelectorAll('.course'), function (b) {
+      var spec = MK.courseById(b.dataset.course);
+      var t = bestzeit(spec.id);
+      b.classList.toggle('is-on', !!courseSpec && spec.id === courseSpec.id);
+      b.querySelector('.course__name').textContent = spec.name;
+      b.querySelector('.course__tag').textContent = spec.tagline;
+      b.querySelector('.course__grad').textContent = '\u25CF'.repeat(spec.grad) + '\u25CB'.repeat(3 - spec.grad);
+      b.querySelector('.course__best').textContent = t ? MK.hud.fmtTime(t) : '--:--.--';
+    });
   }
 
   function makeSparks(sc) {
@@ -133,6 +184,10 @@
         else if (G.state === 'finish') reset(false);
       }
       if (k === 'r' && G.state === 'race') respawn('Zurueck auf die Strecke');
+      if (k === 'escape') { G.state = 'intro'; G.paused = false;
+        document.getElementById('results').classList.remove('is-on');
+        document.getElementById('startPanel').classList.add('is-on');
+        menuAktualisieren(); }
       if (k === 'c') { G.camMode = (G.camMode + 1) % 3; MK.hud.message(['VERFOLGER', 'WEIT', 'COCKPIT'][G.camMode], 'info', 1.1); }
       if (k === 'm') MK.hud.message(MK.hud.audio.setMuted(!MK.hud.audio.isMuted()) ? 'TON AUS' : 'TON AN', 'info', 1.1);
       if (k === 'p' && G.state === 'race') { G.paused = !G.paused; MK.hud.message(G.paused ? 'PAUSE' : '', 'info', G.paused ? 99 : 0.1); }
@@ -150,6 +205,12 @@
 
     document.getElementById('startBtn').addEventListener('click', startRun);
     document.getElementById('againBtn').addEventListener('click', function () { reset(false); });
+    document.getElementById('menuBtn').addEventListener('click', function () {
+      G.state = 'intro';
+      document.getElementById('results').classList.remove('is-on');
+      document.getElementById('startPanel').classList.add('is-on');
+      menuAktualisieren();
+    });
 
     Array.prototype.forEach.call(document.querySelectorAll('[data-touch]'), function (el) {
       var what = el.dataset.touch;
@@ -211,10 +272,7 @@
     G.state = 'finish';
     G.restartIn = RESTART_AFTER;
     var neu = !G.best || G.time < G.best;
-    if (neu) {
-      G.best = G.time;
-      try { root.localStorage.setItem(BEST_KEY, String(G.time)); } catch (e) { /* egal */ }
-    }
+    if (neu) { G.best = G.time; bestzeitSetzen(courseSpec.id, G.time); menuAktualisieren(); }
     document.getElementById('resHead').textContent = neu ? 'Bestzeit' : 'Im Ziel';
     document.getElementById('resTime').textContent = MK.hud.fmtTime(G.time);
     document.getElementById('resBest').textContent = MK.hud.fmtTime(G.best);
@@ -392,7 +450,7 @@
 
   /* Kurzer Statusabruf (Konsole / Test) */
   function status() {
-    return { state: G.state, zeit: +G.time.toFixed(2), tempo: +(kart.v * 3.6).toFixed(0),
+    return { strecke: courseSpec && courseSpec.id, state: G.state, zeit: +G.time.toFixed(2), tempo: +(kart.v * 3.6).toFixed(0),
              meter: +kart.s.toFixed(0), ziel: +track.length.toFixed(0),
              fortschritt: +(kart.s / track.length * 100).toFixed(1),
              quer: +kart.x.toFixed(1), hoehe: +kart.h.toFixed(1),
@@ -402,6 +460,7 @@
              kiFaehrt: G.autoDrive, fps: G.fps ? Math.round(G.fps) : 0 };
   }
 
-  MK.game = { init: init, status: status, get state() { return G.state; } };
+  MK.game = { init: init, status: status, loadCourse: loadCourse,
+              get state() { return G.state; } };
   root.addEventListener('DOMContentLoaded', init);
 })(typeof window !== 'undefined' ? window : global);

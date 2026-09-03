@@ -41,7 +41,7 @@
   <div class="panel panel--map">
     <div class="panel__in">
       <canvas id="minimap" width="230" height="168"></canvas>
-      <span class="map__k">Schleifental</span>
+      <span class="map__k" id="mapName">Schleifental</span>
     </div>
   </div>
 
@@ -61,12 +61,12 @@
 
 <div class="overlay is-on" id="startPanel">
   <div class="card">
-    <p class="card__eyebrow">Abfahrt &middot; 3,4 km &middot; 210 m Gef&auml;lle</p>
+    <p class="card__eyebrow">Drei Abfahrten &middot; allein gegen die Uhr</p>
     <h1 class="card__title">Schleifental<span>GP</span></h1>
-    <p class="card__lead">Vom Gipfel ins Tal, allein gegen die Uhr: Korkenzieher, zwei
-      senkrechte Loopings, ein <b>Sprung &uuml;ber die Schlucht</b> &ndash; unter 110&nbsp;km/h
-      landest du darin &ndash; ein Wandritt am Felsen und zum Schluss ein Spiralturm
-      abw&auml;rts. Im Ziel beginnt der Lauf von vorn.</p>
+    <p class="card__lead">Loopings, Korkenzieher, Wandritte und Spr&uuml;nge &uuml;ber
+      Schluchten &ndash; wer dort zu langsam ankommt, landet darin. Im Ziel beginnt
+      der Lauf von vorn.</p>
+    <div class="courses" id="courses"></div>
     <div class="keys">
       <div class="key"><kbd>W</kbd><kbd>&uarr;</kbd><span>Gas</span></div>
       <div class="key"><kbd>S</kbd><kbd>&darr;</kbd><span>Bremse</span></div>
@@ -76,6 +76,7 @@
       <div class="key"><kbd>R</kbd><span>Zur&uuml;cksetzen</span></div>
       <div class="key"><kbd>M</kbd><span>Ton</span></div>
       <div class="key"><kbd>P</kbd><span>Pause</span></div>
+      <div class="key"><kbd>Esc</kbd><span>Streckenwahl</span></div>
       <div class="key" id="aihint" hidden><kbd>K</kbd><span>KI f&auml;hrt f&uuml;r dich</span></div>
     </div>
     <p class="card__tip">Tipp: In der Kurve <kbd>Leer</kbd> halten, lenken, und beim
@@ -94,6 +95,7 @@
     </div>
     <p class="card__tip">Neustart in <b id="resCount">6</b>&nbsp;Sekunden.</p>
     <button class="btn" id="againBtn">Sofort nochmal</button>
+    <button class="btn btn--ghost" id="menuBtn">Strecke wechseln</button>
   </div>
 </div>
 
@@ -111,6 +113,7 @@
   /* Lokaler Fallback, wenn das CDN nicht erreichbar ist */
   if (!window.THREE) document.write('<script src="vendor/three.min.js"><\/script>');
 </script>
+<script src="src/courses.js"></script>
 <script src="src/track.js"></script>
 <script src="src/world.js"></script>
 <script src="src/kart.js"></script>

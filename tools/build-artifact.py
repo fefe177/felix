@@ -10,8 +10,8 @@ import re
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CDN = "https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
-SCRIPTS = ["src/track.js", "src/world.js", "src/kart.js", "src/brain.js",
-           "src/brainweights.js", "src/hud.js", "src/game.js"]
+SCRIPTS = ["src/courses.js", "src/track.js", "src/world.js", "src/kart.js",
+           "src/brain.js", "src/brainweights.js", "src/hud.js", "src/game.js"]
 
 
 def main() -> None:

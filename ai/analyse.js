@@ -9,13 +9,17 @@ const path = require('path');
 const ROOT = path.resolve(__dirname, '..');
 global.self = global;
 global.THREE = require(path.join(ROOT, 'vendor/three.min.js'));
+require(path.join(ROOT, 'src/courses.js'));
 require(path.join(ROOT, 'src/track.js'));
 require(path.join(ROOT, 'src/kart.js'));
 require(path.join(ROOT, 'src/brain.js'));
 require(path.join(ROOT, 'src/brainweights.js'));
 const MK = global.MK;
 
-const track = MK.track.build(), L = track.length, DT = 1 / 120;
+const ID = process.argv[2] || MK.courses[0].id;
+const spec = MK.courseById(ID);
+const track = MK.track.build(spec), L = track.length, DT = 1 / 120;
+console.log(`Strecke: ${spec.name} (${(L / 1000).toFixed(2)} km, Grad ${spec.grad})`);
 
 function drive(controller) {
   const k = MK.kart.state(0, 0);
@@ -50,7 +54,9 @@ function drive(controller) {
   };
 }
 
-const net = MK.brain.create(Float64Array.from(MK.brainWeights.w), MK.brainWeights.shape);
+const w = MK.brainWeights[ID];
+if (!w) { console.log('Fuer diese Strecke gibt es noch keine Gewichte.'); process.exit(0); }
+const net = MK.brain.create(Float64Array.from(w.w), w.shape);
 console.log('KI-Fahrer (neuronales Netz):');
 console.log(' ', JSON.stringify(drive(k => MK.brain.decide(net, k, track))));
 console.log('Autopilot (handgeschrieben, Pure Pursuit):');

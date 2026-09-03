@@ -13,11 +13,13 @@
 
   var el = {}, mini = null, miniPts = [], miniCtx = null, msgTimer = 0;
 
-  function init(track) {
+  function init(track, name) {
     ['speed', 'time', 'best', 'progPct', 'progFill', 'boostFill', 'message',
      'countdown', 'gear', 'wrongway'].forEach(function (k) { el[k] = $(k); });
     mini = $('minimap');
     miniCtx = mini.getContext('2d');
+    var lbl = $('mapName');
+    if (lbl && name) lbl.textContent = name;
 
     /* Streckenverlauf fuer die Minimap vorberechnen (Draufsicht).
        Ueber der Schlucht bleibt die Linie unterbrochen. */

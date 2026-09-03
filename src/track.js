@@ -1,8 +1,9 @@
 /* Schleifental GP - Streckengeometrie.
  *
- * Die Strecke ist keine Runde, sondern eine Abfahrt: vom Gipfel auf 210 Metern
- * bis ins Tal, mit Anfang und Ende. Grundlage ist eine offene Catmull-Rom-
- * Spline durch Kontrollpunkte; in sie werden analytisch eingesetzt:
+ * Die Strecken sind keine Runden, sondern Abfahrten mit Anfang und Ende. Die
+ * Beschreibung steht in src/courses.js; hier entsteht daraus die Geometrie.
+ * Grundlage ist eine offene Catmull-Rom-Spline durch Kontrollpunkte; in sie
+ * werden analytisch eingesetzt:
  *   - Loopings in Tropfenform (Klothoide wie bei Achterbahnen, unten weit,
  *     oben eng) mit leichtem Seitenversatz, damit auf- und absteigender Ast
  *     aneinander vorbeilaufen statt sich zu schneiden,
@@ -21,60 +22,9 @@
   var T = root.THREE;
   var V3 = T.Vector3;
 
-  var ROAD_HALF = 8.0;    // halbe Fahrbahnbreite
   var LOOP_HALF = 0.62;   // im Looping schmaler
   var STEP = 1.8;         // Abstand zweier Frames in Metern
   var UP = new V3(0, 1, 0);
-
-  /* Kontrollpunkte der Abfahrt: [x, y, z]  (y = Hoehe) */
-  var COURSE = [
-    [   0, 210,    0],   // Startrampe auf dem Gipfel
-    [ 110, 206,   10],
-    [ 230, 190,   40],   // Steilabfahrt
-    [ 330, 168,  120],
-    [ 400, 150,  230],
-    [ 430, 136,  350],   // lange Gerade: Korkenzieher
-    [ 470, 124,  460],
-    [ 560, 116,  540],
-    [ 680, 112,  560],   // flach: erster Looping
-    [ 800, 108,  520],
-    [ 890, 102,  430],
-    [ 930,  96,  320],   // Anlauf
-    [ 950,  92,  210],   // Schlucht
-    [ 960,  88,  100],
-    [ 940,  80,  -20],   // Wandritt am Felsen
-    [ 880,  72, -130],
-    [ 790,  66, -200],   // flach: zweiter Looping
-    [ 680,  62, -230],
-    [ 570,  56, -210],
-    [ 480,  50, -215],   // Spiralturm, eine Umdrehung abwaerts
-    [ 390,  42, -160],
-    [ 385,  34,  -60],
-    [ 450,  26,   -5],
-    [ 545,  18,  -30],
-    [ 575,  12, -110],
-    [ 520,   6, -190],   // Auslauf
-    [ 400,   2, -240],
-    [ 270,   0, -250],
-    [ 150,   0, -240]    // Ziel
-  ];
-
-  /* Alle Positionen als Anteil der Streckenlaenge (0 = Start, 1 = Ziel). */
-  var LOOPS = [
-    { u: 0.360, hgt: 44, c: 0.50, pf: 0.30, lat:  9 },
-    { u: 0.660, hgt: 38, c: 0.50, pf: 0.30, lat: -9 }
-  ];
-  var TWISTS = [{ u: 0.185, len: 130, turns: 1 }];        // Korkenzieher
-  var BANKS  = [{ u: 0.530, len: 215, angle: 82 }];       // Wandritt
-  var BUMPS  = [
-    { u: 0.128, len: 34, hgt: 2.6 },
-    { u: 0.790, len: 30, hgt: 2.4 }
-  ];
-  /* Schlucht: ohne Fahrbahn. vRef ist das Tempo, fuer das die Bahn dort eine
-     Wurfparabel beschreibt - wer schneller ist, fliegt darueber hinweg, wer
-     langsamer ist, faellt hinein. */
-  var GAPS   = [{ u: 0.487, len: 34, vRef: 33 }];
-  var PADS   = [0.030, 0.230, 0.330, 0.455, 0.620, 0.760, 0.880];
 
   function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
   function smoother(t) { t = clamp(t, 0, 1); return t * t * t * (t * (t * 6 - 15) + 10); }
@@ -129,7 +79,11 @@
     return { pts: out, advance: pts[STEPS].f, arc: arc };
   }
 
-  function build() {
+  function build(spec) {
+    spec = spec || (MK.courses && MK.courses[0]);
+    var COURSE = spec.course, LOOPS = spec.loops || [], TWISTS = spec.twists || [];
+    var BANKS = spec.banks || [], BUMPS = spec.bumps || [], GAPS = spec.gaps || [];
+    var PADS = spec.pads || [], ROAD_HALF = spec.roadHalf || 8;
     var i, j, k;
     var pts3 = COURSE.map(function (p) { return new V3(p[0], p[1], p[2]); });
     var curve = new T.CatmullRomCurve3(pts3, false, 'centripetal', 0.5);
@@ -315,7 +269,8 @@
     return {
       frames: frames, length: total, count: n2, roadHalf: ROAD_HALF, open: true,
       pads: PADS.map(function (u) { return u * total; }),
-      gaps: gaps, loops: loopInfo, lut: lut, bucket: BUCKET, baseCurve: curve
+      gaps: gaps, loops: loopInfo, lut: lut, bucket: BUCKET, baseCurve: curve,
+      spec: spec, palette: spec.palette, ground: spec.grund === undefined ? -9 : spec.grund
     };
   }
 
@@ -366,5 +321,5 @@
   }
 
   MK.track = { build: build, frameAt: frameAt, sample: sample, STEP: STEP, UP: UP,
-               rotAxis: rotAxis, clamp: clamp, smoother: smoother, ROAD_HALF: ROAD_HALF };
+               rotAxis: rotAxis, clamp: clamp, smoother: smoother };
 })(typeof window !== 'undefined' ? window : global);

@@ -1,12 +1,18 @@
 # Schleifental GP
 
-Ein kleines 3D-Kartspiel fuer den Browser: eine Abfahrt vom Gipfel ins Tal,
-3,4 Kilometer, 210 Meter Gefaelle, allein gegen die Uhr. Bewusst schlicht in
-der Grafik (Flat Shading, Vertexfarben, keine Texturen) - die Strecke soll
-Spass machen, nicht der Renderer.
+Ein kleines 3D-Kartspiel fuer den Browser: drei Abfahrten mit Anfang und Ende,
+allein gegen die Uhr. Bewusst schlicht in der Grafik (Flat Shading,
+Vertexfarben, keine Texturen) - die Strecken sollen Spass machen, nicht der
+Renderer.
 
-Ein Lauf hat Anfang und Ende. Im Ziel wird die Zeit gestoppt, die Bestzeit
-gespeichert, und nach sechs Sekunden beginnt die Abfahrt von vorn.
+Im Ziel wird die Zeit gestoppt, die Bestzeit je Strecke gespeichert, und nach
+sechs Sekunden beginnt der Lauf von vorn. Mit `Esc` geht es zur Streckenwahl.
+
+| Strecke | Laenge | Grad | Was sie ausmacht |
+| --- | --- | --- | --- |
+| **Talfahrt** | 3,4 km | leicht | Vom Gipfel ins Tal. Korkenzieher, zwei Loopings, ein Sprung ueber die Schlucht, Wandritt, Spiralturm. |
+| **Kraterrand** | 2,7 km | mittel | Spirale abwaerts in einen Vulkan. Schmalere Fahrbahn (6,8 m), drei Loopings, zwei Korkenzieher, zwei Schluchten. |
+| **Wolkenpfad** | 3,8 km | schwer | Schmaler Grat ueber den Wolken, nur 6 m breit. Drei Loopings, drei Schluchten, zwei Wandritte bis 86 Grad, wenige Turbofelder. |
 
 ## Spielen
 
@@ -27,6 +33,7 @@ python3 -m http.server 8000     # danach http://localhost:8000
 | `Leertaste` | Drift halten, kurz tippen = Sprung |
 | `C` | Kamera (Verfolger / weit / Cockpit) |
 | `R` | Zurueck zum letzten Abschnitt |
+| `Esc` | Streckenwahl |
 | `K` | KI faehrt fuer dich |
 | `M` | Ton an/aus |
 | `P` | Pause |
@@ -38,25 +45,12 @@ werden weiss, orange, blau. Beim Loslassen gibt es Schub, je laenger der Drift,
 desto mehr. Geladen wird nur, solange wirklich eingelenkt wird. Die orangen
 Streifen auf der Fahrbahn geben ebenfalls Turbo.
 
-## Die Strecke
-
-| Anteil | Abschnitt |
-| --- | --- |
-| 0 % | Startrampe auf 210 Metern, ueber den Wolken |
-| 13 % | Sprunghuegel in der Steilabfahrt |
-| 19 % | **Korkenzieher** - volle Rolle um die Fahrtrichtung |
-| 36 % | **Erster Looping**, 44 Meter hoch |
-| 49 % | **Sprung ueber die Schlucht** - unter 110 km/h landest du darin |
-| 55 % | **Wandritt** am Felsen, Fahrbahn 78 Grad gekippt |
-| 66 % | **Zweiter Looping**, 38 Meter |
-| 76 % | **Spiralturm** eine volle Umdrehung abwaerts |
-| 100 % | Ziel im Tal |
-
 ## Aufbau
 
 | Datei | Inhalt |
 | --- | --- |
-| `src/track.js` | Streckengeometrie: Spline, Loopings, Korkenzieher, Schlucht |
+| `src/courses.js` | die drei Strecken als Daten: Kontrollpunkte, Kunststuecke, Farbwelt |
+| `src/track.js` | macht daraus Geometrie: Spline, Loopings, Korkenzieher, Schlucht |
 | `src/world.js` | Fahrbahn-Mesh, Randsteine, Leitplanken, Berg, Landschaft |
 | `src/kart.js` | Kart-Modell, Fahrphysik, Autopilot zum Vergleich |
 | `src/brain.js` | neuronales Netz des KI-Fahrers (ohne Bibliothek) |
@@ -69,8 +63,9 @@ Streifen auf der Fahrbahn geben ebenfalls Turbo.
 
 ### Wie die Strecke entsteht
 
-Grundlage ist eine offene Catmull-Rom-Spline durch 29 Kontrollpunkte
-(x, Hoehe, z). Sie wird gleichmaessig nach Bogenlaenge abgetastet; aus der
+Jede Strecke steht in `src/courses.js` als Liste von Kontrollpunkten
+(x, Hoehe, z) plus den eingesetzten Kunststuecken und einer Farbwelt.
+Grundlage ist eine offene Catmull-Rom-Spline durch diese Punkte. Sie wird gleichmaessig nach Bogenlaenge abgetastet; aus der
 horizontalen Kruemmung ergibt sich die Ueberhoehung der Kurven. In diese
 Abtastung werden die Kunststuecke analytisch eingesetzt:
 
@@ -84,9 +79,10 @@ Abtastung werden die Kunststuecke analytisch eingesetzt:
 * **Korkenzieher und Wandritt** sind zusaetzliche Rollen um die Fahrtrichtung,
   die ueber die Laenge sanft ein- und ausgeblendet werden - einmal volle
   Umdrehung, einmal bis 78 Grad und zurueck.
-* **Der Spiralturm** steckt direkt in den Kontrollpunkten. Auf einer Abfahrt
-  darf sich die Bahn ueber sich selbst hinwegschrauben, weil sie dabei faellt -
-  auf einer Rundstrecke ginge das nicht.
+* **Spiralen** stecken direkt in den Kontrollpunkten - beim Kraterrand
+  anderthalb Umdrehungen abwaerts in den Vulkan. Auf einer Abfahrt darf sich
+  die Bahn ueber sich selbst hinwegschrauben, weil sie dabei faellt; auf einer
+  Rundstrecke ginge das nicht.
 * **Die Schlucht** hat keine Fahrbahn. Ueber der Luecke folgt die Bahn einer
   Wurfparabel mit der Abwaertskruemmung `g / v²`. Wer mit dem Auslegungstempo
   ankommt, fliegt ihr genau entlang; wer langsamer ist, sackt darunter weg und
@@ -158,10 +154,13 @@ je Sekunde an der Leitplanke und 400 Punkte je Absturz in die Schlucht, plus
 600 Punkte fuer das Erreichen des Ziels. Gestartet wird an drei Stellen der
 Abfahrt, damit das Netz die ganze Strecke lernt und nicht nur den Anfang.
 
+Jede Strecke bekommt eigene Gewichte; `src/brainweights.js` sammelt sie unter
+der Strecken-Kennung.
+
 ```sh
-node ai/train.js --gen 300 --pop 96 --seed 11   # schreibt src/brainweights.js
-node ai/train.js --gen 200 --from               # von vorhandenen Gewichten aus
-node ai/analyse.js                              # Fahrstil vermessen
+node ai/train.js --course talfahrt --gen 300 --pop 96    # eine Strecke lernen
+node ai/train.js --course wolkenpfad --gen 200 --from    # weitertrainieren
+node ai/analyse.js [strecke]                             # Fahrstil vermessen
 ```
 
 ## Drittanbieter

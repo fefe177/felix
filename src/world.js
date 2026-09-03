@@ -1,6 +1,8 @@
 /* Schleifental GP - Fahrbahn-Mesh und Landschaft.
- * Die gesamte Strecke wird als wenige zusammengefasste BufferGeometries
- * gebaut (Vertexfarben, Flat Shading) - das haelt die Draw Calls klein.
+ *
+ * Alles wird zu wenigen zusammengefassten BufferGeometries gebaut
+ * (Vertexfarben, Flat Shading) - das haelt die Draw Calls klein. Die Farbwelt
+ * kommt aus der Strecke (src/courses.js), damit jede Strecke anders aussieht.
  */
 (function (root) {
   'use strict';
@@ -8,34 +10,24 @@
   var T = root.THREE;
   var V3 = T.Vector3;
 
-  var GROUND_Y = -9;
-
-  var COL = {
-    asphalt:  new T.Color('#3b414f'),
-    asphalt2: new T.Color('#343a47'),
-    line:     new T.Color('#e8e2d2'),
-    edge:     new T.Color('#2b3040'),
-    under:    new T.Color('#333a4b'),
-    curbA:    new T.Color('#d64b3f'),
-    curbB:    new T.Color('#f0ece2'),
-    rail:     new T.Color('#c9d2e0'),
-    post:     new T.Color('#59627a'),
-    pillar:   new T.Color('#8a93a5'),
-    pad:      new T.Color('#ff7a1f'),
-    padHot:   new T.Color('#ffd23f'),
-    checkA:   new T.Color('#f2f2f2'),
-    checkB:   new T.Color('#1d2029'),
-    ground:   new T.Color('#6f9e4e'),
-    hill:     new T.Color('#5c8a52'),
-    hillFar:  new T.Color('#6f8f92'),
-    trunk:    new T.Color('#6a4a30'),
-    crown:    new T.Color('#3f7f3c'),
-    crown2:   new T.Color('#4f9445'),
-    rock:     new T.Color('#8d8f93'),
-    standA:   new T.Color('#e0e4ec'),
-    standB:   new T.Color('#c8443c'),
-    gate:     new T.Color('#2c3140')
+  /* Feste Farben, die in jeder Welt gleich bleiben */
+  var FIX = {
+    line:   '#e8e2d2', curbA: '#d64b3f', curbB: '#f0ece2',
+    rail:   '#c9d2e0', post: '#59627a', pillar: '#8a93a5',
+    pad:    '#ff7a1f', padHot: '#ffd23f',
+    checkA: '#f2f2f2', checkB: '#1d2029',
+    standA: '#e0e4ec', standB: '#c8443c', gate: '#2c3140'
   };
+
+  function palette(track) {
+    var p = track.palette, c = {};
+    Object.keys(FIX).forEach(function (k) { c[k] = new T.Color(FIX[k]); });
+    ['boden', 'huegel', 'huegelFern', 'fels', 'stamm', 'krone', 'krone2',
+     'asphalt', 'asphalt2', 'unten', 'kante', 'sonne'].forEach(function (k) {
+      c[k] = new T.Color(p[k]);
+    });
+    return c;
+  }
 
   function Builder() { this.p = []; this.c = []; }
   Builder.prototype.tri = function (a, b, c, col) {
@@ -43,7 +35,6 @@
     for (var i = 0; i < 3; i++) this.c.push(col.r, col.g, col.b);
   };
   Builder.prototype.quad = function (a, b, c, d, col) { this.tri(a, b, c, col); this.tri(a, c, d, col); };
-  /* Quader aus Mittelpunkt und drei Halbachsen */
   Builder.prototype.box = function (o, ex, ey, ez, col) {
     var v = [];
     for (var i = 0; i < 8; i++) {
@@ -65,6 +56,7 @@
     m.matrixAutoUpdate = false;
     return m;
   };
+  Builder.prototype.leer = function () { return this.p.length === 0; };
 
   function roadMat(opts) {
     return new T.MeshLambertMaterial(Object.assign({ vertexColors: true, side: T.DoubleSide }, opts || {}));
@@ -78,41 +70,37 @@
   }
 
   function buildTrack(track) {
-    var F = track.frames, n = track.count, H = track.roadHalf;
-    var road = new Builder(), trim = new Builder(), pads = new Builder();
+    var F = track.frames, n = track.count, H = track.roadHalf, COL = palette(track);
+    var road = new Builder(), trim = new Builder(), pads = new Builder(), piers = new Builder();
     var CURB = 1.7, RAIL_H = 1.75, RAIL_T = 0.42, THICK = 0.75;
     var padSet = {};
     track.pads.forEach(function (s) {
       var i0 = 0;
       while (i0 < n - 1 && F[i0].d < s) i0++;
-      for (var k = -4; k < 5; k++) padSet[(i0 + k + n) % n] = k;
+      for (var k = -4; k < 5; k++) padSet[i0 + k] = k;
     });
-    var startCells = 12;
 
     for (var i = 0; i < n - 1; i++) {
       var a = F[i], b = F[i + 1];
       if (a.gap || b.gap) continue;                  // Schlucht: hier keine Fahrbahn
       var ha = H * a.w, hb = H * b.w;
-      var dark = (i % 12) < 6;
-      var asp = dark ? COL.asphalt : COL.asphalt2;
+      var asp = (i % 12) < 6 ? COL.asphalt : COL.asphalt2;
+      var oa = ha + CURB, ob = hb + CURB;
 
       /* Fahrbahn oben: links | Mittellinie | rechts */
-      var lineOn = (i % 8) < 4;
-      var mid = lineOn ? COL.line : asp;
+      var mid = (i % 8) < 4 ? COL.line : asp;
       road.quad(pt(a, -ha, 0), pt(a, -0.45, 0), pt(b, -0.45, 0), pt(b, -hb, 0), asp);
       road.quad(pt(a, -0.45, 0), pt(a, 0.45, 0), pt(b, 0.45, 0), pt(b, -0.45, 0), mid);
       road.quad(pt(a, 0.45, 0), pt(a, ha, 0), pt(b, hb, 0), pt(b, 0.45, 0), asp);
-      /* Unterseite und Flanken - ueber die volle Breite inklusive Randstein,
-         sonst sieht man im Looping von unten die helle Randsteinoberseite */
-      var oa = ha + CURB, ob = hb + CURB;
-      road.quad(pt(b, -ob, -THICK), pt(b, ob, -THICK), pt(a, oa, -THICK), pt(a, -oa, -THICK), COL.under);
-      road.quad(pt(a, -oa, 0.08), pt(a, -oa, -THICK), pt(b, -ob, -THICK), pt(b, -ob, 0.08), COL.edge);
-      road.quad(pt(a, oa, 0.08), pt(b, ob, 0.08), pt(b, ob, -THICK), pt(a, oa, -THICK), COL.edge);
+      /* Unterseite und Flanken ueber die volle Breite */
+      road.quad(pt(b, -ob, -THICK), pt(b, ob, -THICK), pt(a, oa, -THICK), pt(a, -oa, -THICK), COL.unten);
+      road.quad(pt(a, -oa, 0.08), pt(a, -oa, -THICK), pt(b, -ob, -THICK), pt(b, -ob, 0.08), COL.kante);
+      road.quad(pt(a, oa, 0.08), pt(b, ob, 0.08), pt(b, ob, -THICK), pt(a, oa, -THICK), COL.kante);
 
       /* Randsteine */
       var cc = (i % 6) < 3 ? COL.curbA : COL.curbB;
-      trim.quad(pt(a, -ha - CURB, 0.08), pt(a, -ha, 0.08), pt(b, -hb, 0.08), pt(b, -hb - CURB, 0.08), cc);
-      trim.quad(pt(a, ha, 0.08), pt(a, ha + CURB, 0.08), pt(b, hb + CURB, 0.08), pt(b, hb, 0.08), cc);
+      trim.quad(pt(a, -oa, 0.08), pt(a, -ha, 0.08), pt(b, -hb, 0.08), pt(b, -ob, 0.08), cc);
+      trim.quad(pt(a, ha, 0.08), pt(a, oa, 0.08), pt(b, ob, 0.08), pt(b, hb, 0.08), cc);
 
       /* Leitplanken */
       var ro = CURB + 0.25;
@@ -128,7 +116,7 @@
         trim.box(pt(a, ha + ro, RAIL_H / 2), ex, ey, ez, COL.post);
       }
 
-      /* Turbofeld: drei Pfeilspuren mit Luecken statt einer gelben Flaeche */
+      /* Turbofeld: drei Pfeilspuren */
       if (padSet[i] !== undefined) {
         var pk = padSet[i], pw = 0.17;
         for (var s = -1; s <= 1; s++) {
@@ -140,145 +128,161 @@
 
       /* Start- und Zielkaro */
       if (i < 4 || i > n - 7) {
-        for (var c = 0; c < startCells; c++) {
-          var x0 = -ha + 2 * ha * c / startCells, x1 = -ha + 2 * ha * (c + 1) / startCells;
+        for (var c2 = 0; c2 < 12; c2++) {
+          var x0 = -ha + 2 * ha * c2 / 12, x1 = -ha + 2 * ha * (c2 + 1) / 12;
           road.quad(pt(a, x0, 0.02), pt(a, x1, 0.02), pt(b, x1, 0.02), pt(b, x0, 0.02),
-                    ((c + i) % 2) ? COL.checkA : COL.checkB);
+                    ((c2 + i) % 2) ? COL.checkA : COL.checkB);
         }
       }
     }
 
-    /* Stuetzpfeiler */
-    var piers = new Builder();
+    /* Stuetzpfeiler im Tal */
     for (var j = 0; j < n; j += 7) {
       var f = F[j];
       if (f.u.y < 0.55 || f.gap) continue;
-      var top = pt(f, 0, -0.6), h = top.y - GROUND_Y;
-      if (h < 2.5 || h > 52) continue;               // hoeher oben traegt der Berg
-      var ex2 = new V3(1.1, 0, 0), ez2 = new V3(0, 0, 1.1);
-      piers.box(new V3(top.x, (top.y + GROUND_Y) / 2, top.z), ex2, new V3(0, h / 2, 0), ez2, COL.pillar);
-      piers.box(new V3(top.x, GROUND_Y + 0.6, top.z), new V3(2.4, 0, 0), new V3(0, 0.6, 0), new V3(0, 0, 2.4), COL.pillar);
+      var top = pt(f, 0, -0.6), hgt = top.y - track.ground;
+      if (hgt < 2.5 || hgt > 52) continue;
+      piers.box(new V3(top.x, (top.y + track.ground) / 2, top.z),
+                new V3(1.1, 0, 0), new V3(0, hgt / 2, 0), new V3(0, 0, 1.1), COL.pillar);
+      piers.box(new V3(top.x, track.ground + 0.6, top.z),
+                new V3(2.4, 0, 0), new V3(0, 0.6, 0), new V3(0, 0, 2.4), COL.pillar);
     }
 
     var group = new T.Group();
     group.add(road.mesh(roadMat()));
     group.add(trim.mesh(roadMat()));
-    group.add(piers.mesh(roadMat({ side: T.FrontSide })));
-    var padMesh = pads.mesh(roadMat({ emissive: new T.Color('#ff7a1f'), emissiveIntensity: 0.45 }));
+    if (!piers.leer()) group.add(piers.mesh(roadMat({ side: T.FrontSide })));
+    var padMesh = pads.mesh(roadMat({ emissive: new T.Color(FIX.pad), emissiveIntensity: 0.45 }));
     group.add(padMesh);
     group.updateMatrix();
     return { group: group, padMesh: padMesh };
   }
 
   /* Himmelsverlauf als Textur */
-  function skyTexture() {
+  function skyTexture(stops) {
     var c = document.createElement('canvas');
     c.width = 8; c.height = 256;
     var g = c.getContext('2d'), grd = g.createLinearGradient(0, 0, 0, 256);
-    grd.addColorStop(0.00, '#2f6fb5');
-    grd.addColorStop(0.45, '#79b6e8');
-    grd.addColorStop(0.72, '#bfe0f2');
-    grd.addColorStop(1.00, '#e9f1e2');
+    stops.forEach(function (col, i) { grd.addColorStop(i / (stops.length - 1), col); });
     g.fillStyle = grd; g.fillRect(0, 0, 8, 256);
     var tex = new T.CanvasTexture(c);
     tex.magFilter = T.LinearFilter;
     return tex;
   }
 
-  function buildScenery(scene, track, rnd) {
-    var F = track.frames, n = track.count;
+  function buildScenery(track, rnd) {
+    var F = track.frames, n = track.count, P = track.palette, COL = palette(track);
+    var G = track.ground, group = new T.Group();
 
-    var sky = new T.Mesh(new T.SphereGeometry(3400, 24, 16),
-      new T.MeshBasicMaterial({ map: skyTexture(), side: T.BackSide, fog: false, depthWrite: false }));
-    scene.add(sky);
+    group.add(new T.Mesh(new T.SphereGeometry(3400, 24, 16),
+      new T.MeshBasicMaterial({ map: skyTexture(P.himmel), side: T.BackSide, fog: false, depthWrite: false })));
+
+    /* Sonne mit Hof */
+    var sd = new V3(P.sonnePos[0], P.sonnePos[1], P.sonnePos[2]).normalize();
+    var sun = new T.Mesh(new T.SphereGeometry(105, 16, 12),
+      new T.MeshBasicMaterial({ color: COL.sonne, fog: false }));
+    sun.position.copy(sd).multiplyScalar(3000);
+    group.add(sun);
+    var halo = new T.Mesh(new T.SphereGeometry(230, 16, 12),
+      new T.MeshBasicMaterial({ color: COL.sonne, transparent: true, opacity: 0.22, fog: false, depthWrite: false }));
+    halo.position.copy(sun.position);
+    group.add(halo);
+
+    /* Licht passend zur Farbwelt */
+    group.add(new T.HemisphereLight(new T.Color(P.himmelLicht), new T.Color(P.bodenLicht), 0.72));
+    var key = new T.DirectionalLight(new T.Color(P.licht), 0.85);
+    key.position.copy(sd).multiplyScalar(800);
+    group.add(key);
+    var rim = new T.DirectionalLight(0x9ec8ff, 0.26);
+    rim.position.set(-sd.x * 600, 220, -sd.z * 600);
+    group.add(rim);
+    var fill = new T.DirectionalLight(0xbfd8c0, 0.3);      // hebt die Unterseiten
+    fill.position.set(120, -400, -80);
+    group.add(fill);
 
     var ground = new T.Mesh(new T.CircleGeometry(3200, 48),
-      new T.MeshLambertMaterial({ color: COL.ground }));
+      new T.MeshLambertMaterial({ color: COL.boden }));
     ground.rotation.x = -Math.PI / 2;
-    ground.position.y = GROUND_Y;
-    scene.add(ground);
+    ground.position.y = G;
+    group.add(ground);
 
     /* Huegelkette am Horizont */
     var hills = new Builder();
     for (var h = 0; h < 46; h++) {
-      var a = h / 46 * Math.PI * 2 + rnd() * 0.08;
+      var ha2 = h / 46 * Math.PI * 2 + rnd() * 0.08;
       var dist = 1300 + rnd() * 900, r = 160 + rnd() * 220, hh = 90 + rnd() * 190;
-      var cx = Math.cos(a) * dist, cz = Math.sin(a) * dist;
-      var col = COL.hill.clone().lerp(COL.hillFar, Math.min(1, (dist - 1300) / 900));
-      var segs = 7;
-      for (var k = 0; k < segs; k++) {
-        var a0 = k / segs * Math.PI * 2, a1 = (k + 1) / segs * Math.PI * 2;
-        hills.tri(new V3(cx, GROUND_Y + hh, cz),
-                  new V3(cx + Math.cos(a0) * r, GROUND_Y - 4, cz + Math.sin(a0) * r),
-                  new V3(cx + Math.cos(a1) * r, GROUND_Y - 4, cz + Math.sin(a1) * r), col);
+      var cx = Math.cos(ha2) * dist, cz = Math.sin(ha2) * dist;
+      var col = COL.huegel.clone().lerp(COL.huegelFern, Math.min(1, (dist - 1300) / 900));
+      for (var k = 0; k < 7; k++) {
+        var a0 = k / 7 * Math.PI * 2, a1 = (k + 1) / 7 * Math.PI * 2;
+        hills.tri(new V3(cx, G + hh, cz),
+                  new V3(cx + Math.cos(a0) * r, G - 4, cz + Math.sin(a0) * r),
+                  new V3(cx + Math.cos(a1) * r, G - 4, cz + Math.sin(a1) * r), col);
       }
     }
-    scene.add(hills.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
+    group.add(hills.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
 
-    /* Bergmassiv unter der Abfahrt: ueberlappende Kegel, die knapp unter der
-       Fahrbahn enden. An der Schlucht bleibt eine Luecke - das ist der Abgrund. */
+    /* Massiv unter der Abfahrt; an Schluchten bleibt eine Luecke */
     var massif = new Builder();
     for (var mi = 0; mi < n; mi += 26) {
       var mf = F[mi];
-      if (mf.p.y < 42 || mf.u.y < 0.5) continue;
+      if (mf.p.y < G + 50 || mf.u.y < 0.5) continue;
       var nearGap = track.gaps.some(function (g) { return mf.d > g.s0 - 150 && mf.d < g.s1 + 150; });
       if (nearGap) continue;
-      var mh = mf.p.y - GROUND_Y - 12, mr = 70 + (mi % 5) * 22;
+      var mh = mf.p.y - G - 12, mr = 70 + (mi % 5) * 22;
       if (mh < 20) continue;
-      var mcol = COL.hill.clone().lerp(COL.rock, 0.35 + (mi % 3) * 0.12);
+      var mcol = COL.huegel.clone().lerp(COL.fels, 0.35 + (mi % 3) * 0.12);
       for (var ms = 0; ms < 6; ms++) {
         var b0 = ms / 6 * Math.PI * 2 + mi, b1 = (ms + 1) / 6 * Math.PI * 2 + mi;
-        massif.tri(new V3(mf.p.x, GROUND_Y + mh, mf.p.z),
-                   new V3(mf.p.x + Math.cos(b0) * mr, GROUND_Y - 2, mf.p.z + Math.sin(b0) * mr),
-                   new V3(mf.p.x + Math.cos(b1) * mr, GROUND_Y - 2, mf.p.z + Math.sin(b1) * mr), mcol);
+        massif.tri(new V3(mf.p.x, G + mh, mf.p.z),
+                   new V3(mf.p.x + Math.cos(b0) * mr, G - 2, mf.p.z + Math.sin(b0) * mr),
+                   new V3(mf.p.x + Math.cos(b1) * mr, G - 2, mf.p.z + Math.sin(b1) * mr), mcol);
       }
     }
-    scene.add(massif.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
+    if (!massif.leer()) group.add(massif.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
 
-    /* Baeume und Felsen im Tal - Punkte mit Abstand zur Fahrbahn */
+    /* Baeume und Felsen - mit Abstand zur Fahrbahn */
     var near = [];
-    for (var i = 0; i < n; i += 4) near.push(F[i].p);
-    function clearOf(x, z, minD) {
-      for (var i2 = 0; i2 < near.length; i2++) {
-        var dx = near[i2].x - x, dz = near[i2].z - z;
+    for (var i2 = 0; i2 < n; i2 += 4) near.push(F[i2].p);
+    function frei(x, z, minD) {
+      for (var q = 0; q < near.length; q++) {
+        var dx = near[q].x - x, dz = near[q].z - z;
         if (dx * dx + dz * dz < minD * minD) return false;
       }
       return true;
     }
     var flora = new Builder(), tries = 0, placed = 0;
-    while (placed < 260 && tries < 6000) {
+    while (placed < P.baeume && tries < 6000) {
       tries++;
       var ang = rnd() * Math.PI * 2, rad = 60 + rnd() * 1100;
       var x = Math.cos(ang) * rad * 1.25, z = Math.sin(ang) * rad;
-      if (!clearOf(x, z, 26)) continue;
+      if (!frei(x, z, 26)) continue;
       placed++;
-      if (rnd() < 0.13) {
+      if (rnd() < 0.16) {
         var rs = 2 + rnd() * 4;
-        flora.box(new V3(x, GROUND_Y + rs * 0.4, z), new V3(rs, 0, rs * 0.3),
-                  new V3(0, rs * 0.5, 0), new V3(rs * 0.3, 0, rs), COL.rock);
+        flora.box(new V3(x, G + rs * 0.4, z), new V3(rs, 0, rs * 0.3),
+                  new V3(0, rs * 0.5, 0), new V3(rs * 0.3, 0, rs), COL.fels);
         continue;
       }
       var th = 7 + rnd() * 12, tw = 0.9 + rnd() * 0.5;
-      flora.box(new V3(x, GROUND_Y + th * 0.25, z), new V3(tw, 0, 0),
-                new V3(0, th * 0.25, 0), new V3(0, 0, tw), COL.trunk);
-      var cr = 4 + rnd() * 4.5, cy = GROUND_Y + th * 0.5, ch = th * 0.75;
-      var cc = rnd() < 0.5 ? COL.crown : COL.crown2;
+      flora.box(new V3(x, G + th * 0.25, z), new V3(tw, 0, 0),
+                new V3(0, th * 0.25, 0), new V3(0, 0, tw), COL.stamm);
+      var cr = 4 + rnd() * 4.5, cy = G + th * 0.5, ch = th * 0.75;
+      var cc2 = rnd() < 0.5 ? COL.krone : COL.krone2;
       for (var k2 = 0; k2 < 5; k2++) {
-        var b0 = k2 / 5 * Math.PI * 2, b1 = (k2 + 1) / 5 * Math.PI * 2;
+        var c0 = k2 / 5 * Math.PI * 2, c1 = (k2 + 1) / 5 * Math.PI * 2;
         flora.tri(new V3(x, cy + ch, z),
-                  new V3(x + Math.cos(b0) * cr, cy, z + Math.sin(b0) * cr),
-                  new V3(x + Math.cos(b1) * cr, cy, z + Math.sin(b1) * cr), cc);
+                  new V3(x + Math.cos(c0) * cr, cy, z + Math.sin(c0) * cr),
+                  new V3(x + Math.cos(c1) * cr, cy, z + Math.sin(c1) * cr), cc2);
         flora.tri(new V3(x, cy + ch * 0.45, z),
-                  new V3(x + Math.cos(b1) * cr * 1.25, cy - ch * 0.15, z + Math.sin(b1) * cr * 1.25),
-                  new V3(x + Math.cos(b0) * cr * 1.25, cy - ch * 0.15, z + Math.sin(b0) * cr * 1.25), cc);
+                  new V3(x + Math.cos(c1) * cr * 1.25, cy - ch * 0.15, z + Math.sin(c1) * cr * 1.25),
+                  new V3(x + Math.cos(c0) * cr * 1.25, cy - ch * 0.15, z + Math.sin(c0) * cr * 1.25), cc2);
       }
     }
-    scene.add(flora.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
+    if (!flora.leer()) group.add(flora.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
 
-    /* Start-Ziel-Bogen und Tribuenen */
-    var deco = new Builder();
-    var gateR = track.roadHalf + 5;
-    /* Tor am Start und am Ziel */
+    /* Tore an Start und Ziel, Tribuene am Ziel */
+    var deco = new Builder(), gateR = track.roadHalf + 5;
     [{ f: F[3], band: COL.standB }, { f: F[n - 6], band: COL.checkA }].forEach(function (gate) {
       var f0 = gate.f;
       [-1, 1].forEach(function (s) {
@@ -290,7 +294,6 @@
       deco.box(pt(f0, 0, 12.6), new V3().copy(f0.r).multiplyScalar(gateR - 1),
                new V3(0, 1.5, 0), new V3().copy(f0.t).multiplyScalar(0.4), gate.band);
     });
-    /* Tribuene am Ziel */
     for (var g2 = 0; g2 < 2; g2++) {
       var fs = F[n - 30], side = g2 ? 1 : -1;
       var base = pt(fs, side * (track.roadHalf + 26), -3);
@@ -301,30 +304,42 @@
                  row % 2 ? COL.standA : COL.standB);
       }
     }
-    scene.add(deco.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
+    group.add(deco.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
 
     /* Wolken */
     var clouds = new T.Group();
     var cloudGeo = new T.IcosahedronGeometry(1, 0);
     var cloudMat = new T.MeshPhongMaterial({ color: '#ffffff', shininess: 0, flatShading: true });
-    for (var c2 = 0; c2 < 26; c2++) {
+    for (var c3 = 0; c3 < P.wolken; c3++) {
       var puff = new T.Group();
-      var parts = 3 + Math.floor(rnd() * 3);
-      for (var q = 0; q < parts; q++) {
+      for (var q2 = 0; q2 < 3 + Math.floor(rnd() * 3); q2++) {
         var m = new T.Mesh(cloudGeo, cloudMat);
         m.position.set((rnd() - 0.5) * 34, (rnd() - 0.5) * 7, (rnd() - 0.5) * 22);
         m.scale.set(12 + rnd() * 16, 7 + rnd() * 5, 10 + rnd() * 10);
         puff.add(m);
       }
       var ca = rnd() * Math.PI * 2, cd = 300 + rnd() * 1500;
-      puff.position.set(Math.cos(ca) * cd, 265 + rnd() * 150, Math.sin(ca) * cd);
-      puff.userData.spin = 0.6 + rnd();
+      puff.position.set(Math.cos(ca) * cd, G + 240 + rnd() * 170, Math.sin(ca) * cd);
       clouds.add(puff);
     }
-    scene.add(clouds);
+    group.add(clouds);
 
-    return { sky: sky, clouds: clouds, ground: ground };
+    return { group: group, clouds: clouds };
   }
 
-  MK.world = { buildTrack: buildTrack, buildScenery: buildScenery, COL: COL, GROUND_Y: GROUND_Y, Builder: Builder, pt: pt };
+  /* Geometrien und Materialien eines Teilbaums freigeben */
+  function dispose(obj) {
+    obj.traverse(function (o) {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        (Array.isArray(o.material) ? o.material : [o.material]).forEach(function (m) {
+          if (m.map) m.map.dispose();
+          m.dispose();
+        });
+      }
+    });
+  }
+
+  MK.world = { buildTrack: buildTrack, buildScenery: buildScenery, dispose: dispose,
+               Builder: Builder, pt: pt, palette: palette };
 })(typeof window !== 'undefined' ? window : global);

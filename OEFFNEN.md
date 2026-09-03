@@ -44,8 +44,9 @@ Sie laeuft also auch offline.
 3. **`K`** druecken - ein neuronales Netz uebernimmt das Kart, oben erscheint
    "KI faehrt". Nochmal `K` gibt die Kontrolle zurueck.
 
-Gefahren wird allein gegen die Uhr, vom Gipfel ins Tal. Im Ziel beginnt der
-Lauf nach sechs Sekunden von vorn.
+Es gibt drei Strecken (Talfahrt, Kraterrand, Wolkenpfad), waehlbar auf der
+Startkarte oder spaeter mit `Esc`. Gefahren wird allein gegen die Uhr; im Ziel
+beginnt der Lauf nach sechs Sekunden von vorn.
 
 Weitere Tasten: `W A S D` oder Pfeile fahren, `Leertaste` Drift, `C` Kamera,
 `R` zuruecksetzen, `M` Ton, `P` Pause.

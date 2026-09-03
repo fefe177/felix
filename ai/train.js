@@ -19,6 +19,7 @@ const fs = require('fs');
 const ROOT = path.resolve(__dirname, '..');
 global.self = global;
 global.THREE = require(path.join(ROOT, 'vendor/three.min.js'));
+require(path.join(ROOT, 'src/courses.js'));
 require(path.join(ROOT, 'src/track.js'));
 require(path.join(ROOT, 'src/kart.js'));
 require(path.join(ROOT, 'src/brain.js'));
@@ -29,6 +30,10 @@ const arg = (name, def) => {
   return i >= 0 && process.argv[i + 1] ? Number(process.argv[i + 1]) : def;
 };
 const QUIET = process.argv.includes('--quiet');
+const COURSE = (function () {
+  const i = process.argv.indexOf('--course');
+  return i >= 0 && process.argv[i + 1] ? process.argv[i + 1] : MK.courses[0].id;
+})();
 
 const GENS = arg('gen', 300);
 const POP = arg('pop', 96);
@@ -36,7 +41,8 @@ const ELITE = Math.max(4, Math.round(POP / 8));
 const SEED = arg('seed', 7);
 const DT = 1 / 120;
 
-const track = MK.track.build();
+const spec = MK.courseById(COURSE);
+const track = MK.track.build(spec);
 const L = track.length;
 const NW = MK.brain.weightCount(MK.brain.SHAPE);
 
@@ -105,9 +111,10 @@ function courseTime(weights) {
 let seedW = null;
 if (process.argv.includes('--from')) {
   require(path.join(ROOT, 'src/brainweights.js'));
-  seedW = Float64Array.from(MK.brainWeights.w);
-  console.log('Starte von vorhandenen Gewichten');
+  const alt = MK.brainWeights && MK.brainWeights[COURSE];
+  if (alt) { seedW = Float64Array.from(alt.w); console.log('Starte von vorhandenen Gewichten'); }
 }
+console.log(`Strecke: ${spec.name} (${(track.length / 1000).toFixed(2)} km)`);
 let pop = [];
 for (let i = 0; i < POP; i++) {
   const w = new Float64Array(NW);
@@ -158,20 +165,35 @@ console.log('  Laufzeit:', check.ziel ? check.zeit.toFixed(2) + ' s' : 'Ziel nic
 console.log('  Plankenkontakt:', check.wall.toFixed(1), 's | Abstuerze:', check.fell,
             '| Spitze', (check.vmax * 3.6).toFixed(0), 'km/h');
 
-const out = `/* Gewichte des KI-Fahrers - erzeugt von ai/train.js
- * Aufbau ${MK.brain.SHAPE.join('-')}, ${NW} Zahlen, ${GENS} Generationen a ${POP} Individuen,
- * Startwert ${SEED}. Laufzeit im Training: ${check.ziel ? check.zeit.toFixed(2) + ' s' : '-'}.
- * Nicht von Hand aendern - neu erzeugen mit:  node ai/train.js
+/* Vorhandene Gewichte der anderen Strecken erhalten */
+const ZIEL = path.join(ROOT, 'src/brainweights.js');
+let alle = {};
+if (fs.existsSync(ZIEL)) {
+  delete require.cache[require.resolve(ZIEL)];
+  MK.brainWeights = null;
+  require(ZIEL);
+  alle = MK.brainWeights || {};
+}
+alle[COURSE] = { shape: MK.brain.SHAPE, lauf: check.ziel ? +check.zeit.toFixed(2) : null,
+                 w: Array.from(rounded) };
+
+const teile = Object.keys(alle).map(id =>
+  `    ${id}: {\n      shape: [${alle[id].shape.join(', ')}],\n` +
+  `      lauf: ${alle[id].lauf === null ? 'null' : alle[id].lauf},\n` +
+  `      w: [${alle[id].w.join(',')}]\n    }`).join(',\n');
+const out = `/* Gewichte der KI-Fahrer, je Strecke eine Zahlenreihe.
+ * Erzeugt von ai/train.js - Aufbau ${MK.brain.SHAPE.join('-')}, ${NW} Zahlen je Strecke.
+ * Nicht von Hand aendern, neu erzeugen mit:
+ *   node ai/train.js --course <name> --gen 300
  */
 (function (root) {
   'use strict';
   var MK = root.MK = root.MK || {};
   MK.brainWeights = {
-    shape: [${MK.brain.SHAPE.join(', ')}],
-    lauf: ${check.ziel ? check.zeit.toFixed(2) : 'null'},
-    w: [${Array.from(rounded).join(',')}]
+${teile}
   };
 })(typeof window !== 'undefined' ? window : global);
 `;
-fs.writeFileSync(path.join(ROOT, 'src/brainweights.js'), out);
-console.log('  geschrieben: src/brainweights.js (' + (out.length / 1024).toFixed(1) + ' kB)');
+fs.writeFileSync(ZIEL, out);
+console.log('  geschrieben: src/brainweights.js (' + (out.length / 1024).toFixed(1) + ' kB, Strecken: ' +
+            Object.keys(alle).join(', ') + ')');
