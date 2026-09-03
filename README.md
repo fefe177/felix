@@ -35,6 +35,7 @@ python3 -m http.server 8000     # danach http://localhost:8000
 | `R` | Zurueck zum letzten Abschnitt |
 | `Esc` | Streckenwahl |
 | `K` | KI faehrt fuer dich |
+| `Z` | Zuschauermodus |
 | Gamepad | linker Stick lenkt analog, Schultertasten Gas und Bremse |
 | `M` | Ton an/aus |
 | `P` | Pause |
@@ -45,6 +46,19 @@ Auf Touchgeraeten erscheinen Schaltflaechen am Bildschirmrand.
 werden weiss, orange, blau. Beim Loslassen gibt es Schub, je laenger der Drift,
 desto mehr. Geladen wird nur, solange wirklich eingelenkt wird. Die orangen
 Streifen auf der Fahrbahn geben ebenfalls Turbo.
+
+## Zuschauermodus
+
+`Z` oder der Knopf auf der Startkarte: die KI faehrt, die Kamera schneidet von
+selbst. Vier Einstellungen wechseln sich ab - eine feste **Streckenkamera**
+neben der Bahn, die mitschwenkt bis das Kart vorbei ist, ein **Hubschrauber**
+von schraeg oben, der **Verfolger** und das **Cockpit**. Statt der Fahranzeige
+laeuft unten eine Fernsehleiste mit Strecke, Fahrer, Tempo, Zeit und
+Fortschritt.
+
+Wer im Menue 25 Sekunden nichts tut, bekommt die Vorfuehrung von selbst - wie
+im Spielhallenautomaten. Jede Fahrtaste uebernimmt sofort das Steuer, `Esc`
+geht zurueck zur Streckenwahl.
 
 ## Der Geist deiner Bestzeit
 

@@ -17,6 +17,7 @@
 
   var G = {
     state: 'intro', time: 0, t0: 0, countdown: 0, camMode: 0, paused: false, abstand: null,
+    zuschauen: false, tvMode: 0, tvZeit: 0, tvS: 0, leerlauf: 0,
     autoDrive: false, shake: 0, introS: 0, dtAcc: 0, restartIn: 0, best: 0
   };
   var scene, camera, renderer, track, kart, kartObj, shadow, sparks, rauch;
@@ -245,6 +246,25 @@
     MK.hud.countdown('');
   }
 
+  /* ---- Zuschauermodus: die KI faehrt, die Kamera schneidet von selbst ---- */
+  function zuschauenAn() {
+    G.zuschauen = true;
+    G.tvMode = 0; G.tvZeit = 0;
+    document.body.classList.add('is-tv');
+    document.getElementById('tvCourse').textContent = courseSpec.name;
+    document.getElementById('tvDriver').textContent =
+      playerNet ? 'NEURA \u00b7 neuronales Netz' : 'AUTOPILOT \u00b7 Pure Pursuit';
+    startRun();
+  }
+  function zuschauenAus(uebernehmen) {
+    if (!G.zuschauen) return;
+    G.zuschauen = false;
+    document.body.classList.remove('is-tv');
+    G.leerlauf = 0;
+    if (uebernehmen) MK.hud.message('DU F\u00c4HRST', 'info', 1.4);
+    else { G.state = 'intro'; document.getElementById('startPanel').classList.add('is-on'); menuAktualisieren(); }
+  }
+
   function startRun() {
     document.getElementById('startPanel').classList.remove('is-on');
     MK.hud.audio.init();
@@ -272,6 +292,15 @@
       if (k === 'c') { G.camMode = (G.camMode + 1) % 3; MK.hud.message(['VERFOLGER', 'WEIT', 'COCKPIT'][G.camMode], 'info', 1.1); }
       if (k === 'm') MK.hud.message(MK.hud.audio.setMuted(!MK.hud.audio.isMuted()) ? 'TON AUS' : 'TON AN', 'info', 1.1);
       if (k === 'p' && G.state === 'race') { G.paused = !G.paused; MK.hud.message(G.paused ? 'PAUSE' : '', 'info', G.paused ? 99 : 0.1); }
+      G.leerlauf = 0;
+      if (k === 'z') { if (G.zuschauen) zuschauenAus(true); else zuschauenAn(); return; }
+      if (G.zuschauen) {                       // beliebige Fahrtaste uebernimmt
+        if (k === 'escape') { zuschauenAus(false); return; }
+        if (['w', 'a', 's', 'd', ' ', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].indexOf(k) >= 0) {
+          zuschauenAus(true);
+          return;
+        }
+      }
       if (k === 'k') {
         if (!playerNet) MK.hud.message('KEIN KI-FAHRER GELADEN', 'warn', 1.6);
         else {
@@ -284,7 +313,10 @@
     root.addEventListener('keyup', function (e) { keys[e.key.toLowerCase()] = false; });
     root.addEventListener('blur', function () { keys = {}; });
 
+    root.addEventListener('pointerdown', function () { G.leerlauf = 0; });
     document.getElementById('startBtn').addEventListener('click', startRun);
+    document.getElementById('tvBtn').addEventListener('click', zuschauenAn);
+    document.getElementById('tvExit').addEventListener('click', function () { zuschauenAus(false); });
     document.getElementById('againBtn').addEventListener('click', function () { reset(false); });
     document.getElementById('menuBtn').addEventListener('click', function () {
       G.state = 'intro';
@@ -380,7 +412,7 @@
 
   function finish() {
     G.state = 'finish';
-    G.restartIn = RESTART_AFTER;
+    G.restartIn = G.zuschauen ? 4 : RESTART_AFTER;
     var neu = !G.best || G.time < G.best;
     if (neu) {
       G.best = G.time;
@@ -394,7 +426,7 @@
     document.getElementById('resHead').textContent = neu ? 'Bestzeit' : 'Im Ziel';
     document.getElementById('resTime').textContent = MK.hud.fmtTime(G.time);
     document.getElementById('resBest').textContent = MK.hud.fmtTime(G.best);
-    document.getElementById('results').classList.add('is-on');
+    if (!G.zuschauen) document.getElementById('results').classList.add('is-on');
     MK.hud.audio.blip(880, 0.4, 'triangle', 0.2);
     setTimeout(function () { MK.hud.audio.blip(neu ? 1320 : 660, 0.5, 'triangle', 0.18); }, 180);
   }
@@ -443,6 +475,52 @@
     camera.updateProjectionMatrix();
   }
 
+  /* Fernsehregie: wechselt zwischen Streckenkamera, Verfolger, Hubschrauber
+     und Cockpit. Die Streckenkamera steht fest neben der Bahn und schwenkt
+     mit, bis das Kart vorbei ist - dann wird geschnitten. */
+  var tvPos = new V3(), tvFrame = null;
+  function neueEinstellung() {
+    G.tvZeit = 0;
+    G.tvMode = (G.tvMode + 1 + (rnd() < 0.4 ? 1 : 0)) % 4;
+    if (G.tvMode === 0) {
+      var vor = 90 + rnd() * 70;
+      G.tvS = Math.min(track.length - 5, kart.s + vor);
+      tvFrame = MK.track.frameAt(track, G.tvS, tvFrame);
+      var seite = (rnd() < 0.5 ? -1 : 1) * (22 + rnd() * 26);
+      tvPos.copy(tvFrame.p)
+        .addScaledVector(tvFrame.r, seite)
+        .addScaledVector(MK.track.UP, 5 + rnd() * 14);
+    }
+  }
+  function tvCamera(dt) {
+    G.tvZeit += dt;
+    var ziel = new V3().copy(kartObj.position);
+    var f = kart._f;
+    if (G.tvMode === 0) {                                  // Streckenkamera
+      camera.up.set(0, 1, 0);
+      camera.position.lerp(tvPos, 1 - Math.exp(-8 * dt));
+      camera.lookAt(ziel);
+      var weiter = kart.s > G.tvS + 45 || G.tvZeit > 9 ||
+                   camera.position.distanceTo(ziel) > 320;
+      if (weiter) neueEinstellung();
+    } else if (G.tvMode === 1) {                           // Hubschrauber
+      camera.up.set(0, 1, 0);
+      var hoch = new V3().copy(ziel).addScaledVector(MK.track.UP, 34)
+        .addScaledVector(f.t, -26).addScaledVector(f.r, 12);
+      camera.position.lerp(hoch, 1 - Math.exp(-3.5 * dt));
+      camera.lookAt(ziel);
+      if (G.tvZeit > 7) neueEinstellung();
+    } else {                                               // Verfolger und Cockpit
+      G.camMode = G.tvMode === 2 ? 0 : 2;
+      updateCamera(dt);
+      if (G.tvZeit > 7) neueEinstellung();
+      return;
+    }
+    var fov = 52 + clamp(Math.abs(kart.v) / 46, 0, 1.2) * 8;
+    camera.fov += (fov - camera.fov) * Math.min(1, dt * 3);
+    camera.updateProjectionMatrix();
+  }
+
   function introCamera(dt) {
     G.introS += dt * 30;
     if (G.introS > track.length - 60) G.introS = 40;
@@ -482,6 +560,8 @@
     if (real > 0) G.fps = G.fps ? G.fps * 0.92 + (1 / real) * 0.08 : 1 / real;
 
     if (G.state === 'intro') {
+      G.leerlauf += dt;
+      if (G.leerlauf > 25) { G.leerlauf = 0; zuschauenAn(); }   // von selbst vorfuehren
       introCamera(dt);
       sceneryRefs.clouds.rotation.y += dt * 0.004;
       MK.hud.drawMini(track, kart, kartObj.position);
@@ -551,7 +631,7 @@
       (kart.drift > 0 ? 0.5 : 0) + (kart.offtrack > 0 ? 0.6 : 0), 0, 1.4), dt);
     rauchZeichnen(dt);
 
-    updateCamera(dt);
+    if (G.zuschauen) tvCamera(dt); else updateCamera(dt);
     sceneryRefs.clouds.rotation.y += dt * 0.004;
     padMesh.material.emissiveIntensity = 0.35 + Math.sin(now / 260) * 0.22;
 
@@ -563,6 +643,11 @@
       wrongWay: Math.cos(kart.phi) < -0.25 && Math.abs(kart.v) > 4
     }, dt);
     MK.hud.drawMini(track, kart, kartObj.position);
+    if (G.zuschauen) {
+      document.getElementById('tvTime').textContent = MK.hud.fmtTime(G.time);
+      document.getElementById('tvSpeed').textContent = Math.round(Math.abs(kart.v) * 3.6);
+      document.getElementById('tvProg').textContent = Math.round(kart.s / track.length * 100);
+    }
     if (!MK.hud.audio.isMuted()) {
       MK.hud.audio.engine(clamp(Math.abs(kart.v) / 46, 0, 1.4), kart.boost > 0 ? 1 : (input.gas ? 0.6 : 0.2));
       /* Reifen schieben oder rutschen: ueber Griffueberschuss, Randstein und Drift */
@@ -577,8 +662,10 @@
     if (!racing || G.state === 'finish') {
       kin = { gas: 0, brake: G.state === 'countdown' ? 0 : 1, steer: 0, drift: 0, hop: 0 };
       if (G.state === 'countdown') kart.v *= 0.9;
-    } else if (G.autoDrive && playerNet) {
-      kin = MK.brain.decide(playerNet, kart, track);
+    } else if ((G.autoDrive || G.zuschauen) && playerNet) {
+      kin = MK.brain.decide(playerNet, kart, track);     // trainiertes Netz
+    } else if (G.zuschauen) {
+      kin = MK.kart.autopilot(kart, track, { top: 46 }); // ohne Gewichte: Autopilot
     }
     var wallBefore = kart.hitWall;
     MK.kart.step(kart, track, kin, dt);
@@ -605,7 +692,8 @@
              ueberKopf: kart._f ? kart._f.u.y < 0 : false,
              turbo: +kart.boost.toFixed(2), drift: kart.drift > 0,
              abschnitt: kart.cp, bestzeit: +G.best.toFixed(2),
-             kiFaehrt: G.autoDrive, fps: G.fps ? Math.round(G.fps) : 0 };
+             kiFaehrt: G.autoDrive, zuschauen: G.zuschauen,
+             fps: G.fps ? Math.round(G.fps) : 0 };
   }
 
   MK.game = { init: init, status: status, loadCourse: loadCourse,

@@ -46,6 +46,17 @@
   </div>
 
   <div class="delta" id="delta"></div>
+
+  <div class="tv" id="tv">
+    <div class="tv__bar">
+      <span class="tv__course" id="tvCourse">Talfahrt</span>
+      <span class="tv__driver" id="tvDriver">NEURA</span>
+      <span class="tv__stat"><b class="tabular" id="tvSpeed">0</b><i>km/h</i></span>
+      <span class="tv__stat"><b class="tabular" id="tvTime">0:00.00</b></span>
+      <span class="tv__stat"><b class="tabular" id="tvProg">0</b><i>%</i></span>
+    </div>
+    <button class="tv__exit" id="tvExit">Beliebige Fahrtaste &uuml;bernimmt &middot; Esc zur&uuml;ck</button>
+  </div>
   <div class="aidrive" id="aidrive">KI f&auml;hrt</div>
   <div class="wrongway" id="wrongway">Falsche Richtung</div>
   <div class="message" id="message"></div>
@@ -79,12 +90,14 @@
       <div class="key"><kbd>M</kbd><span>Ton</span></div>
       <div class="key"><kbd>P</kbd><span>Pause</span></div>
       <div class="key"><kbd>Esc</kbd><span>Streckenwahl</span></div>
+      <div class="key"><kbd>Z</kbd><span>Zuschauermodus</span></div>
       <div class="key"><kbd>Gamepad</kbd><span>analog lenken</span></div>
       <div class="key" id="aihint" hidden><kbd>K</kbd><span>KI f&auml;hrt f&uuml;r dich</span></div>
     </div>
     <p class="card__tip">Tipp: In der Kurve <kbd>Leer</kbd> halten, lenken, und beim
       blauen Funken loslassen &ndash; das gibt Mini-Turbo. Vor der Schlucht nicht bremsen.</p>
     <button class="btn" id="startBtn">Abfahrt starten</button>
+    <button class="btn btn--ghost" id="tvBtn">Zuschauen &ndash; die KI f&auml;hrt</button>
   </div>
 </div>
 

@@ -166,6 +166,38 @@ body {
 .wrongway.is-on { animation: blink 700ms steps(2, end) infinite; }
 @keyframes blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0.15; } }
 
+/* ---------- Zuschauermodus: Fernsehleiste statt Fahranzeige ---------- */
+.tv { display: none; }
+body.is-tv .tv { display: block; }
+body.is-tv .panel, body.is-tv .delta, body.is-tv .aidrive, body.is-tv .touchpad { display: none; }
+.tv__bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 3;
+  display: flex; align-items: center; gap: clamp(10px, 2vw, 26px);
+  padding: 10px clamp(12px, 3vw, 34px);
+  background: linear-gradient(180deg, rgba(11, 15, 24, 0) 0%, rgba(11, 15, 24, 0.86) 45%);
+  color: var(--paper);
+}
+.tv__course {
+  font-family: var(--display); font-style: italic; font-weight: 700;
+  font-size: clamp(18px, 2.6vw, 28px); text-transform: uppercase;
+  border-left: 3px solid var(--signal); padding-left: 10px;
+}
+.tv__driver {
+  font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;
+  color: #c4b5fd; margin-right: auto;
+}
+.tv__stat { display: flex; align-items: baseline; gap: 4px; }
+.tv__stat b { font-family: var(--display); font-weight: 700; font-size: clamp(16px, 2.2vw, 24px); }
+.tv__stat i { font-style: normal; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.tv__exit {
+  position: fixed; top: 14px; left: 50%; transform: translateX(-50%) skewX(var(--skew));
+  z-index: 3; cursor: pointer;
+  font-family: var(--label); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--muted); background: var(--panel-2); border: 1px solid var(--line);
+  padding: 5px 14px;
+}
+.tv__exit:hover { color: var(--paper); }
+
 /* ---------- Overlays ---------- */
 .overlay {
   position: fixed; inset: 0; display: none; place-items: center;
