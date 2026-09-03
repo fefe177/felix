@@ -98,8 +98,31 @@ arbeiten anschliessend nur noch damit.
 Die Physik rechnet streckenrelativ statt in Weltkoordinaten: Bogenlaenge `s`,
 Querversatz `x`, Kurswinkel `phi` zur Fahrbahn und beim Sprung die Hoehe `h`
 ueber der Fahrbahn. Dadurch bleiben Loopings und Ueberkopf-Passagen stabil,
-ohne dass Kollisionserkennung noetig waere. Die Schwerkraft wirkt trotzdem
-echt:
+ohne dass Kollisionserkennung noetig waere.
+
+**Die Reifen haben eine Griffgrenze.** Aus Schwerkraft, Abtrieb (waechst mit
+dem Quadrat des Tempos) und einer Mindestanpressung ergibt sich ein
+Anpressdruck, daraus mit dem Reibwert die groesste Beschleunigung, die die
+Reifen hergeben. Was laengs verbraucht wird, fehlt quer - der Reifenkreis:
+
+```
+aMax  = mu * (Schwerkraft entlang der Fahrbahnnormalen + Abtrieb)
+aQuer = sqrt(aMax^2 - aLaengs^2)
+omegaMax = aQuer / Tempo
+```
+
+`omega` ist die Drehrate der Fahrtrichtung in der Welt, und die Kruemmung der
+Fahrbahn zaehlt mit: eine enge Kurve zu *halten* kostet genauso Grip wie
+einzulenken. Reicht der Grip nicht, dreht das Kart weniger als gewollt und
+schiebt nach aussen - das kostet zusaetzlich Tempo und ist am Schraegstand zu
+sehen und an den Reifen zu hoeren. Gemessen ergibt das 2,6 g bei 54 km/h und
+4,8 g bei 216 km/h, beim Vollbremsen nur noch 2,1 g. Auf dem Randstein sinkt
+der Reibwert auf 55 Prozent, nach einer harten Landung kurz auf 70.
+
+Damit haben Kurven ein Tempolimit (`v = sqrt(aMax * Radius)`), Bremsen vor der
+Kurve lohnt sich, und Anbremsen bei gleichzeitigem Einlenken geht nur begrenzt.
+
+Die Schwerkraft wirkt daneben weiter:
 
 * Sie bremst bergauf und beschleunigt bergab (`-g * sin(Steigung)`), weshalb
   man mit zu wenig Tempo im Looping wieder herausrollt.

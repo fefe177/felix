@@ -427,6 +427,9 @@
     MK.hud.drawMini(track, kart, kartObj.position);
     if (!MK.hud.audio.isMuted()) {
       MK.hud.audio.engine(clamp(Math.abs(kart.v) / 46, 0, 1.4), kart.boost > 0 ? 1 : (input.gas ? 0.6 : 0.2));
+      /* Reifen schieben oder rutschen: ueber Griffueberschuss, Randstein und Drift */
+      MK.hud.audio.scrub(kart.air ? 0 : clamp(Math.abs(kart.ueber) * 0.8 +
+        (kart.offtrack > 0 ? 0.55 : 0) + (kart.drift > 0 ? 0.35 : 0), 0, 1));
     }
     renderer.render(scene, camera);
   }
@@ -444,6 +447,9 @@
     if (kart.hitWall > wallBefore + 0.1) {
       G.shake = Math.min(0.9, G.shake + kart.hitWall * 0.5);
       MK.hud.audio.blip(90, 0.12, 'square', 0.12 * kart.hitWall);
+    }
+    if (kart.offtrack > 0 && !kart.air) {                 // Rumpeln auf dem Randstein
+      G.shake = Math.max(G.shake, clamp(Math.abs(kart.v) / 60, 0, 1) * 0.22);
     }
     if (racing) { checkPads(); progress(dt); }
   }

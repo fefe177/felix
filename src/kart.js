@@ -22,17 +22,25 @@
     V_TOP: 46,        // Hoechstgeschwindigkeit
     V_BOOST: 68,
     ENGINE: 30,
-    BRAKE: 40,
+    BRAKE: 34,
     COAST: 4.5,
-    STEER: 2.35,
-    DRIFT_STEER: 1.3,   // Faktor auf die Lenkrate im Drift
+    STEER: 2.35,        // Wunsch-Lenkrate bei voller Haftung
+    DRIFT_STEER: 1.25,  // Faktor auf die Lenkrate im Drift
+    DRIFT_TURN: 1.12,   // das rutschende Heck dreht etwas schneller ein
+    DRIFT_DRAG: 3.0,    // Tempoverlust im Drift
     PHI_MAX: 0.55,      // Fahrtrichtung gegen die Fahrbahn
-    SLIP_MAX: 0.6,      // zusaetzlicher Schraegstand, nur optisch
+    SLIP_MAX: 0.6,      // Schraegstand im Drift, nur Darstellung
     ALIGN: 2.6,
-    GRIP: 3.4,
-    CURB: 9,          // Bremsen auf dem Randstein
-    WALL: 1.5,        // Leitplanke ausserhalb des Randsteins
-    DOWN: 15          // Anpresskraft: haelt das Kart auch ueber Kopf auf der Bahn
+    GRIP: 3.4,          // Daempfung des seitlichen Rutschens
+    MU: 1.15,           // Reibwert der Reifen
+    AERO: 0.6,          // Abtrieb bei Hoechstgeschwindigkeit, Vielfaches von G
+    CURB_MU: 0.55,      // Haftung auf dem Randstein
+    LAND_MU: 0.7,       // Haftung kurz nach einer harten Landung
+    AIR_STEER: 0.3,     // Lenkwirkung in der Luft
+    SCRUB: 0.05,        // Tempoverlust beim Schieben ueber die Vorderraeder
+    CURB: 5,            // zusaetzliches Bremsen auf dem Randstein
+    WALL: 1.5,          // Leitplanke ausserhalb des Randsteins
+    DOWN: 15            // Mindestanpressung, haelt das Kart auch ueber Kopf
   };
 
   /* Ein Koerper mit zwei verschieden grossen Enden - damit bekommt das Kart
@@ -216,7 +224,7 @@
     return Object.assign({
       s: s, x: x, phi: 0, v: 0, slide: 0, h: 0, vy: 0, air: false,
       boost: 0, drift: 0, driftDir: 0, charge: 0, slip: 0, touching: 0, wheel: 0,
-      dv: 0, braking: 0,
+      dv: 0, braking: 0, ueber: 0,
       lap: 0, cp: 0, progress: 0, offtrack: 0, hitWall: 0, landed: 0, padSeen: -1, fell: 0,
       lapStart: 0, lastLap: 0, best: 0, name: 'Kart', finished: 0
     }, opts || {});
@@ -228,37 +236,63 @@
     var f = MK.track.frameAt(track, k.s, k._f || (k._f = null));
     k._f = f;
     var top = k.boost > 0 ? P.V_BOOST : P.V_TOP;
+    var tempo = Math.abs(k.v);
 
-    /* Antrieb */
-    var a = 0;
-    if (inp.gas) a += P.ENGINE * Math.max(0, 1 - k.v / top);   // Schub endet an der Hoechstgeschwindigkeit
-    if (inp.brake) a -= (k.v > 0.5 ? P.BRAKE : 16);
-    if (!inp.gas && !inp.brake) a -= P.COAST * (k.v > 0 ? 1 : -1);
-    if (k.boost > 0) a += 20;
-    a -= P.G * P.SLOPE * f.t.y;                    // Steigung
-    if (Math.abs(k.x) > f.half) a -= P.CURB;       // Randstein
+    /* Haftung: Anpressdruck aus Schwerkraft, Abtrieb und Mindestanpressung.
+       Daraus folgt, wie viel Beschleunigung die Reifen ueberhaupt hergeben. */
+    var druck = Math.max(P.G * f.u.y, P.DOWN) + P.AERO * P.G * Math.pow(tempo / P.V_TOP, 2);
+    var mu = P.MU;
+    if (Math.abs(k.x) > f.half) mu *= P.CURB_MU;          // Randstein
+    if (k.landed > 0) mu *= P.LAND_MU;                    // Fahrwerk noch unruhig
+    var aMax = mu * druck;
+
+    /* Antrieb. Nur Motor und Bremse belasten die Reifen, die Steigung nicht. */
+    var traktion = 0, a = 0;
+    if (inp.gas) traktion += P.ENGINE * Math.max(0, 1 - tempo / top);
+    if (inp.brake) traktion -= (k.v > 0.5 ? P.BRAKE : 16);
+    if (!inp.gas && !inp.brake) traktion -= P.COAST * (k.v > 0 ? 1 : -1);
+    if (k.boost > 0) traktion += 20;
+    if (k.air) traktion = 0;                              // in der Luft kein Vortrieb
+    traktion = clamp(traktion, -aMax, aMax);              // mehr geben die Reifen nicht her
+    a = traktion - P.G * P.SLOPE * f.t.y;                 // Steigung wirkt immer
+    if (Math.abs(k.x) > f.half) a -= P.CURB;
+    if (k.drift > 0) a -= P.DRIFT_DRAG;
     k.v += a * dt;
     if (k.v > top * 1.02) k.v -= (k.v - top) * 3 * dt;
     if (k.v < -14) k.v = -14;
     if (!inp.gas && !inp.brake && Math.abs(k.v) < 0.4) k.v = 0;
 
-    /* Lenkung */
-    var grip = clamp(Math.abs(k.v) / 13, 0, 1);
-    var rate = P.STEER * (k.drift > 0 ? P.DRIFT_STEER : 1) * grip * (1 - 0.3 * clamp(k.v / P.V_TOP, 0, 1));
-    if (k.v < 0) rate = -rate;
-    k.phi += inp.steer * rate * dt;
-    if (Math.abs(inp.steer) < 0.15 && k.drift <= 0) k.phi -= k.phi * P.ALIGN * dt;
-    if (k.drift > 0) k.phi += k.driftDir * 0.2 * dt;      // treibt sanft nach aussen
-    var phiMax = P.PHI_MAX * (1 - 0.38 * clamp(Math.abs(k.v) / P.V_TOP, 0, 1));
+    /* Reifenkreis: was laengs verbraucht wird, fehlt quer */
+    var aLaengs = Math.min(Math.abs(traktion), aMax) * 0.85;   // etwas Reserve zum Lenken
+    var aQuer = Math.sqrt(Math.max(0, aMax * aMax - aLaengs * aLaengs));
+    if (k.drift > 0) aQuer *= P.DRIFT_TURN;               // rutschendes Heck dreht schneller
+
+    /* Lenkung an der Griffgrenze. omega ist die Drehrate der Fahrtrichtung in
+       der Welt; die Fahrbahnkruemmung zaehlt mit - eine enge Kurve zu halten
+       kostet genauso Grip wie einzulenken. */
+    var lenkbar = clamp(tempo / 12, 0, 1) * (k.air ? P.AIR_STEER : 1);
+    var wunsch = inp.steer * P.STEER * (k.drift > 0 ? P.DRIFT_STEER : 1) * lenkbar;
+    if (k.v < 0) wunsch = -wunsch;
+    if (Math.abs(inp.steer) < 0.15 && k.drift <= 0) wunsch -= k.phi * P.ALIGN;
+    if (k.drift > 0) wunsch += k.driftDir * 0.2;
+    var bahn = f.yaw * k.v;                               // Drehrate der Fahrbahn
+    var omegaMax = k.air ? 9 : aQuer / Math.max(7, tempo);
+    var omega = clamp(wunsch + bahn, -omegaMax, omegaMax);
+    k.ueber = (wunsch + bahn) - omega;                    // was der Grip nicht hergibt
+    k.phi += (omega - bahn) * dt;
+    var phiMax = P.PHI_MAX * (1 - 0.38 * clamp(tempo / P.V_TOP, 0, 1));
     k.phi = clamp(k.phi, -phiMax, phiMax);
-    var slipWant = k.drift > 0 ? k.driftDir * P.SLIP_MAX * clamp(k.v / 26, 0, 1) : 0;
+    /* Schieben ueber die Vorderraeder kostet Tempo */
+    if (!k.air) k.v -= clamp(Math.abs(k.ueber) * tempo * P.SCRUB, 0, 9) * dt;
+
+    var slipWant = (k.drift > 0 ? k.driftDir * P.SLIP_MAX * clamp(tempo / 26, 0, 1) : 0)
+                 + clamp(k.ueber * 0.3, -0.3, 0.3);
     k.slip += (slipWant - k.slip) * Math.min(1, dt * 6);
 
     /* Vortrieb entlang der Strecke, Querversatz */
     var ds = k.v * Math.cos(k.phi) * dt;
     var corr = clamp(1 + k.x * f.yaw, 0.6, 1.4);
     k.s += ds / corr;
-    k.phi -= f.yaw * ds;
     var latG = -P.G * f.r.y * 0.42 * Math.max(0, f.u.y);
     k.slide = (k.slide + latG * dt) * Math.exp(-P.GRIP * dt);
     k.x += (-k.v * Math.sin(k.phi) + k.slide) * dt;
@@ -291,7 +325,10 @@
       if (f.gap) {
         if (k.h < -2) k.fell = 1;                         // unter die Flugbahn gesackt
       } else if (k.h <= 0) {
-        k.h = 0; k.air = false; k.landed = 0.22; k.v *= 0.985; k.vy = 0;
+        var hart = clamp(Math.abs(k.vy) / 14, 0, 1);      // Wucht des Aufsetzens
+        k.h = 0; k.air = false; k.vy = 0;
+        k.landed = 0.2 + hart * 0.5;
+        k.v *= 1 - 0.12 * hart;
       }
     }
     k.landed = Math.max(0, k.landed - dt);
@@ -415,7 +452,9 @@
       narrow = Math.min(narrow, ff.w);
     }
     if (narrow < 0.95) steer *= 1.1;                 // im Looping mittig bleiben
-    var vT = Math.min(opt.top || P.V_TOP, Math.sqrt(42 / Math.max(worst, 1e-4)));
+    /* Wunschtempo aus der Haftgrenze: v^2 * Kruemmung darf die Reifen nicht
+       ueberfordern. Etwas Reserve, weil auch Lenken und Bremsen Grip kosten. */
+    var vT = Math.min(opt.top || P.V_TOP, Math.sqrt(26 / Math.max(worst, 1e-4)));
     return { gas: k.v < vT ? 1 : 0, brake: k.v > vT * 1.14 ? 1 : 0, steer: steer,
              drift: 0, hop: 0, vT: vT };
   }

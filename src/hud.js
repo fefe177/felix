@@ -98,7 +98,7 @@
   }
 
   /* ---- Sound: kleine WebAudio-Engine, erst nach der ersten Eingabe ---- */
-  var actx = null, engine = null, master = null, muted = false;
+  var actx = null, engine = null, master = null, scrubGain = null, muted = false;
   function audioInit() {
     if (actx || muted) return;
     var AC = root.AudioContext || root.webkitAudioContext;
@@ -116,6 +116,23 @@
     osc.connect(filt); osc2.connect(filt); filt.connect(gain); gain.connect(master);
     osc.start(); osc2.start();
     engine = { osc: osc, osc2: osc2, filt: filt, gain: gain };
+
+    /* Dauerrauschen fuer schiebende Reifen, ueber die Lautstaerke gesteuert */
+    var n = actx.sampleRate * 2, buf = actx.createBuffer(1, n, actx.sampleRate);
+    var d = buf.getChannelData(0);
+    for (var i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
+    var src = actx.createBufferSource();
+    src.buffer = buf; src.loop = true;
+    var bp = actx.createBiquadFilter();
+    bp.type = 'bandpass'; bp.frequency.value = 1500; bp.Q.value = 0.9;
+    scrubGain = actx.createGain();
+    scrubGain.gain.value = 0;
+    src.connect(bp); bp.connect(scrubGain); scrubGain.connect(master);
+    src.start();
+  }
+  function scrub(menge) {
+    if (!scrubGain || !actx) return;
+    scrubGain.gain.setTargetAtTime(Math.max(0, Math.min(1, menge)) * 0.14, actx.currentTime, 0.06);
   }
   function engineSound(rpm, load) {
     if (!engine || !actx) return;
@@ -155,7 +172,7 @@
   MK.hud = {
     init: init, update: update, message: message, countdown: countdown,
     drawMini: drawMini, fmtTime: fmtTime,
-    audio: { init: audioInit, engine: engineSound, blip: blip, noise: noise,
+    audio: { init: audioInit, engine: engineSound, scrub: scrub, blip: blip, noise: noise,
              setMuted: setMuted, isMuted: function () { return muted; } }
   };
 })(typeof window !== 'undefined' ? window : global);
