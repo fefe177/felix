@@ -35,62 +35,180 @@
     DOWN: 15          // Anpresskraft: haelt das Kart auch ueber Kopf auf der Bahn
   };
 
+  /* Ein Koerper mit zwei verschieden grossen Enden - damit bekommt das Kart
+     verjuengte Formen statt lauter Kisten. Laenge liegt auf der z-Achse. */
+  function frustum(w0, h0, w1, h1, len, dy) {
+    dy = dy || 0;
+    var a = [[-w0 / 2, -h0 / 2, -len / 2], [w0 / 2, -h0 / 2, -len / 2],
+             [w0 / 2, h0 / 2, -len / 2], [-w0 / 2, h0 / 2, -len / 2]];
+    var b = [[-w1 / 2, -h1 / 2 + dy, len / 2], [w1 / 2, -h1 / 2 + dy, len / 2],
+             [w1 / 2, h1 / 2 + dy, len / 2], [-w1 / 2, h1 / 2 + dy, len / 2]];
+    var quads = [[a[0], a[1], a[2], a[3]], [b[1], b[0], b[3], b[2]],
+                 [a[1], b[1], b[2], a[2]], [b[0], a[0], a[3], b[3]],
+                 [a[3], a[2], b[2], b[3]], [b[0], b[1], a[1], a[0]]];
+    var pos = [];
+    quads.forEach(function (q) {
+      [0, 1, 2, 0, 2, 3].forEach(function (i) { pos.push(q[i][0], q[i][1], q[i][2]); });
+    });
+    var g = new T.BufferGeometry();
+    g.setAttribute('position', new T.Float32BufferAttribute(pos, 3));
+    g.computeVertexNormals();
+    return g;
+  }
+
   function makeKart(paint, accent) {
     var g = new T.Group();
-    var body = new T.MeshLambertMaterial({ color: paint });
-    var dark = new T.MeshLambertMaterial({ color: '#23262e' });
-    var trim = new T.MeshLambertMaterial({ color: accent });
-    var glass = new T.MeshLambertMaterial({ color: '#2a3550' });
-
-    function add(geo, mat, x, y, z, sx, sy, sz) {
-      var m = new T.Mesh(geo, mat);
-      m.position.set(x, y, z);
-      if (sx !== undefined) m.scale.set(sx, sy, sz);
-      g.add(m); return m;
-    }
+    var lack = new T.Color(paint);
+    var mat = {
+      lack:   new T.MeshLambertMaterial({ color: lack }),
+      dunkel: new T.MeshLambertMaterial({ color: lack.clone().multiplyScalar(0.55) }),
+      zier:   new T.MeshLambertMaterial({ color: accent }),
+      schwarz: new T.MeshLambertMaterial({ color: '#23262e' }),
+      gummi:  new T.MeshLambertMaterial({ color: '#191c22' }),
+      metall: new T.MeshLambertMaterial({ color: '#98a2b4' }),
+      glas:   new T.MeshLambertMaterial({ color: '#1b2740' }),
+      anzug:  new T.MeshLambertMaterial({ color: '#eae7df' })
+    };
     var box = new T.BoxGeometry(1, 1, 1);
-    add(box, body, 0, 0.52, 0, 1.75, 0.5, 3.0);           // Wanne
-    add(box, body, 0, 0.86, 0.95, 1.35, 0.42, 0.9);       // Motorhaube hinten
-    add(box, trim, 0, 0.80, -1.24, 1.5, 0.26, 0.6);       // Nase
-    add(box, dark, 0, 1.28, 1.42, 1.5, 0.12, 0.5);        // Heckfluegel
-    add(box, dark, -0.62, 1.02, 1.4, 0.12, 0.42, 0.4);
-    add(box, dark, 0.62, 1.02, 1.4, 0.12, 0.42, 0.4);
-    add(box, dark, 0, 0.90, -0.15, 1.1, 0.3, 0.8);        // Sitz
-    add(box, trim, 0, 1.16, 0.42, 0.9, 0.5, 0.16);        // Sitzlehne
+    var karosse = new T.Group();          // nickt und waenkt, die Raeder nicht
+    g.add(karosse);
 
-    var driver = new T.Group();
-    var torso = new T.Mesh(box, new T.MeshLambertMaterial({ color: '#e8e4dc' }));
-    torso.scale.set(0.66, 0.62, 0.5); torso.position.y = 1.25; driver.add(torso);
-    var head = new T.Mesh(new T.SphereGeometry(0.34, 10, 8), trim);
-    head.position.y = 1.78; driver.add(head);
-    var visor = new T.Mesh(box, glass);
-    visor.scale.set(0.5, 0.18, 0.12); visor.position.set(0, 1.78, -0.28); driver.add(visor);
-    driver.position.z = 0.05;
-    g.add(driver);
+    function teil(parent, geo, m, x, y, z, rx, ry, rz) {
+      var o = new T.Mesh(geo, m);
+      o.position.set(x, y, z);
+      if (rx || ry || rz) o.rotation.set(rx || 0, ry || 0, rz || 0);
+      parent.add(o);
+      return o;
+    }
+    function kasten(parent, m, x, y, z, sx, sy, sz, rx) {
+      var o = teil(parent, box, m, x, y, z, rx);
+      o.scale.set(sx, sy, sz);
+      return o;
+    }
 
-    var wheelGeo = new T.CylinderGeometry(0.52, 0.52, 0.42, 10);
-    wheelGeo.rotateZ(Math.PI / 2);
-    var hubGeo = new T.CylinderGeometry(0.26, 0.26, 0.46, 6);
-    hubGeo.rotateZ(Math.PI / 2);
-    var wheels = [];
-    [[-0.98, -1.05], [0.98, -1.05], [-1.0, 1.15], [1.0, 1.15]].forEach(function (w, i) {   // vorne, vorne, hinten, hinten
-      var grp = new T.Group();
-      grp.position.set(w[0], 0.52, w[1]);
-      var tire = new T.Mesh(wheelGeo, dark);
-      var hub = new T.Mesh(hubGeo, trim);
-      grp.add(tire); grp.add(hub);
-      if (i > 1) grp.scale.set(1.18, 1.18, 1.18);
-      g.add(grp); wheels.push(grp);
+    /* --- Chassis --- */
+    teil(karosse, frustum(0.30, 0.24, 0.88, 0.46, 1.10), mat.lack, 0, 0.44, -1.16);   // Nasenkegel
+    teil(karosse, frustum(0.88, 0.46, 1.12, 0.54, 1.18), mat.lack, 0, 0.50, -0.02);   // Monocoque
+    teil(karosse, frustum(1.12, 0.54, 0.46, 0.34, 0.92, -0.06), mat.lack, 0, 0.60, 1.02); // Motorhaube
+    kasten(karosse, mat.dunkel, 0, 0.20, 0.30, 1.24, 0.16, 2.4);                      // Unterboden
+    kasten(karosse, mat.zier, 0, 0.66, -1.20, 0.16, 0.05, 1.05);                      // Zierstreifen Nase
+    kasten(karosse, mat.zier, 0, 0.80, 1.10, 0.14, 0.05, 0.80);                       // Zierstreifen Heck
+    teil(karosse, frustum(1.02, 0.30, 0.62, 0.22, 0.62), mat.schwarz, 0, 0.22, 1.44); // Diffusor
+    kasten(karosse, mat.schwarz, 0, 0.78, -0.18, 0.74, 0.30, 0.72);                   // Cockpitoeffnung
+    teil(karosse, frustum(0.86, 0.10, 0.96, 0.10, 0.92), mat.dunkel, 0, 0.86, -0.16);  // Cockpitrand
+
+    /* Seitenkaesten mit Lufteinlass und Zierstreifen */
+    [-1, 1].forEach(function (s) {
+      teil(karosse, frustum(0.44, 0.42, 0.30, 0.26, 1.15), mat.lack, s * 0.74, 0.46, 0.42);
+      kasten(karosse, mat.schwarz, s * 0.74, 0.50, -0.14, 0.40, 0.30, 0.10);
+      kasten(karosse, mat.zier, s * 0.97, 0.50, 0.42, 0.04, 0.12, 1.0);
+      /* Spiegel */
+      kasten(karosse, mat.dunkel, s * 0.52, 0.88, -0.30, 0.34, 0.03, 0.1);
+      kasten(karosse, mat.schwarz, s * 0.66, 0.92, -0.30, 0.14, 0.12, 0.05);
     });
 
-    var flame = new T.Mesh(new T.ConeGeometry(0.42, 1.9, 7),
-      new T.MeshBasicMaterial({ color: '#ffb03a' }));
-    flame.rotation.x = Math.PI / 2;
-    flame.position.set(0, 0.72, 2.1);
-    flame.visible = false;
-    g.add(flame);
+    /* Ueberrollbuegel und Airbox */
+    teil(karosse, new T.CylinderGeometry(0.20, 0.26, 0.42, 10), mat.lack, 0, 1.10, 0.60);
+    teil(karosse, frustum(0.40, 0.34, 0.24, 0.20, 0.70), mat.lack, 0, 1.02, 1.02);
 
-    g.userData = { wheels: wheels, flame: flame, driver: driver };
+    /* Frontfluegel */
+    kasten(karosse, mat.schwarz, 0, 0.19, -1.80, 1.90, 0.05, 0.40);
+    kasten(karosse, mat.zier, 0, 0.29, -1.72, 1.66, 0.04, 0.22, -0.22);
+    [-1, 1].forEach(function (s) {
+      kasten(karosse, mat.lack, s * 0.93, 0.30, -1.78, 0.05, 0.30, 0.46);
+      kasten(karosse, mat.schwarz, s * 0.30, 0.24, -1.62, 0.06, 0.14, 0.3);
+    });
+
+    /* Heckfluegel */
+    kasten(karosse, mat.schwarz, 0, 1.14, 1.62, 1.44, 0.06, 0.42);
+    kasten(karosse, mat.zier, 0, 1.28, 1.70, 1.44, 0.05, 0.24, -0.3);
+    [-1, 1].forEach(function (s) {
+      kasten(karosse, mat.lack, s * 0.72, 1.16, 1.62, 0.05, 0.44, 0.5);
+      kasten(karosse, mat.dunkel, s * 0.22, 0.94, 1.58, 0.07, 0.40, 0.18);
+    });
+
+    /* Auspuffrohre */
+    [-1, 1].forEach(function (s) {
+      teil(karosse, new T.CylinderGeometry(0.075, 0.09, 0.5, 8), mat.metall,
+           s * 0.19, 0.80, 1.50, Math.PI / 2 - 0.22);
+    });
+
+    /* Bremslichter */
+    var lichter = [-1, 1].map(function (s) {
+      var m = new T.MeshBasicMaterial({ color: '#2a0806' });
+      return kasten(karosse, m, s * 0.40, 0.50, 1.70, 0.20, 0.10, 0.05);
+    });
+
+    /* --- Fahrer --- */
+    var fahrer = new T.Group();
+    fahrer.position.set(0, 0, 0.06);
+    karosse.add(fahrer);
+    teil(fahrer, frustum(0.56, 0.44, 0.68, 0.40, 0.46), mat.anzug, 0, 0.92, 0.06, 0.25);
+    teil(fahrer, frustum(0.30, 0.26, 0.34, 0.30, 0.22), mat.anzug, 0, 1.16, 0.14);      // Hals
+    var kopf = new T.Group();
+    kopf.position.set(0, 1.34, 0.10);
+    fahrer.add(kopf);
+    teil(kopf, new T.SphereGeometry(0.245, 12, 10), mat.zier, 0, 0, 0);                  // Helm
+    kasten(kopf, mat.glas, 0, 0.01, -0.185, 0.31, 0.14, 0.13);                           // Visier
+    kasten(kopf, mat.lack, 0, 0.20, 0.02, 0.09, 0.13, 0.40);                             // Helmstreifen
+    [-1, 1].forEach(function (s) {                                                       // Arme zum Lenkrad
+      teil(fahrer, frustum(0.16, 0.16, 0.13, 0.13, 0.52), mat.anzug,
+           s * 0.26, 0.98, -0.22, -0.5, s * 0.22, 0);
+      kasten(fahrer, mat.schwarz, s * 0.20, 0.94, -0.46, 0.13, 0.11, 0.12);              // Handschuh
+    });
+    var lenkrad = new T.Group();
+    lenkrad.position.set(0, 0.95, -0.50);
+    lenkrad.rotation.x = -0.55;
+    fahrer.add(lenkrad);
+    teil(lenkrad, new T.TorusGeometry(0.17, 0.035, 6, 14), mat.schwarz, 0, 0, 0);
+    kasten(lenkrad, mat.zier, 0, 0, 0.01, 0.26, 0.05, 0.03);
+
+    /* --- Raeder --- */
+    var wheels = [];
+    [[-0.92, -1.12, 0.50, 0.40], [0.92, -1.12, 0.50, 0.40],
+     [-0.96, 1.26, 0.58, 0.54], [0.96, 1.26, 0.58, 0.54]].forEach(function (w, i) {
+      var grp = new T.Group();
+      grp.position.set(w[0], w[2], w[1]);
+      grp.userData.y0 = w[2];
+      var dreh = new T.Group();                    // dreht sich beim Fahren
+      grp.add(dreh);
+      var reifen = new T.CylinderGeometry(w[2], w[2], w[3], 14);
+      reifen.rotateZ(Math.PI / 2);
+      teil(dreh, reifen, mat.gummi, 0, 0, 0);
+      var felge = new T.CylinderGeometry(w[2] * 0.58, w[2] * 0.58, w[3] * 1.02, 10);
+      felge.rotateZ(Math.PI / 2);
+      teil(dreh, felge, mat.zier, 0, 0, 0);
+      var nabe = new T.CylinderGeometry(w[2] * 0.2, w[2] * 0.2, w[3] * 1.06, 8);
+      nabe.rotateZ(Math.PI / 2);
+      teil(dreh, nabe, mat.schwarz, 0, 0, 0);
+      for (var sp = 0; sp < 5; sp++) {             // Speichen
+        var s2 = kasten(dreh, mat.dunkel, 0, 0, 0, w[3] * 1.04, w[2] * 0.9, 0.07);
+        s2.rotation.x = sp * Math.PI / 5;
+      }
+      var scheibe = new T.CylinderGeometry(w[2] * 0.42, w[2] * 0.42, 0.06, 10);
+      scheibe.rotateZ(Math.PI / 2);
+      teil(grp, scheibe, mat.metall, -Math.sign(w[0]) * w[3] * 0.55, 0, 0);
+      grp.userData.dreh = dreh;
+      /* Querlenker zum Chassis */
+      var arm = kasten(karosse, mat.metall, w[0] * 0.55, w[2] * 0.85, w[1], Math.abs(w[0]) * 0.8, 0.06, 0.08);
+      arm.rotation.y = w[0] > 0 ? 0.12 : -0.12;
+      g.add(grp);
+      wheels.push(grp);
+    });
+
+    /* Turboflammen */
+    var flammen = [-1, 1].map(function (s) {
+      var f = new T.Mesh(new T.ConeGeometry(0.2, 1.5, 7),
+        new T.MeshBasicMaterial({ color: '#ffb03a' }));
+      f.rotation.x = -Math.PI / 2;
+      f.position.set(s * 0.19, 0.80, 2.05);
+      f.visible = false;
+      karosse.add(f);
+      return f;
+    });
+
+    g.userData = { wheels: wheels, flammen: flammen, karosse: karosse,
+                   fahrer: fahrer, kopf: kopf, lenkrad: lenkrad, lichter: lichter };
     return g;
   }
 
@@ -98,6 +216,7 @@
     return Object.assign({
       s: s, x: x, phi: 0, v: 0, slide: 0, h: 0, vy: 0, air: false,
       boost: 0, drift: 0, driftDir: 0, charge: 0, slip: 0, touching: 0, wheel: 0,
+      dv: 0, braking: 0,
       lap: 0, cp: 0, progress: 0, offtrack: 0, hitWall: 0, landed: 0, padSeen: -1, fell: 0,
       lapStart: 0, lastLap: 0, best: 0, name: 'Kart', finished: 0
     }, opts || {});
@@ -105,6 +224,7 @@
 
   /* Ein Fahrschritt. inp: {gas, brake, steer, drift, hop} */
   function step(k, track, inp, dt) {
+    var vVorher = k.v;
     var f = MK.track.frameAt(track, k.s, k._f || (k._f = null));
     k._f = f;
     var top = k.boost > 0 ? P.V_BOOST : P.V_TOP;
@@ -190,6 +310,9 @@
 
     k.boost = Math.max(0, k.boost - dt);
     k.wheel += k.v * dt * 1.6;
+    /* nur fuer die Darstellung: geglaettete Laengsbeschleunigung und Bremslicht */
+    k.dv = k.dv * 0.88 + ((k.v - vVorher) / dt) * 0.12;
+    k.braking = inp.brake ? 1 : 0;
     if (track.open) {
       if (k.s < 0) { k.s = 0; if (k.v < 0) k.v = 0; }
       if (k.s > track.length) k.s = track.length;
@@ -216,13 +339,43 @@
     _m.makeBasis(_rt, _up, _fw.clone().negate());
     _q.setFromRotationMatrix(_m);
     obj.quaternion.copy(_q);
-    var w = obj.userData.wheels;
-    if (w) {
-      var steerAng = clamp(k.phi * 0.75, -0.55, 0.55) + (k.drift > 0 ? k.driftDir * 0.3 : 0);
-      w[0].rotation.y = steerAng; w[1].rotation.y = steerAng;
-      for (var i = 0; i < 4; i++) w[i].children[0].rotation.x = -k.wheel;
+    var ud = obj.userData, i;
+    var steerAng = clamp(k.phi * 0.75, -0.55, 0.55) + (k.drift > 0 ? k.driftDir * 0.3 : 0);
+    if (ud.wheels) {
+      var einfedern = k.landed * 0.55;                        // Landung drueckt ein
+      var nicken = clamp(k.dv * 0.004, -0.05, 0.05);
+      for (i = 0; i < 4; i++) {
+        var rad = ud.wheels[i];
+        var vorne = i < 2;
+        rad.position.y = rad.userData.y0 - einfedern * (vorne ? 0.6 : 1) +
+                         (vorne ? -nicken : nicken) * 1.2;
+        rad.userData.dreh.rotation.x = -k.wheel;
+        if (vorne) rad.rotation.y = steerAng;
+      }
+      if (ud.karosse) {
+        ud.karosse.rotation.x = -nicken * 0.8 - einfedern * 0.12;
+        ud.karosse.rotation.z = clamp(k.slide * 0.004 + (k.drift > 0 ? k.driftDir * 0.05 : 0), -0.09, 0.09);
+        ud.karosse.position.y = -einfedern * 0.35;
+      }
     }
-    if (obj.userData.flame) obj.userData.flame.visible = k.boost > 0;
+    if (ud.lenkrad) ud.lenkrad.rotation.z = -steerAng * 1.7;
+    if (ud.kopf) { ud.kopf.rotation.y = steerAng * 0.45; ud.kopf.rotation.z = -steerAng * 0.12; }
+    if (ud.lichter) {
+      var hell = k.braking ? 1 : (k.v < -0.5 ? 0.6 : 0);
+      for (i = 0; i < ud.lichter.length; i++) {
+        ud.lichter[i].material.color.setRGB(0.16 + hell * 0.84, 0.03 + hell * 0.14, 0.02 + hell * 0.06);
+      }
+    }
+    if (ud.flammen) {
+      for (i = 0; i < ud.flammen.length; i++) {
+        ud.flammen[i].visible = k.boost > 0;
+        if (k.boost > 0) {
+          var f2 = 0.7 + Math.random() * 0.6;
+          ud.flammen[i].scale.set(1, f2, 1);
+          ud.flammen[i].material.color.setHSL(0.08 - Math.random() * 0.05, 1, 0.55 + Math.random() * 0.2);
+        }
+      }
+    }
   }
 
   /* Turbofeld unter dem Kart? Gibt den Index zurueck (oder -1) und setzt den

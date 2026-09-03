@@ -113,6 +113,19 @@ kleiner; die Lenkung wird ausserdem weich nachgefuehrt, weil eine Tastatur nur
 0 und 1 kennt. Im Drift kommt ein rein optischer Schraegstand dazu, damit es
 quer aussieht, ohne dass das Kart quer faehrt.
 
+Das Kart selbst ist aus verjuengten Koerpern gebaut (`frustum()`), nicht aus
+Kisten: Nasenkegel, Monocoque, Seitenkaesten mit Lufteinlass, Ueberrollbuegel
+und Airbox, Motorhaube, Diffusor, Front- und Heckfluegel mit Endscheiben,
+Auspuffrohre, Spiegel, Bremslichter, Raeder mit Felgen, Speichen und
+Bremsscheiben, dazu ein Fahrer mit Helm, Visier und Armen am Lenkrad.
+
+Was sich daran bewegt, ist **reine Darstellung** und beruehrt die Physik nicht:
+die Raeder federn bei der Landung ein, die Karosserie nickt beim Beschleunigen
+und Bremsen und legt sich im Drift, das Lenkrad dreht mit, der Kopf schaut in
+die Kurve, die Bremslichter leuchten, und beim Turbo flackern zwei Flammen.
+Deshalb bleiben trainierte Gewichte nach Aenderungen am Kart gueltig - die
+Laufzeiten der KI sind auf die Hundertstel dieselben.
+
 ## Der KI-Fahrer
 
 Mit `K` uebernimmt ein neuronales Netz das Kart. Es ist von Hand geschrieben,
