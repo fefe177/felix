@@ -33,21 +33,19 @@ python3 -m http.server 8000
 # dann http://localhost:8000 aufrufen
 ```
 
-`index.html?runden=1` startet ein kurzes Rennen ueber eine Runde statt drei.
-
 Die Seite laedt three.js r128 vom CDN und faellt automatisch auf die
 mitgelieferte Kopie in `vendor/three.min.js` zurueck, wenn kein Netz da ist.
 Sie laeuft also auch offline.
 
-## Das Rennen mit der KI starten
+## Die KI fahren lassen
 
-1. Auf **"Rennen starten"** klicken
+1. Auf **"Abfahrt starten"** klicken
 2. Countdown abwarten (3, 2, 1, Los)
 3. **`K`** druecken - ein neuronales Netz uebernimmt das Kart, oben erscheint
    "KI faehrt". Nochmal `K` gibt die Kontrolle zurueck.
 
-Das violette Kart **NEURA** faehrt ohnehin immer mit; es ist dasselbe Netz als
-Gegner. Fuer eine reine KI-Vorfuehrung genuegen also Schritt 1, 2 und 3.
+Gefahren wird allein gegen die Uhr, vom Gipfel ins Tal. Im Ziel beginnt der
+Lauf nach sechs Sekunden von vorn.
 
 Weitere Tasten: `W A S D` oder Pfeile fahren, `Leertaste` Drift, `C` Kamera,
 `R` zuruecksetzen, `M` Ton, `P` Pause.
@@ -61,9 +59,8 @@ keine Pakete noetig):
 node ai/analyse.js
 ```
 
-Das misst drei Runden des KI-Fahrers und vergleicht sie mit dem
-handgeschriebenen Autopiloten. Erwartete Ausgabe: beste Runde rund 33,6 s
-gegenueber 43,6 s, kein Plankenkontakt.
+Das misst den Lauf des KI-Fahrers vom Start ins Ziel und vergleicht ihn mit
+dem handgeschriebenen Autopiloten.
 
 Neu trainieren (rund fuenf Minuten, ueberschreibt `src/brainweights.js`):
 

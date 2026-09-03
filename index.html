@@ -17,17 +17,16 @@
 <div class="hud" id="hud">
   <div class="panel panel--race">
     <div class="panel__in">
-      <div class="stat"><span class="stat__k">Runde</span><span class="stat__v"><b id="lapNo">1</b><i>/</i><span id="lapAll">3</span></span></div>
       <div class="stat"><span class="stat__k">Zeit</span><span class="stat__v tabular" id="time">0:00.00</span></div>
-      <div class="stat stat--sub"><span class="stat__k">Beste</span><span class="stat__v tabular" id="best">--:--.--</span></div>
-      <div class="stat stat--sub"><span class="stat__k">Letzte</span><span class="stat__v tabular" id="last">--:--.--</span></div>
+      <div class="stat stat--sub"><span class="stat__k">Bestzeit</span><span class="stat__v tabular" id="best">--:--.--</span></div>
     </div>
   </div>
 
   <div class="panel panel--place">
     <div class="panel__in">
-      <span class="place"><b id="place">5</b><i>/</i><span id="placeAll">5</span></span>
-      <span class="place__k">Position</span>
+      <span class="place"><b id="progPct">0</b><i>%</i></span>
+      <span class="place__k">Strecke</span>
+      <div class="prog"><div class="prog__fill" id="progFill"></div></div>
     </div>
   </div>
 
@@ -62,12 +61,12 @@
 
 <div class="overlay is-on" id="startPanel">
   <div class="card">
-    <p class="card__eyebrow">Kartrennen &middot; 3 Runden &middot; 1,9 km</p>
+    <p class="card__eyebrow">Abfahrt &middot; 3,4 km &middot; 210 m Gef&auml;lle</p>
     <h1 class="card__title">Schleifental<span>GP</span></h1>
-    <p class="card__lead">Zwei senkrechte Loopings, ein Korkenzieher, drei Sprungh&uuml;gel und
-      eine Bergkuppe auf 44&nbsp;Metern H&ouml;henunterschied. Vollgas in den Looping &ndash;
-      wer zu langsam ist, rollt wieder heraus. Im Feld f&auml;hrt <b>NEURA</b> mit &ndash;
-      ein neuronales Netz, das sich die Strecke selbst beigebracht hat.</p>
+    <p class="card__lead">Vom Gipfel ins Tal, allein gegen die Uhr: Korkenzieher, zwei
+      senkrechte Loopings, ein <b>Sprung &uuml;ber die Schlucht</b> &ndash; unter 110&nbsp;km/h
+      landest du darin &ndash; ein Wandritt am Felsen und zum Schluss ein Spiralturm
+      abw&auml;rts. Im Ziel beginnt der Lauf von vorn.</p>
     <div class="keys">
       <div class="key"><kbd>W</kbd><kbd>&uarr;</kbd><span>Gas</span></div>
       <div class="key"><kbd>S</kbd><kbd>&darr;</kbd><span>Bremse</span></div>
@@ -80,21 +79,21 @@
       <div class="key" id="aihint" hidden><kbd>K</kbd><span>KI f&auml;hrt f&uuml;r dich</span></div>
     </div>
     <p class="card__tip">Tipp: In der Kurve <kbd>Leer</kbd> halten, lenken, und beim
-      blauen Funken loslassen &ndash; das gibt Mini-Turbo.</p>
-    <button class="btn" id="startBtn">Rennen starten</button>
+      blauen Funken loslassen &ndash; das gibt Mini-Turbo. Vor der Schlucht nicht bremsen.</p>
+    <button class="btn" id="startBtn">Abfahrt starten</button>
   </div>
 </div>
 
 <div class="overlay" id="results">
   <div class="card card--result">
     <p class="card__eyebrow">Zielflagge</p>
-    <h2 class="card__title" id="resHead">Sieg</h2>
+    <h2 class="card__title" id="resHead">Im Ziel</h2>
     <div class="res">
-      <div class="res__row"><span>Platz</span><b id="resPlace">1.</b></div>
-      <div class="res__row"><span>Gesamtzeit</span><b class="tabular" id="resTotal">0:00.00</b></div>
-      <div class="res__row"><span>Beste Runde</span><b class="tabular" id="resBest">0:00.00</b></div>
+      <div class="res__row"><span>Deine Zeit</span><b class="tabular" id="resTime">0:00.00</b></div>
+      <div class="res__row"><span>Bestzeit</span><b class="tabular" id="resBest">0:00.00</b></div>
     </div>
-    <button class="btn" id="againBtn">Noch eine Runde</button>
+    <p class="card__tip">Neustart in <b id="resCount">6</b>&nbsp;Sekunden.</p>
+    <button class="btn" id="againBtn">Sofort nochmal</button>
   </div>
 </div>
 

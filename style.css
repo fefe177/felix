@@ -73,6 +73,8 @@ body {
 .place b { color: var(--mint); }
 .place i { font-style: normal; color: var(--muted); font-size: 0.5em; }
 .place__k { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); }
+.prog { margin-top: 6px; height: 5px; width: clamp(90px, 12vw, 150px); background: rgba(255,255,255,0.14); }
+.prog__fill { height: 100%; width: 100%; transform-origin: left center; transform: scaleX(0); background: var(--mint); }
 
 .speed { display: flex; align-items: baseline; gap: 8px; }
 .speed b {

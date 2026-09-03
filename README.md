@@ -1,20 +1,21 @@
 # Schleifental GP
 
-Ein kleines 3D-Kartrennen fuer den Browser: eine Stuntstrecke mit zwei
-senkrechten Loopings, einem Korkenzieher, drei Sprunghuegeln und 44 Metern
-Hoehenunterschied. Bewusst schlicht in der Grafik (Flat Shading, Vertexfarben,
-keine Texturen) - die Strecke soll Spass machen, nicht der Renderer.
+Ein kleines 3D-Kartspiel fuer den Browser: eine Abfahrt vom Gipfel ins Tal,
+3,4 Kilometer, 210 Meter Gefaelle, allein gegen die Uhr. Bewusst schlicht in
+der Grafik (Flat Shading, Vertexfarben, keine Texturen) - die Strecke soll
+Spass machen, nicht der Renderer.
+
+Ein Lauf hat Anfang und Ende. Im Ziel wird die Zeit gestoppt, die Bestzeit
+gespeichert, und nach sechs Sekunden beginnt die Abfahrt von vorn.
 
 ## Spielen
 
-Doppelklick auf `index.html` genuegt - es gibt keinen Build-Schritt und keine
-Abhaengigkeiten zum Installieren. Alternativ ueber einen lokalen Server:
+Doppelklick auf `index.html` genuegt - kein Build, keine Abhaengigkeiten zum
+Installieren. Alternativ ueber einen lokalen Server:
 
 ```sh
 python3 -m http.server 8000     # danach http://localhost:8000
 ```
-
-`index.html?runden=1` startet ein kurzes Rennen ueber eine Runde (1 bis 9).
 
 ### Steuerung
 
@@ -25,56 +26,76 @@ python3 -m http.server 8000     # danach http://localhost:8000
 | `A` `D` / `Pfeil links` `rechts` | Lenken |
 | `Leertaste` | Drift halten, kurz tippen = Sprung |
 | `C` | Kamera (Verfolger / weit / Cockpit) |
-| `R` | Zurueck auf die Strecke |
+| `R` | Zurueck zum letzten Abschnitt |
 | `K` | KI faehrt fuer dich |
 | `M` | Ton an/aus |
 | `P` | Pause |
 
 Auf Touchgeraeten erscheinen Schaltflaechen am Bildschirmrand.
 
-**Mini-Turbo:** In der Kurve `Leertaste` halten und lenken - die Funken werden
-weiss, orange, blau. Beim Loslassen gibt es Schub, je laenger der Drift, desto
-mehr. Die orangen Felder auf der Fahrbahn geben ebenfalls Turbo; eines liegt
-kurz vor dem grossen Looping.
+**Mini-Turbo:** In der Kurve `Leertaste` halten und weiter lenken - die Funken
+werden weiss, orange, blau. Beim Loslassen gibt es Schub, je laenger der Drift,
+desto mehr. Geladen wird nur, solange wirklich eingelenkt wird. Die orangen
+Streifen auf der Fahrbahn geben ebenfalls Turbo.
+
+## Die Strecke
+
+| Anteil | Abschnitt |
+| --- | --- |
+| 0 % | Startrampe auf 210 Metern, ueber den Wolken |
+| 13 % | Sprunghuegel in der Steilabfahrt |
+| 19 % | **Korkenzieher** - volle Rolle um die Fahrtrichtung |
+| 36 % | **Erster Looping**, 44 Meter hoch |
+| 49 % | **Sprung ueber die Schlucht** - unter 110 km/h landest du darin |
+| 55 % | **Wandritt** am Felsen, Fahrbahn 78 Grad gekippt |
+| 66 % | **Zweiter Looping**, 38 Meter |
+| 76 % | **Spiralturm** eine volle Umdrehung abwaerts |
+| 100 % | Ziel im Tal |
 
 ## Aufbau
 
 | Datei | Inhalt |
 | --- | --- |
-| `src/track.js` | Streckengeometrie: Spline, Loopings, Korkenzieher, Sprunghuegel |
-| `src/world.js` | Fahrbahn-Mesh, Randsteine, Leitplanken, Pfeiler, Landschaft |
-| `src/kart.js` | Kart-Modell, Fahrphysik, Autopilot der Gegner |
+| `src/track.js` | Streckengeometrie: Spline, Loopings, Korkenzieher, Schlucht |
+| `src/world.js` | Fahrbahn-Mesh, Randsteine, Leitplanken, Berg, Landschaft |
+| `src/kart.js` | Kart-Modell, Fahrphysik, Autopilot zum Vergleich |
 | `src/brain.js` | neuronales Netz des KI-Fahrers (ohne Bibliothek) |
 | `src/brainweights.js` | trainierte Gewichte, erzeugt von `ai/train.js` |
 | `src/hud.js` | Anzeige, Minimap, Sound |
-| `src/game.js` | Szene, Rennlogik, Kamera, Eingabe |
+| `src/game.js` | Szene, Laufablauf, Kamera, Eingabe |
 | `ai/train.js` | Training des KI-Fahrers (Evolutionsstrategie) |
 | `ai/analyse.js` | vermisst den Fahrstil und vergleicht mit dem Autopiloten |
 | `tools/build-artifact.py` | baut alles zu einer einzelnen HTML-Datei zusammen |
 
 ### Wie die Strecke entsteht
 
-Die Basisrunde ist eine geschlossene Catmull-Rom-Spline aus 16 Kontrollpunkten
-(Winkel, Radius, Hoehe). Sie wird gleichmaessig nach Bogenlaenge abgetastet;
-aus der horizontalen Kruemmung ergibt sich die Ueberhoehung der Kurven.
-
-In diese Abtastung werden die Kunststuecke analytisch eingesetzt:
+Grundlage ist eine offene Catmull-Rom-Spline durch 29 Kontrollpunkte
+(x, Hoehe, z). Sie wird gleichmaessig nach Bogenlaenge abgetastet; aus der
+horizontalen Kruemmung ergibt sich die Ueberhoehung der Kurven. In diese
+Abtastung werden die Kunststuecke analytisch eingesetzt:
 
 * **Loopings** sind keine Kreise, sondern Tropfenformen wie bei Achterbahnen:
   der Tangentenwinkel laeuft mit `phi'(x) = 1 - c * cos(2*pi*x)` durch 360
   Grad, unten also weit und oben eng. Ein Kreis-Looping muesste sich selbst
   schneiden - jede 360-Grad-Schleife in einer Ebene tut das. Deshalb bekommt
   der Looping zusaetzlich einen seitlichen Versatz, sodass auf- und
-  absteigender Ast mit rund vier Metern Luft aneinander vorbeilaufen. Im
+  absteigender Ast mit rund fuenf Metern Luft aneinander vorbeilaufen. Im
   Looping ist die Fahrbahn ausserdem schmaler.
-* **Korkenzieher** ist eine zusaetzliche Rolle um die Fahrtrichtung, die ueber
-  die Laenge sanft ein- und ausgeblendet wird.
-* **Sprunghuegel** sind Hoehenbeulen auf der Basisrunde. Ob das Kart abhebt,
-  entscheidet die Physik selbst (siehe unten).
+* **Korkenzieher und Wandritt** sind zusaetzliche Rollen um die Fahrtrichtung,
+  die ueber die Laenge sanft ein- und ausgeblendet werden - einmal volle
+  Umdrehung, einmal bis 78 Grad und zurueck.
+* **Der Spiralturm** steckt direkt in den Kontrollpunkten. Auf einer Abfahrt
+  darf sich die Bahn ueber sich selbst hinwegschrauben, weil sie dabei faellt -
+  auf einer Rundstrecke ginge das nicht.
+* **Die Schlucht** hat keine Fahrbahn. Ueber der Luecke folgt die Bahn einer
+  Wurfparabel mit der Abwaertskruemmung `g / v²`. Wer mit dem Auslegungstempo
+  ankommt, fliegt ihr genau entlang; wer langsamer ist, sackt darunter weg und
+  stuerzt ab. Davor und dahinter nimmt die Fahrbahn die Absprungneigung sanft
+  an, sonst gaebe es an der Kante einen Knick, der das Kart nach unten drueckt.
 
-Ergebnis ist ein Ring aus rund 1200 "Frames": Position, Tangente, Up-Vektor,
-Seitenvektor, Fahrbahnbreite und Bogenlaenge. Mesh, Physik, Kamera, Gegner und
-Minimap arbeiten anschliessend nur noch auf diesen Frames.
+Ergebnis ist eine Kette aus rund 2000 "Frames": Position, Tangente, Up-Vektor,
+Seitenvektor, Fahrbahnbreite und Bogenlaenge. Mesh, Physik, Kamera und Minimap
+arbeiten anschliessend nur noch damit.
 
 ### Wie das Fahren funktioniert
 
@@ -89,20 +110,18 @@ echt:
 * In ueberhoehten Kurven zieht sie zur Innenseite.
 * Eine Anpresskraft haelt das Kart auch ueber Kopf auf der Bahn.
 * Abgehoben wird, wenn eine Kuppe schneller wegfaellt als die Schwerkraft
-  zieht (`v^2 * Kruemmung > g`) - daraus ergeben sich die Spruenge von selbst.
+  zieht (`v² * Kruemmung > g`) - daraus ergeben sich die Spruenge von selbst.
 
-Die drei Gegner fahren mit demselben Fahrmodell, gesteuert von einem
-Pure-Pursuit-Autopiloten mit Wunschtempo aus der Kruemmung voraus und leichtem
-Gummiband. Eine Runde faehrt der Autopilot in rund 45 Sekunden.
+Der Kurswinkel ist auf gut 30 Grad begrenzt und wird mit steigendem Tempo
+kleiner; die Lenkung wird ausserdem weich nachgefuehrt, weil eine Tastatur nur
+0 und 1 kennt. Im Drift kommt ein rein optischer Schraegstand dazu, damit es
+quer aussieht, ohne dass das Kart quer faehrt.
 
 ## Der KI-Fahrer
 
-Im Feld faehrt **NEURA** mit - ein neuronales Netz, das sich die Strecke
-selbst beigebracht hat. Mit `K` uebernimmt es dein Kart, dann kannst du
-zuschauen.
-
-Es ist von Hand geschrieben, ohne Bibliothek: `src/brain.js` enthaelt ein
-flaches Zahlenfeld und zwei Schleifen, mehr braucht es nicht.
+Mit `K` uebernimmt ein neuronales Netz das Kart. Es ist von Hand geschrieben,
+ohne Bibliothek: `src/brain.js` enthaelt ein flaches Zahlenfeld und zwei
+Schleifen, mehr braucht es nicht.
 
 ```
 18 Eingaenge  ->  16 verdeckte Neuronen  ->  3 Ausgaenge     (355 Zahlen)
@@ -116,7 +135,7 @@ Das Netz sieht dieselbe Welt wie ein Mensch und bedient dieselben Tasten:
 | in der Luft, Turbo aktiv | Zustand |
 | Kruemmung bei 12, 25, 45, 70, 105, 150 m voraus | wie scharf wird die naechste Kurve |
 | Steigung bei 10, 45, 90 m voraus | Berg, Tal, Looping |
-| Vertikalkruemmung bei 20 und 60 m voraus | Kuppe oder Looping |
+| Vertikalkruemmung bei 20 und 60 m voraus | Kuppe, Looping oder Schlucht |
 | Fahrbahnbreite bei 40 m voraus | im Looping wird es eng |
 
 | Ausgaben | |
@@ -135,38 +154,15 @@ Die Streuung faellt ueber die Generationen; wenn 18 Generationen lang nichts
 besser wird, wird sie wieder angehoben.
 
 Bewertet wird die zurueckgelegte Strecke in fester Zeit, abzueglich 25 Punkte
-je Sekunde an der Leitplanke. Gestartet wird an drei Stellen der Runde, damit
-das Netz die ganze Strecke lernt und nicht nur den Anfang.
+je Sekunde an der Leitplanke und 400 Punkte je Absturz in die Schlucht, plus
+600 Punkte fuer das Erreichen des Ziels. Gestartet wird an drei Stellen der
+Abfahrt, damit das Netz die ganze Strecke lernt und nicht nur den Anfang.
 
 ```sh
-node ai/train.js --gen 300 --pop 96 --seed 7     # schreibt src/brainweights.js
-node ai/train.js --gen 200 --from                # von vorhandenen Gewichten aus
-node ai/analyse.js                               # Fahrstil vermessen
+node ai/train.js --gen 300 --pop 96 --seed 11   # schreibt src/brainweights.js
+node ai/train.js --gen 200 --from               # von vorhandenen Gewichten aus
+node ai/analyse.js                              # Fahrstil vermessen
 ```
-
-Ein Durchlauf ueber 300 Generationen dauert rund fuenf Minuten.
-
-### Was dabei herauskam
-
-| | KI-Fahrer | Autopilot (handgeschrieben) |
-| --- | --- | --- |
-| beste Runde | **33,62 s** | 43,58 s |
-| Schnitt | 196 km/h | 151 km/h |
-| Anteil mit Turbo | 42 % | 17 % |
-| Turbos je Runde | 12 | 5 |
-| Anteil im Drift | 64 % | 0 % |
-| Plankenkontakt je Runde | 0,00 s | 1,47 s |
-
-Die KI gewinnt nicht durch hoehere Hoechstgeschwindigkeit - die ist fuer alle
-gleich -, sondern durch Fahrtechnik: Sie faehrt zwei Drittel der Runde im
-Drift und holt sich so sieben Mini-Turbos zusaetzlich zu den fuenf
-Turbofeldern, waehrend sie die Leitplanke gar nicht mehr beruehrt. Genau das
-tun gute Spieler auch.
-
-Zwei Balancefehler hat das Training nebenbei aufgedeckt: der Motor schob auch
-oberhalb der Hoechstgeschwindigkeit weiter, und der Mini-Turbo liess sich auf
-der Geraden endlos nachladen. Die KI fuhr damit 30-Sekunden-Runden mit
-273 km/h. Beides ist im Fahrmodell behoben.
 
 ## Drittanbieter
 

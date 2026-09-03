@@ -89,8 +89,9 @@
     });
     var startCells = 12;
 
-    for (var i = 0; i < n; i++) {
-      var a = F[i], b = F[(i + 1) % n];
+    for (var i = 0; i < n - 1; i++) {
+      var a = F[i], b = F[i + 1];
+      if (a.gap || b.gap) continue;                  // Schlucht: hier keine Fahrbahn
       var ha = H * a.w, hb = H * b.w;
       var dark = (i % 12) < 6;
       var asp = dark ? COL.asphalt : COL.asphalt2;
@@ -137,8 +138,8 @@
         }
       }
 
-      /* Start-Ziel-Karo */
-      if (i < 4) {
+      /* Start- und Zielkaro */
+      if (i < 4 || i > n - 7) {
         for (var c = 0; c < startCells; c++) {
           var x0 = -ha + 2 * ha * c / startCells, x1 = -ha + 2 * ha * (c + 1) / startCells;
           road.quad(pt(a, x0, 0.02), pt(a, x1, 0.02), pt(b, x1, 0.02), pt(b, x0, 0.02),
@@ -151,9 +152,9 @@
     var piers = new Builder();
     for (var j = 0; j < n; j += 7) {
       var f = F[j];
-      if (f.u.y < 0.55) continue;
+      if (f.u.y < 0.55 || f.gap) continue;
       var top = pt(f, 0, -0.6), h = top.y - GROUND_Y;
-      if (h < 2.5) continue;
+      if (h < 2.5 || h > 52) continue;               // hoeher oben traegt der Berg
       var ex2 = new V3(1.1, 0, 0), ez2 = new V3(0, 0, 1.1);
       piers.box(new V3(top.x, (top.y + GROUND_Y) / 2, top.z), ex2, new V3(0, h / 2, 0), ez2, COL.pillar);
       piers.box(new V3(top.x, GROUND_Y + 0.6, top.z), new V3(2.4, 0, 0), new V3(0, 0.6, 0), new V3(0, 0, 2.4), COL.pillar);
@@ -214,6 +215,26 @@
     }
     scene.add(hills.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
 
+    /* Bergmassiv unter der Abfahrt: ueberlappende Kegel, die knapp unter der
+       Fahrbahn enden. An der Schlucht bleibt eine Luecke - das ist der Abgrund. */
+    var massif = new Builder();
+    for (var mi = 0; mi < n; mi += 26) {
+      var mf = F[mi];
+      if (mf.p.y < 42 || mf.u.y < 0.5) continue;
+      var nearGap = track.gaps.some(function (g) { return mf.d > g.s0 - 150 && mf.d < g.s1 + 150; });
+      if (nearGap) continue;
+      var mh = mf.p.y - GROUND_Y - 12, mr = 70 + (mi % 5) * 22;
+      if (mh < 20) continue;
+      var mcol = COL.hill.clone().lerp(COL.rock, 0.35 + (mi % 3) * 0.12);
+      for (var ms = 0; ms < 6; ms++) {
+        var b0 = ms / 6 * Math.PI * 2 + mi, b1 = (ms + 1) / 6 * Math.PI * 2 + mi;
+        massif.tri(new V3(mf.p.x, GROUND_Y + mh, mf.p.z),
+                   new V3(mf.p.x + Math.cos(b0) * mr, GROUND_Y - 2, mf.p.z + Math.sin(b0) * mr),
+                   new V3(mf.p.x + Math.cos(b1) * mr, GROUND_Y - 2, mf.p.z + Math.sin(b1) * mr), mcol);
+      }
+    }
+    scene.add(massif.mesh(new T.MeshLambertMaterial({ vertexColors: true, side: T.DoubleSide })));
+
     /* Baeume und Felsen im Tal - Punkte mit Abstand zur Fahrbahn */
     var near = [];
     for (var i = 0; i < n; i += 4) near.push(F[i].p);
@@ -256,23 +277,27 @@
 
     /* Start-Ziel-Bogen und Tribuenen */
     var deco = new Builder();
-    var f0 = F[2];
     var gateR = track.roadHalf + 5;
-    [-1, 1].forEach(function (s) {
-      deco.box(pt(f0, s * gateR, 7), new V3().copy(f0.r).multiplyScalar(1.1),
-               new V3(0, 7, 0), new V3().copy(f0.t).multiplyScalar(1.1), COL.gate);
+    /* Tor am Start und am Ziel */
+    [{ f: F[3], band: COL.standB }, { f: F[n - 6], band: COL.checkA }].forEach(function (gate) {
+      var f0 = gate.f;
+      [-1, 1].forEach(function (s) {
+        deco.box(pt(f0, s * gateR, 7), new V3().copy(f0.r).multiplyScalar(1.1),
+                 new V3(0, 7, 0), new V3().copy(f0.t).multiplyScalar(1.1), COL.gate);
+      });
+      deco.box(pt(f0, 0, 15), new V3().copy(f0.r).multiplyScalar(gateR + 1.1),
+               new V3(0, 1.6, 0), new V3().copy(f0.t).multiplyScalar(0.9), COL.gate);
+      deco.box(pt(f0, 0, 12.6), new V3().copy(f0.r).multiplyScalar(gateR - 1),
+               new V3(0, 1.5, 0), new V3().copy(f0.t).multiplyScalar(0.4), gate.band);
     });
-    deco.box(pt(f0, 0, 15), new V3().copy(f0.r).multiplyScalar(gateR + 1.1),
-             new V3(0, 1.6, 0), new V3().copy(f0.t).multiplyScalar(0.9), COL.gate);
-    deco.box(pt(f0, 0, 12.6), new V3().copy(f0.r).multiplyScalar(gateR - 1),
-             new V3(0, 1.5, 0), new V3().copy(f0.t).multiplyScalar(0.4), COL.standB);
+    /* Tribuene am Ziel */
     for (var g2 = 0; g2 < 2; g2++) {
-      var side = g2 ? 1 : -1;
-      var base = pt(F[16 + g2 * 26], side * (track.roadHalf + 26), -3);
+      var fs = F[n - 30], side = g2 ? 1 : -1;
+      var base = pt(fs, side * (track.roadHalf + 26), -3);
       for (var row = 0; row < 5; row++) {
         deco.box(new V3(base.x, base.y + row * 1.7, base.z),
-                 new V3().copy(F[16].r).multiplyScalar(9 - row * 1.4),
-                 new V3(0, 0.85, 0), new V3().copy(F[16].t).multiplyScalar(16),
+                 new V3().copy(fs.r).multiplyScalar(9 - row * 1.4),
+                 new V3(0, 0.85, 0), new V3().copy(fs.t).multiplyScalar(16),
                  row % 2 ? COL.standA : COL.standB);
       }
     }
@@ -292,7 +317,7 @@
         puff.add(m);
       }
       var ca = rnd() * Math.PI * 2, cd = 300 + rnd() * 1500;
-      puff.position.set(Math.cos(ca) * cd, 120 + rnd() * 130, Math.sin(ca) * cd);
+      puff.position.set(Math.cos(ca) * cd, 265 + rnd() * 150, Math.sin(ca) * cd);
       puff.userData.spin = 0.6 + rnd();
       clouds.add(puff);
     }

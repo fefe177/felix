@@ -98,7 +98,7 @@
     return Object.assign({
       s: s, x: x, phi: 0, v: 0, slide: 0, h: 0, vy: 0, air: false,
       boost: 0, drift: 0, driftDir: 0, charge: 0, slip: 0, touching: 0, wheel: 0,
-      lap: 0, cp: 0, progress: 0, offtrack: 0, hitWall: 0, landed: 0, padSeen: -1,
+      lap: 0, cp: 0, progress: 0, offtrack: 0, hitWall: 0, landed: 0, padSeen: -1, fell: 0,
       lapStart: 0, lastLap: 0, best: 0, name: 'Kart', finished: 0
     }, opts || {});
   }
@@ -129,7 +129,8 @@
     k.phi += inp.steer * rate * dt;
     if (Math.abs(inp.steer) < 0.15 && k.drift <= 0) k.phi -= k.phi * P.ALIGN * dt;
     if (k.drift > 0) k.phi += k.driftDir * 0.2 * dt;      // treibt sanft nach aussen
-    k.phi = clamp(k.phi, -P.PHI_MAX, P.PHI_MAX);
+    var phiMax = P.PHI_MAX * (1 - 0.38 * clamp(Math.abs(k.v) / P.V_TOP, 0, 1));
+    k.phi = clamp(k.phi, -phiMax, phiMax);
     var slipWant = k.drift > 0 ? k.driftDir * P.SLIP_MAX * clamp(k.v / 26, 0, 1) : 0;
     k.slip += (slipWant - k.slip) * Math.min(1, dt * 6);
 
@@ -163,10 +164,15 @@
     var aRel = -(k.v * k.v * f.vk) - Math.max(P.G * f.u.y, P.DOWN);
     if (inp.hop && !k.air && k.h <= 0.001) { k.air = true; k.vy = 6.2; }
     if (!k.air && aRel > 0 && k.v > 8) { k.air = true; k.vy = 0; }
+    if (!k.air && f.gap) { k.air = true; k.vy = 0; }      // ueber der Schlucht faellt der Boden weg
     if (k.air) {
       k.vy += aRel * dt;
       k.h += k.vy * dt;
-      if (k.h <= 0) { k.h = 0; k.air = false; k.landed = 0.22; k.v *= 0.985; k.vy = 0; }
+      if (f.gap) {
+        if (k.h < -2) k.fell = 1;                         // unter die Flugbahn gesackt
+      } else if (k.h <= 0) {
+        k.h = 0; k.air = false; k.landed = 0.22; k.v *= 0.985; k.vy = 0;
+      }
     }
     k.landed = Math.max(0, k.landed - dt);
 
@@ -184,7 +190,12 @@
 
     k.boost = Math.max(0, k.boost - dt);
     k.wheel += k.v * dt * 1.6;
-    k.s = (k.s % track.length + track.length) % track.length;
+    if (track.open) {
+      if (k.s < 0) { k.s = 0; if (k.v < 0) k.v = 0; }
+      if (k.s > track.length) k.s = track.length;
+    } else {
+      k.s = (k.s % track.length + track.length) % track.length;
+    }
     return f;
   }
 
