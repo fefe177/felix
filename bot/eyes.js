@@ -1,13 +1,10 @@
 // Augen: eine 3D-Ansicht der Welt (prismarine-viewer) im Browser, aus der Screenshots gemacht werden.
 // Die gleiche Ansicht kann man selbst unter http://localhost:<port> anschauen.
 
-const fs = require('fs')
-const os = require('os')
-const path = require('path')
 const http = require('http')
-const express = require('express')
 const { Server: SocketServer } = require('socket.io')
 const { WorldView } = require('prismarine-viewer/viewer/lib/worldView')
+const { viewerApp, launchBrowser } = require('../lib/viewer')
 
 const WIDTH = 768
 const HEIGHT = 432
@@ -15,49 +12,6 @@ const FOV = 75 // wie die Kamera von prismarine-viewer (vertikal, Grad)
 const CAMERA_HEIGHT = 1.6
 
 function sleep (ms) { return new Promise(resolve => setTimeout(resolve, ms)) }
-
-function browserCandidates () {
-  const list = []
-  if (process.env.MC_BROWSER_PATH) list.push({ executablePath: process.env.MC_BROWSER_PATH })
-  list.push({})
-  list.push({ channel: 'chrome' }, { channel: 'msedge' })
-  const home = os.homedir()
-  const dirs = [
-    process.env.PLAYWRIGHT_BROWSERS_PATH,
-    path.join(home, '.cache', 'ms-playwright'),
-    path.join(home, 'Library', 'Caches', 'ms-playwright'),
-    process.env.LOCALAPPDATA && path.join(process.env.LOCALAPPDATA, 'ms-playwright')
-  ].filter(Boolean)
-  const exes = [
-    'chrome-linux/chrome', 'chrome-linux64/chrome', 'chrome-win/chrome.exe', 'chrome-win64/chrome.exe',
-    'chrome-mac/Chromium.app/Contents/MacOS/Chromium', 'chrome-mac-arm64/Chromium.app/Contents/MacOS/Chromium'
-  ]
-  for (const dir of dirs) {
-    let entries = []
-    try { entries = fs.readdirSync(dir) } catch { continue }
-    for (const entry of entries.filter(e => /^chromium-\d+$/.test(e)).sort().reverse()) {
-      for (const exe of exes) {
-        const p = path.join(dir, entry, exe)
-        if (fs.existsSync(p)) list.push({ executablePath: p })
-      }
-    }
-  }
-  return list
-}
-
-async function launchBrowser () {
-  const { chromium } = require('playwright-core')
-  const args = ['--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--mute-audio']
-  const errors = []
-  for (const candidate of browserCandidates()) {
-    try {
-      return await chromium.launch({ headless: true, args, ...candidate })
-    } catch (err) {
-      errors.push(String(err.message).split('\n')[0])
-    }
-  }
-  throw new Error('Kein Browser für die Augen gefunden. Installiere Chrome oder Edge, oder führe "npx playwright install chromium" aus.\n' + errors.join('\n'))
-}
 
 // Rechnet eine Weltposition in Bildkoordinaten um (gleiche Kamera wie im Viewer).
 function project (bot, point) {
@@ -126,10 +80,7 @@ class Eyes {
 
   startViewer (port) {
     const bot = this.bot
-    const app = express()
-    const publicDir = path.join(path.dirname(require.resolve('prismarine-viewer/package.json')), 'public')
-    app.use('/', express.static(publicDir))
-    const httpServer = http.createServer(app)
+    const httpServer = http.createServer(viewerApp())
     const io = new SocketServer(httpServer)
     io.on('connection', (socket) => {
       socket.emit('version', bot.version)

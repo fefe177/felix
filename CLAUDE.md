@@ -1,96 +1,120 @@
-# Claude spielt Minecraft
+# Claude der Baumeister
 
-In diesem Projekt hast du (Claude) einen eigenen Körper in Minecraft. Die Werkzeuge des MCP-Servers
-`minecraft` (`connect`, `observe`, `turn`, `move`, `attack`, `mine`, `build` …) sind deine Augen,
-Hände und Füße. Felix (der Nutzer) spricht Deutsch – antworte auf Deutsch, locker und freundlich,
-und erkläre Dinge einfach.
+Dieses Projekt lässt Claude in Minecraft Gebäude **generieren**. Felix (der Nutzer) schreibt im Minecraft-Chat
+z. B. „bau ein Haus“. `server/start.js` liest den Chat mit und startet dich im Hintergrund mit einem
+**Bauauftrag**. Du bist dabei nicht in der Welt: Du schreibst einen Bauplan, prüfst ihn mit der Vorschau
+und gibst ihn ab – das Programm setzt ihn dann auf einen Schlag vor dem Spieler in die Welt.
 
-## Die wichtigste Regel: Du spielst selbst
+Felix spricht Deutsch. Antworte auf Deutsch, locker, freundlich und einfach.
 
-Felix wollte ausdrücklich, dass **du** spielst und nicht ein Programm. Deshalb:
+## Wenn du einen Bauauftrag bekommst (Text beginnt mit „Bauauftrag von …“)
 
-- Benutze nur die `minecraft`-Werkzeuge, **eine Entscheidung nach der anderen**.
-- Schreib **keine** Skripte oder Programme, die für dich spielen (keine Schleifen, kein direkter
-  mineflayer-Code, kein Pathfinder, kein Auto-Kampf). Der Code in `bot/` darf nur verbessert werden,
-  wenn Felix darum bittet – und der Code darf nie selbst Entscheidungen treffen.
-- Schau dir nach jeder Aktion Bild und Text an und entscheide dann den nächsten Schritt.
-- Keine Cheat-Befehle (`/give`, `/tp`, `/fill`, `/setblock`, `/kill`, `/effect`, `/time` …), außer
-  Felix erlaubt es ausdrücklich. `/gamemode creative` nur, wenn Felix Kreativmodus will (z. B. für
-  große Bauprojekte).
+1. Auftrag verstehen und kurz planen: Stil, Größe, 3–5 Hauptmaterialien, besondere Details.
+2. Bauplan schreiben (Write) – Pfad steht im Auftrag.
+3. `vorschau` aufrufen: 3D-Bild von 4 Seiten, jede Schicht als Raster, Materialliste, automatische Prüfung.
+4. Alles beheben, was die Prüfung meldet oder was im Bild falsch/hässlich aussieht, dann wieder `vorschau`.
+   **Höchstens 3 Vorschauen** – jede kostet Zeit.
+5. `fertig` aufrufen (modus, name, nachricht). Danach bist du fertig: keine weiteren Werkzeuge, keine lange Antwort.
 
-## Loslegen
+Benutze nur Write/Edit/Read für Baupläne im Ordner `bau/` und die Werkzeuge `vorschau` und `fertig`.
+Eine Vorlage zum Abschauen: `bau/beispiele/haus.js`.
 
-1. `connect` (Standard: `127.0.0.1:25565`, Name `Claude`).
-   Meldet es „Kein Minecraft-Server“: Felix soll in einem zweiten Fenster `npm run server` starten.
-   Beim ersten Start muss **Felix** der Minecraft-EULA zustimmen, das darfst du nicht an Felix' Stelle tun.
-2. Umschauen, dann Felix im Spiel begrüßen (`chat`) und fragen, was ihr macht.
-3. Felix kann unter `http://localhost:3007` sehen, was du siehst. Erzähl Felix davon.
-4. Zum Schluss `disconnect`, damit die Welt nicht angehalten bleibt.
+Wenn der Auftrag
+- **unklar** ist: bau etwas Passendes in vernünftiger Größe.
+- **riesig** ist (z. B. „eine ganze Stadt“): bau eine kleine, schöne Version (höchstens ca. 40×40) und sag das in der Nachricht.
+- **eine Frage** ist oder nichts gebaut werden soll: `fertig` mit modus `"nichts"` und einer Antwort.
+- **gemein oder unpassend** ist: modus `"nichts"` mit einer freundlichen Nachricht.
+- sich auf den **letzten Bau** bezieht („mach das Dach rot“, „bau noch einen Turm dran“): dessen Datei bearbeiten, modus `"ändern"`.
 
-## Was du bei jeder Aktion zurückbekommst
+Die Nachricht an Felix: kurz (max. 120 Zeichen), freundlich, z. B. „Dein Fachwerkhaus steht! Die Tür ist vorne.“
 
-- **Bild** aus deiner Sicht: Das Fadenkreuz ist in der Mitte, Wesen sind mit Nummern beschriftet
-  (rot = Monster).
-- **Status**: Position, Blickrichtung (Kompass: 0° = Norden/−z, 90° = Osten/+x, 180° = Süden/+z,
-  270° = Westen/−x), Leben, Hunger, Uhrzeit, Item in der Hand.
-- **Fadenkreuz**: worauf du genau zielst und ob es in Reichweite ist.
-- **Wesen** mit Nummer, Abstand und Richtung („30° links“).
-- **Sichtbare Blöcke** (Holz, Erze, Werkbank …), nur was du wirklich sehen kannst.
-- **Karte** von oben (Norden oben): `.` Boden, `^` 1 Block hoch, `v` 1 runter, `#` Wand, `O` Loch,
-  `~` Wasser, `L` Lava, `T` Baum, Ziffern = Wesen, Pfeil = du.
-- **Ereignisse** (Schaden, Treffer, Aufgehoben …) und **Chat** (Felix schreibt dir dort!).
-  Antworte auf Chat-Nachrichten immer mit `chat`.
+## Koordinaten im Bauplan
 
-## Zeit: Rundenmodus
+- **x**: Westen → Osten (von vorne gesehen links → rechts)
+- **z**: Norden → Süden. **Die Vorderseite ist die Südseite (größtes z).** Der Spieler steht im Süden und
+  schaut nach Norden auf den Bau. Die Haustür gehört also in die Südwand.
+- **y**: `0` = erste Schicht über dem Gras, `-1` = Bodenschicht (Fundament, Fußboden, Wege). Keller: `y < -1`.
+- Das Programm stellt den Bau automatisch vor den Spieler (3 Blöcke Abstand) und dreht ihn so, dass die
+  Vorderseite zum Spieler zeigt. Du baust also immer nur relativ.
+- Vorher wird der Platz über dem Boden freigeräumt, und Löcher unter dem Bau werden mit Erde gefüllt.
+- Normale Größe: 7–15 Blöcke breit. Größer nur, wenn es gewünscht ist (Grenze: x/z ±64, y −8..120).
 
-Standard ist der **Rundenmodus**: Die Welt steht still, während du nachdenkst, und läuft nur,
-während eine Aktion passiert (`/tick freeze`). Du kannst dir also Zeit lassen.
-Wenn Felix mitspielt und es stört, dass die Monster stehen bleiben: `set_mode realtime`.
-Dann läuft die Welt immer weiter, also mach kurze Aktionen und schau oft.
+## Der Bauplan (JavaScript)
 
-## Bewegen
+Ein Bauplan ist ein kurzes JavaScript-Programm. Schleifen, Variablen und `Math` sind erlaubt.
+Späteres überschreibt Früheres – so schneidest du z. B. Fenster in fertige Wände. `'air'` entfernt einen Block.
 
-- Gehen: ca. 5 Ticks pro Block (`move` mit `["forward"]`), Sprinten: ca. 4 Ticks pro Block
-  (`["forward","sprint"]`). 20 Ticks = 1 Sekunde.
-- 1 Block hoch: `["forward","jump"]` mit etwa 6–8 Ticks.
-- Zu einem Ziel: erst hindrehen (`turn` oder `look_at`), dann ein Stück laufen, schauen, korrigieren.
-- Kommt „⚠ Da war wohl etwas im Weg“, dann springen, umdrehen oder den Block abbauen.
-- Vorsicht an Löchern (`O`) und Lava (`L`).
+| Helfer | Was er macht |
+| --- | --- |
+| `b.set(x, y, z, block)` | ein Block |
+| `b.fill(x1, y1, z1, x2, y2, z2, block)` | voller Quader |
+| `b.clear(x1, y1, z1, x2, y2, z2)` | Quader leeren (Luft) |
+| `b.walls(x1, y1, z1, x2, y2, z2, block)` | nur die vier Außenwände |
+| `b.box(x1, y1, z1, x2, y2, z2, block)` | hohler Kasten mit Boden und Decke |
+| `b.line(x1, y1, z1, x2, y2, z2, block)` | gerade Linie |
+| `b.door(x, y, z, block = 'oak_door', facing = 'north', hinge = 'left')` | Tür (beide Hälften) |
+| `b.bed(x, y, z, block = 'red_bed', facing = 'north')` | Bett: Fußteil bei x,y,z, Kopfteil ein Block Richtung `facing` |
+| `b.cylinder(cx, y1, cz, r, höhe, block, { hollow })` | runder Turm |
+| `b.sphere(cx, cy, cz, r, block, { hollow, half })` | Kugel, mit `half: true` Kuppel |
+| `b.gableRoof(x1, z1, x2, z2, y, treppe, { axis, overhang, gable, ridge })` | Satteldach aus Treppen über dem Rechteck, beginnt auf Höhe `y`. `axis: 'x'` = First von West nach Ost, `'z'` = von Nord nach Süd. `overhang` = Überstand (Standard 1). `gable` = Block für die Giebelwände. `ridge` = Block für den First (Standard: passende Stufe). Gibt die Höhe des Firsts zurück. |
+| `b.get(x, y, z)` | welcher Block schon da ist (`'air'` wenn leer) |
+| `console.log(...)` | Notiz, die in der Vorschau erscheint |
 
-## Kämpfen
+Beispiel:
+```js
+b.fill(0, -1, 0, 8, -1, 6, 'cobblestone')          // Fundament
+b.walls(0, 0, 0, 8, 3, 6, 'oak_planks')             // Wände
+for (const [x, z] of [[0, 0], [8, 0], [0, 6], [8, 6]]) b.fill(x, 0, z, x, 3, z, 'spruce_log')
+b.door(4, 0, 6, 'spruce_door', 'north')             // Haustür in der Südwand
+b.set(2, 1, 6, 'glass_pane'); b.set(6, 1, 6, 'glass_pane')
+b.gableRoof(0, 0, 8, 6, 4, 'dark_oak_stairs', { gable: 'oak_planks' })
+```
 
-1. Monster anvisieren: `look_at` mit seiner Nummer.
-2. Steht beim Fadenkreuz „in Schlagweite ✅“? Dann `attack`. Wenn nicht: kurz hinlaufen (2–4 Ticks).
-3. Nach jedem Schlag neu anvisieren, denn das Monster fliegt ein Stück zurück.
-4. Bei wenig Leben zurückweichen (`move` mit `["back"]`), essen (`equip` Essen, dann `use`).
-- **Creeper**: nicht nah ranlassen. Schlagen und sofort zurückweichen.
-- **Skelette**: hinter Blöcken Deckung suchen und sich im Zickzack nähern.
-- Nachts entstehen Monster: einen Unterschlupf bauen oder im Bett schlafen (`use` aufs Bett).
+## Blöcke
 
-## Bauen – so werden Gebäude schön
+Minecraft Java 1.21.4, Namen wie im Spiel (`stone_bricks`, `oak_planks`). Zustände in eckigen Klammern:
+`'oak_stairs[facing=north,half=top]'`. Falsche Namen oder Zustände meldet die Vorschau mit Vorschlägen.
 
-1. **Mit Felix planen**: Was soll es werden, wo, wie groß, welche Blöcke? Frag nach Felix' Ideen.
-2. **Selbst entwerfen**: Denk dir den Bauplan Schicht für Schicht mit echten Koordinaten aus.
-   Für größere Gebäude schreibst du den Plan in `bauplaene/<name>.md`, also Grundriss je Höhe als
-   Zeichen-Raster mit Legende. Achte auf ein Fundament, Wände mit Fenstern (Glas), eine Tür, ein Dach
-   aus Treppen (`facing`, `half`), Tiefe durch Stützbalken aus Stämmen und Farbe durch
-   Materialmix. Kein einfacher Kasten!
-3. **Material**: Im Überlebensmodus sammelst du es und stellst es her (`mine`, `craft`). Im
-   Kreativmodus kommt es von selbst in die Hand.
-4. **Bauen mit `build`**: höchstens 64 Blöcke pro Aufruf, nur in 4.5 Blöcken Reichweite, von unten
-   nach oben. Jeder Block braucht einen Nachbarblock. Lauf selbst um das Gebäude herum, damit alles
-   in Reichweite bleibt. Nicht dort bauen, wo du stehst.
-   Für hohe Wände: `jump_place` (Säule hochbauen), oben weiterbauen und die Säule später wieder
-   abbauen (`build` mit `"air"`).
-5. **Kontrollieren**: Nach jeder Schicht das Bild anschauen, Fehler mit `"air"` entfernen und neu
-   setzen.
-6. **Zeigen**: Felix im Chat Bescheid sagen und zum Anschauen einladen.
+- **Treppen**: `facing` = Richtung, in die die Treppe **ansteigt** (dort ist die hohe Seite).
+  `half=top` = umgedreht (für Dachkanten, Fensterbänke, Bögen).
+- **Stufen**: `type=bottom|top|double`. **Stämme**: `axis=x|y|z` (liegende Balken!).
+- **Türen** nur mit `b.door`. `facing` = Blickrichtung beim Hineingehen (Tür in der Südwand → `'north'`).
+  Vor und hinter der Tür muss Platz sein.
+- **Betten** nur mit `b.bed`.
+- **An der Wand** (`wall_torch`, `ladder`, `oak_wall_sign`, …): `facing` zeigt **von der Wand weg**;
+  die Wand ist der Block in Gegenrichtung.
+- **Hängende Laterne**: `lantern[hanging=true]` braucht einen Block darüber.
+- **Zäune, Glasscheiben, Mauern** verbinden sich im Spiel von selbst – keine Zustände nötig.
+- **Blätter** immer mit `[persistent=true]`, sonst zerfallen sie: `'oak_leaves[persistent=true]'`.
+- **Doppelte Pflanzen** (`rose_bush`, `sunflower`, `tall_grass`): unten `half=lower`, oben `half=upper`.
+- **Kisten/Öfen**: `chest[facing=south]` – die Vorderseite zeigt nach `facing`.
+- Truhen bleiben leer und Schilder ohne Text (das kann das Programm nicht).
+- In der Vorschau werden Betten nur als Teppich gezeigt.
 
-## Wenn etwas klemmt
+## So werden Bauten schön (kein Kasten!)
 
-- Welt bleibt stehen (z. B. nach einem Absturz): `disconnect` oder im Minecraft-Chat
-  `/tick unfreeze`.
-- „Rundenmodus geht nicht“: Claude ist kein Operator. Felix tippt in der Server-Konsole `op Claude`,
-  danach neu verbinden.
-- Keine Bilder („Augen aus“): Chrome oder Edge installieren oder `npm run augen` ausführen.
-  Text und Karte funktionieren trotzdem.
+- **Grundriss** mit Form: L-Form, Anbau, Veranda, Erker, Turm. Symmetrie für ruhige Fassaden.
+- **Tiefe**: Eck- und Stützbalken aus Stämmen, die hervorstehen oder farblich abgesetzt sind.
+  Fensterbänke aus Treppen (`half=top`), Fensterläden aus Falltüren, Dachüberstand (`overhang: 1`).
+- **Material-Mix** (3–5 Hauptmaterialien, passende Farben): Sockel aus `cobblestone` / `stone_bricks`,
+  Wände aus Brettern oder hellem Putz (`white_terracotta`, `calcite`, `smooth_sandstone`), Rahmen aus
+  Stämmen, dunkles Dach (`dark_oak_stairs`, `deepslate_tile_stairs`, `spruce_stairs`).
+- **Proportionen**: Häuser mit Wandhöhe 4–5, Fenster auf y=1..2, Türen 2 hoch.
+- **Fenster** aus `glass_pane` in Gruppen und gleichmäßig verteilt.
+- **Licht** innen und außen (Laternen, Fackeln).
+- **Innen**: Fußboden, Möbel (Bett, Truhe, Werkbank, Ofen, Bücherregal, Tisch aus Zaun + Druckplatte),
+  Teppiche. Nichts in Wänden oder vor Türen.
+- **Außen**: Weg aus `dirt_path` zur Tür, Blumen, Zaun oder Hecke, Bäume, Laternenpfahl.
+
+## Worauf du in der Vorschau achtest
+
+- Meldet die automatische Prüfung etwas? Dann beheben.
+- Ist das Dach geschlossen? Keine Löcher, Giebel gefüllt?
+- Sind Türen erreichbar und zeigen Fenster, Tür und Weg nach vorne (Süden)?
+- Stimmen die Treppenrichtungen? In den Schichtbildern sind Treppen Pfeile (^ > v <).
+- Sieht es schön aus – oder langweilig? Wenn langweilig: Details ergänzen.
+
+## Sonst (normale Gespräche im Terminal)
+
+Hilf Felix ganz normal. Einen Bauplan kann man mit `node bau/vorschau.js <datei>` auch von Hand
+ansehen. Das alte Projekt, in dem Claude selbst durch die Welt läuft, liegt pausiert in `bot/`.

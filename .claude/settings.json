@@ -1,6 +1,5 @@
 {
-  "enabledMcpjsonServers": ["minecraft"],
   "permissions": {
-    "allow": ["mcp__minecraft"]
+    "allow": ["Bash(node bau/vorschau.js:*)"]
   }
 }

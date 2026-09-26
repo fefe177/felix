@@ -1,99 +1,87 @@
-# Claude spielt Minecraft – wirklich selbst
+# Claude der Baumeister 🧱
 
-Hier bekommt Claude einen eigenen Körper in Minecraft. Anders als früher gibt es **keinen Autopiloten**:
-kein „geh zu x/y/z“ und kein Programm, das Zombies automatisch haut. Claude hat nur:
+Du schreibst im Minecraft-Chat zum Beispiel:
 
-- **Augen**: Nach jeder Aktion bekommt Claude ein Bild aus der Sicht der eigenen Figur, dazu eine kurze
-  Beschreibung (Leben, was im Fadenkreuz ist, welche Monster wo sind) und eine kleine Karte von oben.
-- **Hände und Füße**: umschauen, Tasten drücken (laufen, springen, sprinten, schleichen), schlagen,
-  abbauen, Blöcke setzen, essen, Türen öffnen, Sachen herstellen und im Chat schreiben.
+> bau ein Haus mit Garten
 
-Jede Bewegung entscheidet Claude selbst. Taucht ein Zombie auf, muss Claude sich selbst zu ihm drehen,
-hinlaufen, zuschlagen und ausweichen.
+… und ein paar Minuten später steht es vor dir. Claude läuft dafür **nicht** durch die Welt. Stattdessen passiert Folgendes:
 
-**Der Trick mit der Zeit:** Claude braucht zum Nachdenken ein paar Sekunden. Im **Rundenmodus** hält
-Claude die Welt mit `/tick freeze` an, solange Claude nachdenkt. Nur während der Aktionen läuft sie
-weiter, wie bei einem Rundenspiel. Wenn du mitspielst und das nicht willst, sag Claude einfach
-„spiel in Echtzeit“.
+1. Der Minecraft-Server gibt deine Nachricht an Claude weiter.
+2. Claude **entwirft** das Gebäude als Bauplan (mit Bau-Helfern für Wände, Dächer, Türen, Türme …).
+3. Claude bekommt eine **Vorschau**: ein 3D-Bild von allen Seiten, jede Schicht als Raster und eine
+   automatische Fehlerprüfung, z. B. auf schwebende Blöcke, halbe Türen oder Betten in der Wand.
+   Damit findet Claude eigene Fehler und verbessert den Plan, meistens in 1–2 Runden.
+4. Der fertige Plan wird **auf einen Schlag** vor dir gebaut, mit der Vorderseite zu dir.
 
-**Bauen:** Gebäude denkt sich Claude selbst aus, Schicht für Schicht mit genauen Koordinaten. Beim
-Setzen zielt der Bot nur ganz genau auf die richtige Blockseite, so wie eine ruhige Hand an der Maus.
-Welcher Block wohin kommt, entscheidet Claude. Dafür muss Claude selbst hinlaufen, denn die Hand reicht nur
-4,5 Blöcke weit. Für hohe Wände baut Claude sich eine Säule und klettert hoch.
+Ein Bau braucht etwa **1–3 Minuten** und genau **einen** Claude-Auftrag. Das ist viel sparsamer als
+Block für Block.
 
----
+## Im Spiel
 
-## Was du brauchst (einmalig)
+| Du schreibst im Chat | Was passiert |
+| --- | --- |
+| `bau ein Haus` / `baue eine Burg mit zwei Türmen` | Claude plant und baut es vor dir. Schau dabei in die Richtung, in der es stehen soll! |
+| `bau das Dach rot` / `bau noch einen Turm dran` | Claude ändert den letzten Bau (an derselben Stelle). |
+| `!weg` | Der letzte Bau wird wieder entfernt. |
+| `!stopp` | Das Planen wird abgebrochen. |
+| `!hilfe` | Kurze Hilfe im Chat. |
 
-1. **Minecraft Java Edition** mit Version **1.21.4**:
-   Im Minecraft Launcher auf *Installationen* → *Neue Installation* klicken und als Version
-   „release 1.21.4“ auswählen.
-2. **Node.js 22 oder neuer**: https://nodejs.org (die „LTS“-Version)
-3. **Java 21** für den Server: https://adoptium.net
-   (Windows geht auch so: `winget install EclipseAdoptium.Temurin.21.JRE`)
-4. **Claude Code** auf deinem PC (Claude-Desktop-App → *Code*, oder im Terminal `claude`).
-5. **Chrome oder Edge**, damit Claude sehen kann. Edge ist bei Windows schon dabei.
-   Falls es trotzdem nicht klappt: `npm run augen`.
+Während Claude plant, siehst du im Chat, was gerade passiert.
+Die Vorschau-Bilder liegen danach in `bau/auftraege/<datum>/`, die Baupläne in `bau/bauten/`.
 
-Dann in diesem Ordner einmal ausführen:
+Gut zu wissen:
+- Vor dem Bauen wird der Platz freigeräumt, und Löcher darunter werden mit Erde aufgefüllt. `!weg`
+  entfernt den Bau, bringt aber Bäume oder Hügel, die dort standen, nicht zurück.
+- Truhen bleiben leer, und Schilder haben keinen Text.
+
+## Einrichten (einmalig)
+
+Du brauchst Minecraft Java **1.21.4**, Node.js 22+, Java 21+ und Claude Code (angemeldet).
+Im Projektordner einmal:
 
 ```
 npm install
 ```
 
-## Spielen
+Für die 3D-Vorschau braucht es Chrome oder Edge (Edge ist bei Windows dabei). Klappt die Vorschau nicht:
+`npm run augen`.
 
-**Fenster 1 – der Minecraft-Server:**
+## Starten
+
+In einem Befehlsfenster im Projektordner (in PowerShell vorher `cmd` eintippen):
 
 ```
 npm run server
 ```
 
-Beim ersten Mal lädt das den offiziellen Server von Mojang herunter. Danach fragt es, ob du den
-Minecraft-Nutzungsbedingungen (EULA) zustimmst (bist du noch nicht volljährig, frag deine Eltern), und wie du in Minecraft
-heißt. So darfst du auch Befehle benutzen. Der Server läuft, solange das Fenster offen ist. Zum
-Beenden tippst du `stop`.
+Dann in Minecraft: **Mehrspieler → Direktverbindung → `localhost`**. Fertig! Claude Code musst du dafür
+nicht extra öffnen, der Server startet Claude selbst, sobald du im Chat „bau …“ schreibst.
 
-**Minecraft:** *Mehrspieler* → *Direktverbindung* → `localhost` → *Server betreten*.
+Einstellungen (optional, vor `npm run server` setzen):
+- `BAU_MODELL`: welches Modell plant, Standard `sonnet`. Zum Beispiel `opus` für aufwendigere Bauten, braucht mehr Limit.
+- `BAU_EFFORT`: wie gründlich Claude nachdenkt, Standard `medium`.
 
-**Fenster 2 – Claude:** In diesem Ordner Claude Code starten und schreiben:
+In `cmd` geht das so: `set BAU_MODELL=opus`.
 
-> Spiel Minecraft mit mir!
+## Einen Bauplan selbst ansehen
 
-Beim ersten Mal fragt Claude Code, ob es den MCP-Server „minecraft“ benutzen darf: **Ja**.
-Dann kommt Claude als Spieler „Claude“ in deine Welt.
+```
+npm run vorschau -- bau/beispiele/haus.js
+```
 
-**Zuschauen, was Claude sieht:** Öffne im Browser http://localhost:3007
-
-## Ideen
-
-- „Bau mir eine Burg mit zwei Türmen neben meinem Haus.“
-- „Hilf mir, die Nacht zu überleben.“
-- „Such Eisen und mach dir eine Rüstung.“
-- „Spiel in Echtzeit“ / „Spiel im Rundenmodus“
-- Im Minecraft-Chat kannst du Claude direkt etwas schreiben. Claude liest es beim nächsten Zug.
-
-## Wenn etwas nicht klappt
-
-| Problem | Lösung |
-| --- | --- |
-| Alle Monster stehen still | Das ist der Rundenmodus. Sag Claude „spiel in Echtzeit“, oder tippe im Minecraft-Chat `/tick unfreeze` |
-| „Kein Minecraft-Server“ | Läuft Fenster 1 mit `npm run server`? |
-| Minecraft sagt „Veraltet“ / „Outdated“ | Im Launcher die Version **1.21.4** auswählen |
-| „Rundenmodus geht nicht“ | In Fenster 1 `op Claude` eintippen, dann Claude neu verbinden lassen |
-| „Augen aus“ | Chrome oder Edge installieren oder `npm run augen` |
-| Java fehlt | siehe oben, Java 21 installieren und das Fenster neu öffnen |
+Das zeigt die Schichten und die Prüfung und speichert ein Vorschau-Bild neben dem Bauplan.
 
 ## Wie es gebaut ist
 
 ```
-bot/index.js   MCP-Server: die Werkzeuge, die Claude in Claude Code benutzt
-bot/body.js    Körper: jede Aktion ist so klein wie ein Tastendruck oder Mausklick
-bot/senses.js  Sinne: Status, Fadenkreuz, Wesen, Karte (ohne Röntgenblick)
-bot/eyes.js    Augen: 3D-Ansicht (prismarine-viewer) + Screenshots mit Beschriftung
-server/start.js  lädt und startet den offiziellen Minecraft-Server 1.21.4
-CLAUDE.md      Spielregeln und Tipps für Claude
+server/start.js     startet den Minecraft-Server und hängt die Chat-Brücke dazwischen
+bau/bruecke.js      liest den Chat, startet Aufträge, baut das Ergebnis mit fill/setblock
+bau/auftrag.js      startet Claude Code im Hintergrund ("claude -p") für einen Auftrag
+bau/mcp.js          die Werkzeuge „vorschau“ und „fertig“ für Claude
+bau/modell.js       führt Baupläne aus, prüft Blöcke, findet Fehler, zeichnet Schichten
+bau/render.js       3D-Bilder mit prismarine-viewer
+bau/platzieren.js   dreht den Bau zum Spieler und macht Minecraft-Befehle daraus
+bau/beispiele/      Beispiel-Baupläne
+CLAUDE.md           Bauregeln und Tipps für Claude
+bot/                pausiert: das erste Projekt, in dem Claude selbst spielt
 ```
-
-Der Server ist nur auf deinem PC erreichbar (`server-ip=127.0.0.1`) und läuft im Offline-Modus,
-damit Claude kein eigenes Minecraft-Konto braucht.

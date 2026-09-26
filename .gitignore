@@ -1,3 +1,5 @@
 node_modules/
 server/welt/
 *.log
+bau/auftraege/
+bau/bauten/

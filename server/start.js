@@ -109,7 +109,7 @@ async function acceptEula () {
   let ok = args.includes('--eula')
   if (!ok) {
     console.log('\n📜 Für den Minecraft-Server musst du den Nutzungsbedingungen (EULA) von Mojang zustimmen:')
-    console.log('   https://aka.ms/MinecraftEULA  (frag am besten deine Eltern)')
+    console.log('   https://aka.ms/MinecraftEULA  (bist du noch nicht volljährig, frag deine Eltern)')
     const answer = await ask('   Stimmst du zu? (ja/nein) ')
     ok = /^(j|ja|y|yes)$/i.test(answer)
   }
@@ -181,9 +181,27 @@ async function main () {
   console.log(`\n🚀 Starte Minecraft-Server ${VERSION}…`)
   console.log('   In Minecraft: Mehrspieler → Direktverbindung → localhost')
   console.log('   Hier kannst du Server-Befehle eintippen (z. B. "op Name"). Beenden mit "stop".\n')
-  const child = spawn(java, [`-Xms1G`, `-Xmx${ram}`, '-jar', JAR, 'nogui'], { cwd: DIR, stdio: 'inherit' })
+  const child = spawn(java, [`-Xms1G`, `-Xmx${ram}`, '-jar', JAR, 'nogui'], { cwd: DIR, stdio: ['pipe', 'pipe', 'inherit'] })
+  const send = (command) => { if (child.stdin.writable) child.stdin.write(command + '\n') }
+
+  // Claude der Baumeister hört im Chat mit ("bau …"). Mit --ohne-claude abschalten.
+  let bruecke = null
+  if (!args.includes('--ohne-claude')) {
+    const { Bruecke } = require('../bau/bruecke')
+    bruecke = new Bruecke(send)
+    console.log('🧱 Claude der Baumeister hört im Chat mit. Schreib im Spiel z. B. „bau ein Haus“ (Hilfe: „!hilfe“).\n')
+  }
+  readline.createInterface({ input: child.stdout }).on('line', (line) => {
+    let hide = false
+    if (bruecke) {
+      try { hide = bruecke.onLine(line) } catch (err) { console.error('Baumeister-Fehler:', err.message) }
+    }
+    if (!hide) console.log(line)
+  })
+  // Was du hier eintippst, geht weiter an den Server.
+  readline.createInterface({ input: process.stdin }).on('line', (line) => send(line))
   // Strg+C geht auch an den Server, der dann ordentlich speichert – wir warten auf ihn.
-  process.on('SIGINT', () => {})
+  process.on('SIGINT', () => send('stop'))
   child.on('exit', (code) => process.exit(code || 0))
 }
 
