@@ -23,6 +23,7 @@ Block für Block.
 | `Hallo Claude, was kannst du?` (irgendwas) | Claude antwortet im Chat und merkt sich das Gespräch. Bittest du dabei um einen Bau, baut Claude ihn. |
 | `bau ein Haus` / `baue eine Burg mit zwei Türmen` | Claude plant und baut es vor dir. Schau dabei in die Richtung, in der es stehen soll! |
 | `bau das Dach rot` / `bau noch einen Turm dran` | Claude ändert den letzten Bau (an derselben Stelle). |
+| Nachricht mit `...` am Ende | Für lange Texte (Minecraft erlaubt nur 256 Zeichen): Claude wartet, bis eine Nachricht ohne `...` kommt, und setzt alles zusammen. |
 | `!weg` | Der letzte Bau wird wieder entfernt. |
 | `!stopp` | Das Planen wird abgebrochen. |
 | `!hilfe` | Kurze Hilfe im Chat. |

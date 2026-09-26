@@ -15,6 +15,12 @@ const WEG = /^\s*!(?:weg|rückgängig|rueckgaengig|undo|abreißen|abreissen)\s*$
 const STOPP = /^\s*!(?:stopp|stop|abbrechen)\s*$/i
 const HILFE = /^\s*!(?:hilfe|help)\s*$/i
 const ANGESPROCHEN = /\bclaude\b/i
+// Minecraft erlaubt nur 256 Zeichen pro Nachricht. Endet eine Nachricht mit "..." (oder "+"),
+// wartet Claude auf die Fortsetzung und setzt alles zusammen.
+const WEITER = /(\.\.\.|…|\+)\s*$/
+const WEITER_ANFANG = /^\s*(\.\.\.|…)\s*/
+const WEITER_WARTEN_MS = 3 * 60 * 1000
+const CHAT_PAUSE_MS = 2000 // kurz warten, falls gleich noch eine Nachricht kommt
 // Ausgaben unserer eigenen Befehle – die sollen die Konsole nicht zumüllen.
 const NOISE = /\]: (Changed the block at|Successfully filled|No blocks were filled|Could not set the block|.+ has the following entity data)/
 const PROBLEM = /\]: (Unknown block type|Incorrect argument|That position is not loaded|Cannot place blocks outside|Unknown or incomplete command|Expected )/
@@ -60,6 +66,8 @@ class Bruecke {
     this.problems = 0
     this.chatQueue = []
     this.chatting = false
+    this.chatTimer = null
+    this.pending = new Map() // Spieler → angefangene lange Nachricht
     fs.mkdirSync(path.join(ROOT, 'bau', 'bauten'), { recursive: true })
     fs.mkdirSync(DIR, { recursive: true })
     this.history = readJson(HISTORY_FILE, [])
@@ -127,17 +135,51 @@ class Bruecke {
 
   async onChat (player, message) {
     if (HILFE.test(message)) {
-      this.say('Schreib einfach mit mir! Bauen: „bau ein Haus mit Garten“. Ändern: „bau das Dach rot“. Entfernen: „!weg“. Abbrechen: „!stopp“.')
+      this.say('Schreib einfach mit mir! Bauen: „bau ein Haus mit Garten“. Ändern: „bau das Dach rot“. Entfernen: „!weg“. Abbrechen: „!stopp“. Lange Nachricht: mit „...“ enden und weiterschreiben.')
       return
     }
     if (STOPP.test(message)) return this.stop()
     if (WEG.test(message)) return this.removeLast()
-    if (BAU.test(message)) return this.startJob(player, message.trim())
+
+    // Lange Nachrichten aus mehreren Teilen zusammensetzen
+    const part = message.replace(WEITER, '').replace(WEITER_ANFANG, '').trim()
+    let pending = this.pending.get(player)
+    if (WEITER.test(message)) {
+      if (!pending) {
+        pending = { parts: [] }
+        this.pending.set(player, pending)
+        this.say('✍ Schreib weiter – ich warte, bis eine Nachricht ohne „...“ am Ende kommt.', 'gray')
+      }
+      if (part) pending.parts.push(part)
+      clearTimeout(pending.timer)
+      // Kommt nichts mehr, nehmen wir, was da ist.
+      pending.timer = setTimeout(() => {
+        this.pending.delete(player)
+        this.handleMessage(player, pending.parts.join(' ')).catch(err => this.say('❌ ' + err.message, 'red'))
+      }, WEITER_WARTEN_MS)
+      return
+    }
+    if (pending) {
+      clearTimeout(pending.timer)
+      this.pending.delete(player)
+      if (part) pending.parts.push(part)
+      return this.handleMessage(player, pending.parts.join(' '))
+    }
+    return this.handleMessage(player, message.trim())
+  }
+
+  async handleMessage (player, message) {
+    if (!message) return
+    if (BAU.test(message)) return this.startJob(player, message)
     const mode = settings.load().chat
     if (mode === 'aus' || (mode === 'claude' && !ANGESPROCHEN.test(message))) return
     this.chatQueue.push({ player, message })
     this.addChatLog(player, message)
-    if (!this.chatting) this.flushChat().catch(err => this.say('❌ ' + err.message, 'red'))
+    // Kurz warten – schnell hintereinander geschriebene Nachrichten beantwortet Claude zusammen.
+    clearTimeout(this.chatTimer)
+    this.chatTimer = setTimeout(() => {
+      if (!this.chatting) this.flushChat().catch(err => this.say('❌ ' + err.message, 'red'))
+    }, CHAT_PAUSE_MS)
   }
 
   // ---------- Chat ----------
