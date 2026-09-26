@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baumeister-Zentrale</title>
+<style>
+  :root {
+    --bg: #f3f5f0; --card: #ffffff; --text: #1d2419; --muted: #66705f; --line: #e2e7dc;
+    --accent: #3f8f29; --accent-soft: #e5f2df; --warn: #b3261e; --warn-soft: #fbe9e7; --chip: #eef1ea;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151a13; --card: #1e251b; --text: #e8eee3; --muted: #9aa692; --line: #2e382a;
+      --accent: #7cc85f; --accent-soft: #263a1f; --warn: #ff8a80; --warn-soft: #3a211f; --chip: #283123;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  header { padding: 20px 16px 8px; max-width: 1200px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  h1 { font-size: 22px; margin: 0; flex: 1 1 auto; }
+  h2 { font-size: 16px; margin: 0 0 12px; }
+  h3 { font-size: 13px; margin: 16px 0 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  main { max-width: 1200px; margin: 0 auto; padding: 8px 16px 32px; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); align-items: start; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; box-shadow: var(--shadow); min-width: 0; }
+  .wide { grid-column: 1 / -1; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--card); color: var(--text); border-radius: 8px; padding: 7px 12px; cursor: pointer; }
+  button:hover { border-color: var(--muted); }
+  button.danger { color: var(--warn); }
+  button:disabled { opacity: .45; cursor: default; }
+  .status { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; background: var(--card); border: 1px solid var(--line); }
+  .status.busy { background: var(--accent-soft); border-color: transparent; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex: none; }
+  .busy .dot { background: var(--accent); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .status .grow { flex: 1; min-width: 0; }
+  .muted { color: var(--muted); }
+  .small { font-size: 13px; }
+  .tiles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .tile { background: var(--chip); border-radius: 10px; padding: 10px 12px; }
+  .tile .label { font-size: 12px; color: var(--muted); }
+  .tile .value { font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums; }
+  .tile .sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .hint { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-weight: 600; color: var(--muted); padding: 6px 4px; border-bottom: 1px solid var(--line); }
+  td { padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.what { max-width: 0; width: 100%; }
+  .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .scroll { max-height: 320px; overflow: auto; }
+  fieldset { border: 0; padding: 0; margin: 0 0 12px; }
+  legend { font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+  .choices { display: flex; flex-wrap: wrap; gap: 6px; }
+  .choice { position: relative; }
+  .choice input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+  .choice span { display: block; padding: 6px 11px; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+  .choice input:checked + span { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+  .choice input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .info { font-size: 12.5px; color: var(--muted); min-height: 1.2em; margin-top: 4px; }
+  .saved { font-size: 13px; color: var(--accent); min-height: 1.3em; }
+  .builds { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .build { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--card); }
+  .build img { display: block; width: 100%; aspect-ratio: 1280 / 828; object-fit: cover; background: var(--chip); cursor: zoom-in; }
+  .build .noimg { aspect-ratio: 1280 / 828; display: grid; place-items: center; background: var(--chip); color: var(--muted); font-size: 13px; }
+  .build .body { padding: 8px 10px; }
+  .build .name { font-weight: 600; }
+  .badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 6px; background: var(--chip); color: var(--muted); }
+  .badge.bad { background: var(--warn-soft); color: var(--warn); }
+  .chat { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow: auto; }
+  .msg { max-width: 85%; padding: 6px 10px; border-radius: 10px; background: var(--chip); overflow-wrap: anywhere; }
+  .msg.claude { align-self: flex-end; background: var(--accent-soft); }
+  .msg .who { font-size: 11.5px; color: var(--muted); }
+  .empty { color: var(--muted); font-size: 13px; }
+  dialog { border: 0; padding: 0; border-radius: 12px; max-width: min(96vw, 1280px); background: #111; }
+  dialog img { display: block; max-width: 100%; max-height: 90vh; }
+  dialog::backdrop { background: rgba(0,0,0,.6); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🧱 Baumeister-Zentrale</h1>
+  <button id="stopp" class="danger" disabled>Planen abbrechen</button>
+  <button id="weg">Letzten Bau entfernen</button>
+  <div id="status" class="status"><div class="dot"></div><div class="grow">Verbinde…</div></div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Verbrauch</h2>
+    <div class="tiles" id="tiles"></div>
+    <p class="hint">Die Beträge sind <b>geschätzt</b>: So viel würde es kosten, wenn man Claude direkt über die API bezahlt.
+      Mit deinem Claude-Abo zahlst du nichts extra – es zählt aber zu deinem Nutzungslimit.</p>
+    <h3>Letzte Aufrufe</h3>
+    <div class="scroll">
+      <table>
+        <thead><tr><th>Was</th><th class="num">Kosten</th></tr></thead>
+        <tbody id="entries"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Einstellungen</h2>
+    <form id="settings" onsubmit="return false"></form>
+    <div class="saved" id="saved"></div>
+  </section>
+
+  <section class="card">
+    <h2>Chat</h2>
+    <div class="chat" id="chat"></div>
+  </section>
+
+  <section class="card wide">
+    <h2>Bauten</h2>
+    <div class="builds" id="builds"></div>
+  </section>
+
+</main>
+
+<dialog id="zoom"><img alt="Vorschau"></dialog>
+
+<script>
+const $ = (s) => document.querySelector(s)
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const money = (v) => v > 0 && v < 0.01 ? '< $0.01' : '$' + (v || 0).toFixed(2)
+const tokens = (n) => n >= 1e6 ? (n / 1e6).toFixed(1).replace('.', ',') + ' Mio.' : n >= 1000 ? Math.round(n / 1000) + ' Tsd.' : String(n || 0)
+const when = (iso) => new Date(iso).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+const modelName = {}
+let formBuilt = false
+
+async function api (path, body) {
+  const res = await fetch(path, body === undefined ? {} : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  return res.json()
+}
+
+function buildForm (opt, s) {
+  const group = (key, legend, list) => `
+    <fieldset data-key="${key}">
+      <legend>${legend}</legend>
+      <div class="choices">${list.map(o => `
+        <label class="choice"><input type="radio" name="${key}" value="${o.id}" ${s[key] === o.id ? 'checked' : ''}><span>${esc(o.name)}</span></label>`).join('')}
+      </div>
+      <div class="info"></div>
+    </fieldset>`
+  $('#settings').innerHTML = `
+    <h3>Bauen</h3>
+    ${group('bauModell', 'KI-Modell', opt.modelle)}
+    ${group('bauEffort', 'Gründlichkeit', opt.efforts)}
+    ${group('maxVorschauen', 'Höchstens so viele Vorschau-Runden', [1, 2, 3, 4, 5].map(n => ({ id: n, name: String(n) })))}
+    <h3>Chat</h3>
+    ${group('chat', 'Wann antwortet Claude?', opt.chatModi)}
+    ${group('chatModell', 'KI-Modell', opt.modelle)}
+    ${group('chatEffort', 'Gründlichkeit', opt.efforts)}`
+  const infos = { bauModell: opt.modelle, chatModell: opt.modelle, bauEffort: opt.efforts, chatEffort: opt.efforts, chat: opt.chatModi }
+  const showInfo = () => {
+    for (const fs of document.querySelectorAll('fieldset')) {
+      const key = fs.dataset.key
+      const val = (fs.querySelector('input:checked') || {}).value
+      const o = (infos[key] || []).find(x => String(x.id) === val)
+      fs.querySelector('.info').textContent = o ? o.info : ''
+    }
+  }
+  showInfo()
+  $('#settings').addEventListener('change', async (e) => {
+    const key = e.target.name
+    const value = key === 'maxVorschauen' ? Number(e.target.value) : e.target.value
+    showInfo()
+    await api('/api/einstellungen', { [key]: value })
+    $('#saved').textContent = 'Gespeichert ✓ – gilt ab dem nächsten Auftrag.'
+    clearTimeout(buildForm.t)
+    buildForm.t = setTimeout(() => { $('#saved').textContent = '' }, 3000)
+  })
+  formBuilt = true
+}
+
+function render (z) {
+  for (const m of z.optionen.modelle) modelName[m.id] = m.name
+  if (!formBuilt) buildForm(z.optionen, z.einstellungen)
+
+  // Status
+  const b = z.bruecke
+  const st = $('#status')
+  st.classList.toggle('busy', !!b.job || b.chatting)
+  st.querySelector('.grow').innerHTML = b.job
+    ? `<b>Plant: „${esc(b.job.message)}“</b> <span class="muted">· ${esc(b.job.status)} · ${b.job.seit} s · ${esc(modelName[b.job.modell] || b.job.modell)}</span>`
+    : b.chatting ? '<b>Claude schreibt eine Antwort…</b>' : 'Bereit – schreib im Minecraft-Chat „bau …“ oder einfach eine Nachricht.'
+  $('#stopp').disabled = !b.job
+  $('#weg').disabled = !b.bauten.length || !!b.job
+
+  // Verbrauch
+  const v = z.verbrauch
+  const tile = (label, sum, extra) => `<div class="tile"><div class="label">${label}</div><div class="value">${money(sum.kosten)}</div>
+    <div class="sub">${extra || ''}${tokens(sum.tokens)} Tokens</div></div>`
+  $('#tiles').innerHTML =
+    tile('Heute', v.heute, `${v.heute.anzahl} Aufrufe · `) +
+    tile('Insgesamt', v.gesamt, `${v.gesamt.anzahl} Aufrufe · `) +
+    tile('🔨 Bauen', v.bauten, `${v.bauten.anzahl}× · `) +
+    tile('💬 Chat', v.chats, `${v.chats.anzahl}× · `)
+  $('#entries').innerHTML = v.letzte.length ? v.letzte.map(e => `
+    <tr>
+      <td class="what" title="${esc(e.text)}">
+        <div class="clip">${e.art === 'bau' ? '🔨' : '💬'} ${esc(e.name || e.text)} ${e.ok === false ? '<span class="badge bad">Fehler</span>' : ''}</div>
+        <div class="small muted">${when(e.zeit)} · ${esc(modelName[e.modell] || e.modell)} · ${e.dauer} s</div>
+      </td>
+      <td class="num" title="${tokens(e.tokens.eingabe + e.tokens.cacheLesen + e.tokens.cacheSchreiben)} Tokens rein, ${tokens(e.tokens.ausgabe)} raus">${money(e.kosten)}</td>
+    </tr>`).join('') : '<tr><td colspan="2" class="empty">Noch nichts – schreib im Spiel „bau ein Haus“.</td></tr>'
+
+  // Bauten
+  $('#builds').innerHTML = v.bauAuftraege.length ? v.bauAuftraege.map(e => {
+    const img = e.bild ? `/bild/${e.bild.split('/').slice(1).join('/')}` : null
+    return `<div class="build">
+      ${img ? `<img src="${img}" alt="Vorschau von ${esc(e.name || e.text)}" loading="lazy">` : '<div class="noimg">kein Bild</div>'}
+      <div class="body">
+        <div class="name">${esc(e.name || 'ohne Namen')} ${e.ok === false ? '<span class="badge bad">nicht gebaut</span>' : ''}</div>
+        <div class="small muted">„${esc(e.text)}“</div>
+        <div class="small muted">${when(e.zeit)} · ${esc(modelName[e.modell] || e.modell)} · ${e.dauer} s · ${money(e.kosten)}</div>
+      </div></div>`
+  }).join('') : '<div class="empty">Noch keine Bauten.</div>'
+
+  // Chat
+  const chat = $('#chat')
+  const atBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 30
+  chat.innerHTML = b.chat.length ? b.chat.map(m => `
+    <div class="msg ${m.von === 'Claude' ? 'claude' : ''}"><div class="who">${esc(m.von)} · ${when(m.zeit)}</div>${esc(m.text)}</div>`).join('')
+    : '<div class="empty">Noch keine Nachrichten.</div>'
+  if (atBottom) chat.scrollTop = chat.scrollHeight
+}
+
+async function refresh () {
+  try {
+    render(await api('/api/zustand'))
+  } catch {
+    $('#status .grow').textContent = 'Keine Verbindung – läuft „npm run server“ noch?'
+  }
+}
+
+$('#stopp').onclick = () => api('/api/stopp', {}).then(refresh)
+$('#weg').onclick = () => { if (confirm('Den letzten Bau wirklich entfernen?')) api('/api/weg', {}).then(refresh) }
+$('#builds').addEventListener('click', (e) => {
+  if (e.target.tagName !== 'IMG') return
+  $('#zoom img').src = e.target.src
+  $('#zoom').showModal()
+})
+$('#zoom').addEventListener('click', () => $('#zoom').close())
+
+refresh()
+setInterval(refresh, 3000)
+</script>
+</body>
+</html>

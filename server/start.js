@@ -163,6 +163,14 @@ async function writeOps () {
   fs.writeFileSync(file, JSON.stringify(ops, null, 2))
 }
 
+function openBrowser (url) {
+  try {
+    if (process.platform === 'win32') spawn('cmd', ['/c', 'start', '""', url], { stdio: 'ignore', detached: true, windowsHide: true }).unref()
+    else if (process.platform === 'darwin') spawn('open', [url], { stdio: 'ignore', detached: true }).unref()
+    else spawn('xdg-open', [url], { stdio: 'ignore', detached: true }).on('error', () => {}).unref()
+  } catch {}
+}
+
 async function main () {
   fs.mkdirSync(DIR, { recursive: true })
   let info
@@ -188,8 +196,15 @@ async function main () {
   let bruecke = null
   if (!args.includes('--ohne-claude')) {
     const { Bruecke } = require('../bau/bruecke')
+    const { startZentrale } = require('../bau/zentrale')
     bruecke = new Bruecke(send)
-    console.log('🧱 Claude der Baumeister hört im Chat mit. Schreib im Spiel z. B. „bau ein Haus“ (Hilfe: „!hilfe“).\n')
+    console.log('🧱 Claude der Baumeister hört im Chat mit. Schreib im Spiel z. B. „bau ein Haus“ oder einfach „Hallo Claude“.')
+    startZentrale(bruecke).then((port) => {
+      if (!port) return
+      const url = `http://localhost:${port}`
+      console.log(`🖥  Baumeister-Zentrale (Einstellungen, Verbrauch, Bauten, Chat): ${url}\n`)
+      if (!args.includes('--ohne-browser')) openBrowser(url)
+    })
   }
   readline.createInterface({ input: child.stdout }).on('line', (line) => {
     let hide = false

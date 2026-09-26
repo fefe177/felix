@@ -20,6 +20,7 @@ Block für Block.
 
 | Du schreibst im Chat | Was passiert |
 | --- | --- |
+| `Hallo Claude, was kannst du?` (irgendwas) | Claude antwortet im Chat und merkt sich das Gespräch. Bittest du dabei um einen Bau, baut Claude ihn. |
 | `bau ein Haus` / `baue eine Burg mit zwei Türmen` | Claude plant und baut es vor dir. Schau dabei in die Richtung, in der es stehen soll! |
 | `bau das Dach rot` / `bau noch einen Turm dran` | Claude ändert den letzten Bau (an derselben Stelle). |
 | `!weg` | Der letzte Bau wird wieder entfernt. |
@@ -33,6 +34,19 @@ Gut zu wissen:
 - Vor dem Bauen wird der Platz freigeräumt, und Löcher darunter werden mit Erde aufgefüllt. `!weg`
   entfernt den Bau, bringt aber Bäume oder Hügel, die dort standen, nicht zurück.
 - Truhen bleiben leer, und Schilder haben keinen Text.
+
+## Die Baumeister-Zentrale
+
+Wenn der Server startet, öffnet sich im Browser **http://localhost:3008**. Dort kannst du:
+- **Einstellungen** ändern: welches KI-Modell baut und chattet (Haiku, Sonnet, Opus), wie gründlich
+  Claude nachdenkt, wie viele Vorschau-Runden erlaubt sind und ob Claude auf alle Chat-Nachrichten
+  antwortet oder nur, wenn „Claude“ darin vorkommt.
+- den **Verbrauch** sehen: heute und insgesamt, getrennt nach Bauen und Chat, mit Tokens und Dauer.
+  Die Beträge sind geschätzt. So viel würde es über die API kosten. Mit dem Claude-Abo zahlst du nichts
+  extra, es zählt aber zum Nutzungslimit. Richtwerte mit Sonnet: ein Bau ca. $0.30–0.40, eine
+  Chat-Antwort ca. $0.03.
+- alle **Bauten** mit ihren Vorschau-Bildern und den **Chat** ansehen, einen Bau abbrechen oder den
+  letzten Bau entfernen.
 
 ## Einrichten (einmalig)
 
@@ -57,11 +71,6 @@ npm run server
 Dann in Minecraft: **Mehrspieler → Direktverbindung → `localhost`**. Fertig! Claude Code musst du dafür
 nicht extra öffnen, der Server startet Claude selbst, sobald du im Chat „bau …“ schreibst.
 
-Einstellungen (optional, vor `npm run server` setzen):
-- `BAU_MODELL`: welches Modell plant, Standard `sonnet`. Zum Beispiel `opus` für aufwendigere Bauten, braucht mehr Limit.
-- `BAU_EFFORT`: wie gründlich Claude nachdenkt, Standard `medium`.
-
-In `cmd` geht das so: `set BAU_MODELL=opus`.
 
 ## Einen Bauplan selbst ansehen
 
@@ -75,8 +84,10 @@ Das zeigt die Schichten und die Prüfung und speichert ein Vorschau-Bild neben d
 
 ```
 server/start.js     startet den Minecraft-Server und hängt die Chat-Brücke dazwischen
-bau/bruecke.js      liest den Chat, startet Aufträge, baut das Ergebnis mit fill/setblock
-bau/auftrag.js      startet Claude Code im Hintergrund ("claude -p") für einen Auftrag
+bau/bruecke.js      liest den Chat, antwortet, startet Aufträge, baut das Ergebnis mit fill/setblock
+bau/auftrag.js      startet Claude Code im Hintergrund ("claude -p") für Bau und Chat
+bau/zentrale.js     die Baumeister-Zentrale (Webseite in bau/zentrale/)
+bau/einstellungen.js, bau/verbrauch.js   Einstellungen und Verbrauchszähler
 bau/mcp.js          die Werkzeuge „vorschau“ und „fertig“ für Claude
 bau/modell.js       führt Baupläne aus, prüft Blöcke, findet Fehler, zeichnet Schichten
 bau/render.js       3D-Bilder mit prismarine-viewer

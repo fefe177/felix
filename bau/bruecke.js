@@ -1,22 +1,28 @@
 // Brücke zwischen Minecraft-Server und Claude: liest den Chat aus der Server-Konsole,
-// startet bei "bau …" einen Bauauftrag und baut das Ergebnis mit Server-Befehlen auf.
+// antwortet im Chat, startet bei "bau …" einen Bauauftrag und baut das Ergebnis mit Server-Befehlen auf.
 
 const fs = require('fs')
 const path = require('path')
 const M = require('./modell')
 const P = require('./platzieren')
-const { runClaude, cancel, ROOT } = require('./auftrag')
+const settings = require('./einstellungen')
+const verbrauch = require('./verbrauch')
+const { runClaude, runChat, cancel, ROOT } = require('./auftrag')
 
 const CHAT = /\]: (?:\[Not Secure\] )?<([A-Za-z0-9_]{1,16})> (.*)$/
 const BAU = /^\s*(?:@?claude[,:]?\s+)?!?(?:bau|baue|bauen|bau\s*mir|baue\s*mir)\b/i
 const WEG = /^\s*!(?:weg|rückgängig|rueckgaengig|undo|abreißen|abreissen)\s*$/i
 const STOPP = /^\s*!(?:stopp|stop|abbrechen)\s*$/i
 const HILFE = /^\s*!(?:hilfe|help)\s*$/i
+const ANGESPROCHEN = /\bclaude\b/i
 // Ausgaben unserer eigenen Befehle – die sollen die Konsole nicht zumüllen.
 const NOISE = /\]: (Changed the block at|Successfully filled|No blocks were filled|Could not set the block|.+ has the following entity data)/
 const PROBLEM = /\]: (Unknown block type|Incorrect argument|That position is not loaded|Cannot place blocks outside|Unknown or incomplete command|Expected )/
 
-const HISTORY_FILE = path.join(ROOT, 'bau', 'auftraege', 'verlauf.json')
+const DIR = path.join(ROOT, 'bau', 'auftraege')
+const HISTORY_FILE = path.join(DIR, 'verlauf.json')
+const CHAT_FILE = path.join(DIR, 'chat.json')
+const CHAT_SESSION_MAX = 30 // danach beginnt ein frisches Gespräch (spart Verbrauch)
 
 function stamp () {
   const d = new Date()
@@ -26,6 +32,25 @@ function stamp () {
 
 function sleep (ms) { return new Promise(resolve => setTimeout(resolve, ms)) }
 
+function readJson (file, fallback) {
+  try { return JSON.parse(fs.readFileSync(file, 'utf8')) } catch { return fallback }
+}
+
+// Lange Antworten in chatgerechte Stücke teilen.
+function chunks (text, max = 220) {
+  const out = []
+  for (const line of String(text).split('\n').map(l => l.trim()).filter(Boolean)) {
+    let rest = line
+    while (rest.length > max) {
+      const cut = rest.lastIndexOf(' ', max) > 40 ? rest.lastIndexOf(' ', max) : max
+      out.push(rest.slice(0, cut))
+      rest = rest.slice(cut).trim()
+    }
+    if (rest) out.push(rest)
+  }
+  return out.slice(0, 6)
+}
+
 class Bruecke {
   constructor (send) {
     this.send = send
@@ -33,9 +58,12 @@ class Bruecke {
     this.job = null
     this.placingUntil = 0
     this.problems = 0
+    this.chatQueue = []
+    this.chatting = false
     fs.mkdirSync(path.join(ROOT, 'bau', 'bauten'), { recursive: true })
-    fs.mkdirSync(path.join(ROOT, 'bau', 'auftraege'), { recursive: true })
-    try { this.history = JSON.parse(fs.readFileSync(HISTORY_FILE, 'utf8')) } catch { this.history = [] }
+    fs.mkdirSync(DIR, { recursive: true })
+    this.history = readJson(HISTORY_FILE, [])
+    this.chatState = readJson(CHAT_FILE, { sessionId: null, count: 0, verlauf: [] })
   }
 
   // Jede Zeile der Server-Konsole kommt hier vorbei. Rückgabe true = nicht anzeigen.
@@ -99,22 +127,85 @@ class Bruecke {
 
   async onChat (player, message) {
     if (HILFE.test(message)) {
-      this.say('Schreib zum Beispiel „bau ein Haus mit Garten“ oder „baue eine Burg“. Ändern: „bau das Dach rot“. Entfernen: „!weg“. Abbrechen: „!stopp“.')
+      this.say('Schreib einfach mit mir! Bauen: „bau ein Haus mit Garten“. Ändern: „bau das Dach rot“. Entfernen: „!weg“. Abbrechen: „!stopp“.')
       return
     }
-    if (STOPP.test(message)) {
-      if (!this.job) return this.say('Ich plane gerade nichts.')
-      this.job.cancelled = true
-      cancel()
-      return this.say('Okay, ich höre auf.')
-    }
+    if (STOPP.test(message)) return this.stop()
     if (WEG.test(message)) return this.removeLast()
     if (BAU.test(message)) return this.startJob(player, message.trim())
+    const mode = settings.load().chat
+    if (mode === 'aus' || (mode === 'claude' && !ANGESPROCHEN.test(message))) return
+    this.chatQueue.push({ player, message })
+    this.addChatLog(player, message)
+    if (!this.chatting) this.flushChat().catch(err => this.say('❌ ' + err.message, 'red'))
+  }
+
+  // ---------- Chat ----------
+
+  addChatLog (von, text) {
+    this.chatState.verlauf.push({ zeit: new Date().toISOString(), von, text })
+    this.chatState.verlauf = this.chatState.verlauf.slice(-60)
+    fs.writeFileSync(CHAT_FILE, JSON.stringify(this.chatState))
+  }
+
+  async flushChat () {
+    this.chatting = true
+    try {
+      while (this.chatQueue.length) {
+        const batch = this.chatQueue.splice(0)
+        const player = batch[batch.length - 1].player
+        const last = this.history[this.history.length - 1]
+        const prompt = [
+          'Chat im Minecraft-Spiel (antworte kurz, passend für den Minecraft-Chat):',
+          ...batch.map(m => `<${m.player}> ${m.message}`),
+          '',
+          `Zustand: ${this.job ? `Du planst gerade „${this.job.message}“.` : 'Du planst gerade nichts.'} ` +
+            `Letzter Bau: ${last ? `„${last.name}“` : 'noch keiner'}.`
+        ].join('\n')
+        const s = settings.load()
+        if (this.chatState.count >= CHAT_SESSION_MAX) { this.chatState.sessionId = null; this.chatState.count = 0 }
+        let res = await runChat({ prompt, sessionId: this.chatState.sessionId, model: s.chatModell, effort: s.chatEffort, logFile: path.join(DIR, 'chat-letzte-ausgabe.txt') })
+        if (!res.ok && this.chatState.sessionId) {
+          // Altes Gespräch nicht mehr da? Dann ein neues beginnen.
+          this.chatState.sessionId = null
+          this.chatState.count = 0
+          res = await runChat({ prompt, model: s.chatModell, effort: s.chatEffort, logFile: path.join(DIR, 'chat-letzte-ausgabe.txt') })
+        }
+        verbrauch.record({ art: 'chat', text: batch.map(m => m.message).join(' / '), modell: s.chatModell, effort: s.chatEffort, ok: res.ok }, res.info)
+        if (!res.ok || !res.info) {
+          this.say('❌ Ich konnte gerade nicht antworten: ' + (res.error || (res.timedOut ? 'zu langsam' : (res.stderr || 'unbekannter Fehler').split('\n').pop().slice(0, 120))), 'red')
+          continue
+        }
+        this.chatState.sessionId = res.info.session_id || this.chatState.sessionId
+        this.chatState.count++
+        let reply = String(res.info.result || '').trim()
+        // "BAU: …" in der Antwort startet einen Bauauftrag
+        const bau = /^\s*BAU:\s*(.+)$/im.exec(reply)
+        reply = reply.replace(/^\s*BAU:.*$/gim, '').trim()
+        if (reply) {
+          for (const part of chunks(reply)) this.say(part)
+          this.addChatLog('Claude', reply)
+        }
+        if (bau) this.startJob(player, bau[1].trim()).catch(err => this.say('❌ ' + err.message, 'red'))
+      }
+    } finally {
+      this.chatting = false
+    }
+  }
+
+  // ---------- Bauen ----------
+
+  stop () {
+    if (!this.job) return this.say('Ich plane gerade nichts.')
+    this.job.cancelled = true
+    cancel()
+    return this.say('Okay, ich höre auf.')
   }
 
   async startJob (player, message) {
     if (this.job) return this.say(`Ich plane gerade noch „${this.job.message}“ – warte kurz oder schreib „!stopp“.`)
-    const job = this.job = { id: stamp(), player, message }
+    const s = settings.load()
+    const job = this.job = { id: stamp(), player, message, start: Date.now(), modell: s.bauModell, status: 'Ich schaue, wo du stehst…' }
     try {
       let place
       try {
@@ -122,7 +213,7 @@ class Bruecke {
       } catch (err) {
         return this.say(`Ich kann ${player} gerade nicht finden (${err.message}).`, 'red')
       }
-      const jobDir = path.join(ROOT, 'bau', 'auftraege', job.id)
+      const jobDir = path.join(DIR, job.id)
       fs.mkdirSync(jobDir, { recursive: true })
       const last = this.history[this.history.length - 1]
       const prompt = [
@@ -133,10 +224,11 @@ class Bruecke {
           ? `Letzter Bau: „${last.name}“, Bauplan-Datei ${last.datei}. Wenn sich der Auftrag auf diesen Bau bezieht (ändern, erweitern, verschönern, „mach …“), dann bearbeite genau diese Datei und gib sie mit modus "ändern" ab.`
           : 'Es gibt noch keinen früheren Bau.',
         `Für einen neuen Bau schreib den Bauplan nach bau/bauten/${job.id}-<kurzer-name>.js und gib ihn mit modus "neu" ab.`,
-        'Halte dich an die Bauregeln in CLAUDE.md. Ablauf: Bauplan schreiben → vorschau → verbessern → fertig.'
+        `Halte dich an die Bauregeln in CLAUDE.md. Ablauf: Bauplan schreiben → vorschau → verbessern → fertig. Höchstens ${s.maxVorschauen} Vorschauen.`
       ].join('\n')
       fs.writeFileSync(path.join(jobDir, 'auftrag.txt'), prompt)
       this.say(`🔨 Ich plane: „${message}“ – das dauert 1–3 Minuten.`)
+      job.status = 'Claude plant…'
 
       // Fortschritt aus dem Auftrags-Ordner in den Chat holen
       const statusFile = path.join(jobDir, 'status.log')
@@ -144,25 +236,41 @@ class Bruecke {
       const relay = () => {
         let lines = []
         try { lines = fs.readFileSync(statusFile, 'utf8').split('\n').filter(Boolean) } catch {}
-        for (const l of lines.slice(shown)) this.say(l, 'gray')
+        for (const l of lines.slice(shown)) { this.say(l, 'gray'); job.status = l }
         shown = lines.length
       }
       const poll = setInterval(relay, 1500)
-      const res = await runClaude({ jobDir, prompt })
+      const res = await runClaude({ jobDir, prompt, model: s.bauModell, effort: s.bauEffort })
       clearInterval(poll)
       relay()
-      if (job.cancelled) return
 
       const resultFile = path.join(jobDir, 'ergebnis.json')
-      if (!fs.existsSync(resultFile)) {
+      const result = fs.existsSync(resultFile) ? readJson(resultFile, null) : null
+      const previews = fs.readdirSync(jobDir).filter(f => /^vorschau-\d+\.jpg$/.test(f)).sort((a, b) => parseInt(a.slice(9)) - parseInt(b.slice(9)))
+      verbrauch.record({
+        art: 'bau',
+        id: job.id,
+        text: message,
+        name: result ? result.name : null,
+        bild: previews.length ? `auftraege/${job.id}/${previews[previews.length - 1]}` : null,
+        modell: s.bauModell,
+        effort: s.bauEffort,
+        ok: !!result && !job.cancelled
+      }, res.info)
+      if (job.cancelled) return
+
+      if (!result) {
         const why = res.timedOut ? 'Es hat zu lange gedauert.'
           : res.error || (res.info && res.info.is_error ? String(res.info.result || res.info.subtype || '').slice(0, 150) : '') ||
             (res.stderr ? res.stderr.split('\n').pop().slice(0, 150) : 'Kein fertiger Bauplan.')
         return this.say('❌ Das hat nicht geklappt: ' + why, 'red')
       }
-      const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'))
-      if (result.modus === 'nichts') return this.say(result.nachricht)
+      if (result.modus === 'nichts') {
+        this.addChatLog('Claude', result.nachricht)
+        return this.say(result.nachricht)
+      }
 
+      job.status = 'Wird gebaut…'
       const { blocks } = M.runPlan(fs.readFileSync(path.join(ROOT, result.datei), 'utf8'))
       let anchor, facing, dim
       if (result.modus === 'ändern' && last) {
@@ -178,6 +286,7 @@ class Bruecke {
       this.history.push({ id: job.id, name: result.name, datei: result.datei, anchor, facing, dim, blocks: worldBlocks.map(b => [b.x, b.y, b.z, b.block]) })
       this.saveHistory()
       this.say(`✅ ${result.name} ist fertig (${worldBlocks.length} Blöcke). ${result.nachricht || ''}`, 'green')
+      this.addChatLog('Claude', `✅ ${result.name} gebaut. ${result.nachricht || ''}`)
       if (problems) this.say(`⚠ ${problems} Befehle haben nicht geklappt (vielleicht ist dort die Welt nicht geladen).`, 'yellow')
       this.say('Ändern: z. B. „bau das Dach rot“ · Entfernen: „!weg“', 'gray')
     } finally {
@@ -209,6 +318,16 @@ class Bruecke {
   saveHistory () {
     this.history = this.history.slice(-10)
     fs.writeFileSync(HISTORY_FILE, JSON.stringify(this.history))
+  }
+
+  // Für die Zentrale
+  status () {
+    return {
+      job: this.job ? { message: this.job.message, player: this.job.player, status: this.job.status, seit: Math.round((Date.now() - this.job.start) / 1000), modell: this.job.modell } : null,
+      chatting: this.chatting,
+      bauten: this.history.slice().reverse().map(h => ({ id: h.id, name: h.name, bloecke: h.blocks.length })),
+      chat: this.chatState.verlauf.slice(-30)
+    }
   }
 }
 

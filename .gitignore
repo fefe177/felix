@@ -3,3 +3,4 @@ server/welt/
 *.log
 bau/auftraege/
 bau/bauten/
+bau/einstellungen.json
