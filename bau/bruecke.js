@@ -68,6 +68,7 @@ class Bruecke {
     this.chatting = false
     this.chatTimer = null
     this.pending = new Map() // Spieler → angefangene lange Nachricht
+    this.lastPlayer = null
     fs.mkdirSync(path.join(ROOT, 'bau', 'bauten'), { recursive: true })
     fs.mkdirSync(DIR, { recursive: true })
     this.history = readJson(HISTORY_FILE, [])
@@ -134,6 +135,7 @@ class Bruecke {
   }
 
   async onChat (player, message) {
+    this.lastPlayer = player
     if (HILFE.test(message)) {
       this.say('Schreib einfach mit mir! Bauen: „bau ein Haus mit Garten“. Ändern: „bau das Dach rot“. Entfernen: „!weg“. Abbrechen: „!stopp“. Lange Nachricht: mit „...“ enden und weiterschreiben.')
       return
@@ -168,18 +170,56 @@ class Bruecke {
     return this.handleMessage(player, message.trim())
   }
 
-  async handleMessage (player, message) {
+  async handleMessage (player, message, { web = false } = {}) {
     if (!message) return
     if (BAU.test(message)) return this.startJob(player, message)
     const mode = settings.load().chat
-    if (mode === 'aus' || (mode === 'claude' && !ANGESPROCHEN.test(message))) return
-    this.chatQueue.push({ player, message })
+    if (!web && (mode === 'aus' || (mode === 'claude' && !ANGESPROCHEN.test(message)))) return
+    this.chatQueue.push({ player, message, web })
     this.addChatLog(player, message)
     // Kurz warten – schnell hintereinander geschriebene Nachrichten beantwortet Claude zusammen.
     clearTimeout(this.chatTimer)
     this.chatTimer = setTimeout(() => {
+      this.chatTimer = null
       if (!this.chatting) this.flushChat().catch(err => this.say('❌ ' + err.message, 'red'))
     }, CHAT_PAUSE_MS)
+  }
+
+  // ---------- Chat über die Webseite (ohne Zeichenlimit) ----------
+
+  // Wer ist gerade im Spiel? Bevorzugt den, der zuletzt geschrieben hat.
+  async findPlayer () {
+    try {
+      const m = await this.query('list', /\]: There (?:are|is) \d+ (?:of a max of|out of maximum) \d+ players? online:(.*)$/)
+      const names = m[1].split(',').map(n => n.trim()).filter(Boolean)
+      if (this.lastPlayer && names.includes(this.lastPlayer)) return this.lastPlayer
+      return names[0] || null
+    } catch {
+      return this.lastPlayer
+    }
+  }
+
+  async webMessage (text) {
+    text = String(text || '').trim().slice(0, 20000)
+    if (!text) return
+    if (HILFE.test(text)) return this.onChat(this.lastPlayer || 'Web', text)
+    if (STOPP.test(text)) return this.stop()
+    if (WEG.test(text)) return this.removeLast()
+    const player = await this.findPlayer()
+    const who = player || 'Web'
+    // Im Spiel mitlesen lassen (lange Texte gekürzt)
+    const preview = text.length > 300 ? text.slice(0, 300) + ' …' : text
+    this.send(`tellraw @a ${JSON.stringify([{ text: `💻 ${who}: `, color: 'gray', bold: true }, { text: preview, color: 'gray' }])}`)
+    if (BAU.test(text)) {
+      this.addChatLog(who, text)
+      if (!player) {
+        const msg = 'Komm erst ins Spiel – dann baue ich es direkt vor dir.'
+        this.addChatLog('Claude', msg)
+        return this.say(msg)
+      }
+      return this.startJob(player, text)
+    }
+    return this.handleMessage(who, text, { web: true })
   }
 
   // ---------- Chat ----------
@@ -197,8 +237,11 @@ class Bruecke {
         const batch = this.chatQueue.splice(0)
         const player = batch[batch.length - 1].player
         const last = this.history[this.history.length - 1]
+        const web = batch.some(m => m.web)
         const prompt = [
-          'Chat im Minecraft-Spiel (antworte kurz, passend für den Minecraft-Chat):',
+          web
+            ? 'Chat im Minecraft-Spiel – diesmal über die Webseite (Zentrale). Du darfst etwas ausführlicher antworten (bis ca. 600 Zeichen):'
+            : 'Chat im Minecraft-Spiel (antworte kurz, passend für den Minecraft-Chat):',
           ...batch.map(m => `<${m.player}> ${m.message}`),
           '',
           `Zustand: ${this.job ? `Du planst gerade „${this.job.message}“.` : 'Du planst gerade nichts.'} ` +
@@ -366,7 +409,7 @@ class Bruecke {
   status () {
     return {
       job: this.job ? { message: this.job.message, player: this.job.player, status: this.job.status, seit: Math.round((Date.now() - this.job.start) / 1000), modell: this.job.modell } : null,
-      chatting: this.chatting,
+      chatting: this.chatting || this.chatQueue.length > 0,
       bauten: this.history.slice().reverse().map(h => ({ id: h.id, name: h.name, bloecke: h.blocks.length })),
       chat: this.chatState.verlauf.slice(-30)
     }

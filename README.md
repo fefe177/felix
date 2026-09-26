@@ -39,6 +39,8 @@ Gut zu wissen:
 ## Die Baumeister-Zentrale
 
 Wenn der Server startet, öffnet sich im Browser **http://localhost:3008**. Dort kannst du:
+- mit Claude **chatten – ohne Zeichenlimit**. Claude antwortet dort und im Spiel. Mit „bau …“ startest
+  du auch dort einen Bau. Er wird vor dir im Spiel gebaut.
 - **Einstellungen** ändern: welches KI-Modell baut und chattet (Haiku, Sonnet, Opus), wie gründlich
   Claude nachdenkt, wie viele Vorschau-Runden erlaubt sind und ob Claude auf alle Chat-Nachrichten
   antwortet oder nur, wenn „Claude“ darin vorkommt.

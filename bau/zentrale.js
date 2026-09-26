@@ -9,7 +9,7 @@ const DIR = path.join(__dirname, 'auftraege')
 
 function startZentrale (bruecke, port = Number(process.env.ZENTRALE_PORT) || 3008) {
   const app = express()
-  app.use(express.json())
+  app.use(express.json({ limit: '200kb' }))
   app.use('/', express.static(path.join(__dirname, 'zentrale')))
 
   app.get('/api/zustand', (req, res) => {
@@ -21,6 +21,12 @@ function startZentrale (bruecke, port = Number(process.env.ZENTRALE_PORT) || 300
     })
   })
   app.post('/api/einstellungen', (req, res) => res.json(settings.save(req.body)))
+  app.post('/api/nachricht', (req, res) => {
+    const text = String((req.body && req.body.text) || '').trim()
+    if (!text) return res.status(400).json({ ok: false })
+    bruecke.webMessage(text).catch(err => console.error('Zentrale-Nachricht:', err.message))
+    res.json({ ok: true })
+  })
   app.post('/api/stopp', (req, res) => { bruecke.stop(); res.json({ ok: true }) })
   app.post('/api/weg', async (req, res) => { await bruecke.removeLast(); res.json({ ok: true }) })
   // Vorschau-Bilder der Aufträge
