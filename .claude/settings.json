@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": ["minecraft"],
+  "permissions": {
+    "allow": ["mcp__minecraft"]
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "claude-spielt-minecraft",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Claude spielt Minecraft selbst: Augen (Screenshots), Hände und Füße (einzelne Aktionen), kein Autopilot.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "server": "node server/start.js",
+    "bot": "node bot/index.js",
+    "augen": "playwright-core install chromium"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.1",
+    "express": "^4.22.3",
+    "mineflayer": "^4.39.0",
+    "playwright-core": "^1.63.0",
+    "prismarine-item": "^1.18.0",
+    "prismarine-viewer": "^1.33.0",
+    "socket.io": "^4.8.4",
+    "vec3": "^0.1.10",
+    "zod": "^4.6.5"
+  }
+}

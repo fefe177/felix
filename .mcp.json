@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "minecraft": {
+      "command": "node",
+      "args": ["bot/index.js"]
+    }
+  }
+}
